@@ -53,6 +53,13 @@ class PathManager:
             
         Returns:
             tuple: (snapshot_dir, snapshot_filename)
+            
+        Path format:
+            루트 파일: /snapshots/:class_div/:hw_name/:student_id/:filename/{timestamp}.ext
+            서브디렉토리 파일: /snapshots/:class_div/:hw_name/:student_id/:folder1@folder2@...@filename/{timestamp}.ext
+            
+            예1: /snapshots/os-3/hw1/202012180/test.c/20250217_095542.c  (루트 파일)
+            예2: /snapshots/os-3/hw1/202012180/folder1@folder2@test.c/20250217_095542.c  (서브디렉토리 파일)
         """
         rel_path = os.path.relpath(file_path, Config.BASE_PATH)
         path_parts = rel_path.split(os.sep)
@@ -61,24 +68,36 @@ class PathManager:
         user_dir = path_parts[0]
         class_div, student_id = PathManager.parse_user_info(user_dir)
         
-        # 과제 이름 추출
+        # 과제 이름과 상대 경로 추출
         workspace_index = path_parts.index('workspace')
         hw_name = path_parts[workspace_index + 1]
         
         # 파일 정보
         filename = os.path.basename(file_path)
         base_name, ext = os.path.splitext(filename)
+        
+        # 타임스탬프 생성
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         
-        # 경로 구성
+        # 스냅샷 디렉토리 경로 생성
+        is_in_subdirectory = len(path_parts) > workspace_index + 3
+        if is_in_subdirectory:
+            # hw1 이후부터 파일명 이전까지의 모든 폴더를 @로 연결
+            folders = path_parts[workspace_index + 2:-1]
+            snapshot_subpath = '@'.join(folders + [filename])
+        else:
+            snapshot_subpath = filename
+            
         snapshot_dir = os.path.join(
             Config.SNAPSHOT_PATH,
-            class_div,
-            student_id,
-            hw_name,
-            filename
+            class_div,        # 예: os-3
+            hw_name,          # 예: hw1
+            student_id,       # 예: 202012180
+            snapshot_subpath  # 예: folder1@folder2@test.c 또는 test.c
         )
-        snapshot_filename = f"{base_name}_{timestamp}{ext}"
+        
+        # 스냅샷 파일명: timestamp.ext
+        snapshot_filename = f"{timestamp}{ext}"
         
         return snapshot_dir, snapshot_filename
 
