@@ -1,38 +1,148 @@
 import os
 import time
+import glob
+import shutil
+import sys
+from datetime import datetime
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
-import shutil
-from datetime import datetime
-import sys
-import glob
 
-# 기본 디렉토리 설정
-BASE_PATH = "/home/ubuntu/jcode"  # 기본 경로 + {username}/config/workspace 
-BASE_SNAPSHOT_DIRECTORY = "snapshots"  # 스냅샷 저장 기본 경로
+class Config:
+    """설정 관련 상수 정의"""
+    BASE_PATH = '/watcher/codes'
+    SNAPSHOT_PATH = '/watcher/snapshots'
+    WATCH_PATTERN = "*/config/workspace"
+    HOMEWORK_PATTERN = "hw*"
+    SUPPORTED_EXTENSIONS = ('.c', '.cpp', '.py', '.java', '.js')
 
-# 감시할 디렉토리와 스냅샷 저장 디렉토리 확인 및 생성
-def check_directories():
-    # 모든 사용자의 config 디렉토리 찾기
-    watch_dirs = glob.glob(os.path.join(BASE_PATH, "*/config/workspace"))
+class PathManager:
+    """경로 관리 및 처리를 담당하는 클래스"""
+    @staticmethod
+    def get_watch_directories():
+        """감시할 과제 디렉토리 목록을 반환"""
+        watch_dirs = []
+        base_dirs = glob.glob(os.path.join(Config.BASE_PATH, Config.WATCH_PATTERN))
+        
+        for workspace in base_dirs:
+            hw_dirs = glob.glob(os.path.join(workspace, Config.HOMEWORK_PATTERN))
+            watch_dirs.extend(hw_dirs)
+        
+        return watch_dirs
+
+    @staticmethod
+    def parse_user_info(user_dir):
+        """사용자 디렉토리에서 class-div와 student_id 추출
+        
+        Args:
+            user_dir (str): 예) 'os-3-202012180'
+            
+        Returns:
+            tuple: (class_div, student_id) 예) ('os-3', '202012180')
+        """
+        last_hyphen_index = user_dir.rindex('-')
+        class_div = user_dir[:last_hyphen_index]
+        student_id = user_dir[last_hyphen_index + 1:]
+        return class_div, student_id
+
+    @staticmethod
+    def create_snapshot_path(file_path):
+        """스냅샷 저장 경로 생성
+        
+        Args:
+            file_path (str): 원본 파일 경로
+            
+        Returns:
+            tuple: (snapshot_dir, snapshot_filename)
+        """
+        rel_path = os.path.relpath(file_path, Config.BASE_PATH)
+        path_parts = rel_path.split(os.sep)
+        
+        # 사용자 정보 추출
+        user_dir = path_parts[0]
+        class_div, student_id = PathManager.parse_user_info(user_dir)
+        
+        # 과제 이름 추출
+        workspace_index = path_parts.index('workspace')
+        hw_name = path_parts[workspace_index + 1]
+        
+        # 파일 정보
+        filename = os.path.basename(file_path)
+        base_name, ext = os.path.splitext(filename)
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        
+        # 경로 구성
+        snapshot_dir = os.path.join(
+            Config.SNAPSHOT_PATH,
+            class_div,
+            student_id,
+            hw_name,
+            filename
+        )
+        snapshot_filename = f"{base_name}_{timestamp}{ext}"
+        
+        return snapshot_dir, snapshot_filename
+
+class CodeChangeHandler(FileSystemEventHandler):
+    """파일 변경 감지 및 스냅샷 생성 핸들러"""
+    def __init__(self):
+        self.last_snapshot = {}
+        self.debounce_time = 1.0
+
+    def on_modified(self, event):
+        if event.is_directory:
+            return
+        
+        if event.src_path.endswith(Config.SUPPORTED_EXTENSIONS):
+            current_time = time.time()
+            last_time = self.last_snapshot.get(event.src_path, 0)
+            
+            if current_time - last_time > self.debounce_time:
+                self._take_snapshot(event.src_path)
+                self.last_snapshot[event.src_path] = current_time
+    
+    def on_created(self, event):
+        if event.is_directory:
+            return
+            
+        if event.src_path.endswith(Config.SUPPORTED_EXTENSIONS):
+            current_time = time.time()
+            self._take_snapshot(event.src_path)
+            self.last_snapshot[event.src_path] = current_time
+
+    def _take_snapshot(self, file_path):
+        """파일 스냅샷 생성"""
+        try:
+            snapshot_dir, snapshot_filename = PathManager.create_snapshot_path(file_path)
+            os.makedirs(snapshot_dir, exist_ok=True)
+            
+            snapshot_path = os.path.join(snapshot_dir, snapshot_filename)
+            shutil.copy2(file_path, snapshot_path)
+            
+            # 상대 경로로 로그 출력
+            rel_snapshot_path = os.path.relpath(snapshot_path, Config.SNAPSHOT_PATH)
+            print(f"스냅샷 생성됨: {rel_snapshot_path}")
+            
+        except Exception as e:
+            print(f"스냅샷 생성 중 오류 발생 - 파일: {file_path}, 오류: {e}")
+
+def initialize_directories():
+    """필요한 디렉토리 초기화 및 검증"""
+    watch_dirs = PathManager.get_watch_directories()
     
     if not watch_dirs:
         print(f"오류: 감시할 디렉토리가 존재하지 않습니다.")
-        print(f"'{BASE_PATH}/[사용자]/config/workspace' 경로가 하나 이상 존재해야 합니다.")
+        print(f"'{Config.BASE_PATH}/[사용자]/config/workspace/hw*' 경로가 하나 이상 존재해야 합니다.")
         sys.exit(1)
     
-    if not os.path.exists(BASE_SNAPSHOT_DIRECTORY):
-        print(f"스냅샷 저장 경로 '{BASE_SNAPSHOT_DIRECTORY}'가 존재하지 않습니다. 자동으로 생성합니다.")
-        os.makedirs(BASE_SNAPSHOT_DIRECTORY, exist_ok=True)
-    
+    os.makedirs(Config.SNAPSHOT_PATH, exist_ok=True)
     return watch_dirs
 
 def start_watching():
-    watch_dirs = check_directories()  # 감시할 디렉토리 목록 가져오기
+    """파일 감시 시작"""
+    watch_dirs = initialize_directories()
     event_handler = CodeChangeHandler()
     observer = Observer()
     
-    # 각 사용자의 workspace 디렉토리에 대해 감시 설정
     for watch_dir in watch_dirs:
         observer.schedule(event_handler, watch_dir, recursive=True)
         print(f"디렉토리 감시 추가: {watch_dir}")
@@ -48,58 +158,6 @@ def start_watching():
         print("\n감시 종료")
     
     observer.join()
-
-class CodeChangeHandler(FileSystemEventHandler):
-    def __init__(self):
-        self.last_snapshot = {}
-        self.debounce_time = 1.0
-
-    def on_modified(self, event):
-        if event.is_directory:
-            return
-        
-        if event.src_path.endswith(('.c', '.cpp', '.py', '.java', '.js')):
-            current_time = time.time()
-            last_time = self.last_snapshot.get(event.src_path, 0)
-            
-            if current_time - last_time > self.debounce_time:
-                self._take_snapshot(event.src_path)
-                self.last_snapshot[event.src_path] = current_time
-    
-    def on_created(self, event):
-        if event.is_directory:
-            return
-            
-        if event.src_path.endswith(('.c', '.cpp', '.py', '.java', '.js')):
-            current_time = time.time()
-            self._take_snapshot(event.src_path)
-            self.last_snapshot[event.src_path] = current_time
-
-    def _take_snapshot(self, file_path):
-        # 경로에서 사용자 디렉토리 추출
-        path_parts = file_path.split(os.sep)
-        user_index = path_parts.index('jcode') + 1
-        user_dir = path_parts[user_index]
-        
-        # 파일 정보 추출
-        filename = os.path.basename(file_path)
-        base_name, ext = os.path.splitext(filename)
-        
-        # 스냅샷 저장 구조:
-        # snapshots/user2/hello.c/hello_20250122_202743.c
-        snapshot_dir = os.path.join(BASE_SNAPSHOT_DIRECTORY, user_dir, filename)
-        os.makedirs(snapshot_dir, exist_ok=True)
-        
-        # 타임스탬프와 스냅샷 파일명 생성
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        snapshot_filename = f"{base_name}_{timestamp}{ext}"
-        snapshot_path = os.path.join(snapshot_dir, snapshot_filename)
-        
-        try:
-            shutil.copy2(file_path, snapshot_path)
-            print(f"스냅샷 생성됨: {user_dir}/{filename}/{snapshot_filename}")
-        except Exception as e:
-            print(f"스냅샷 생성 중 오류 발생: {e}")
 
 if __name__ == "__main__":
     start_watching()

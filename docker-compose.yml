@@ -1,0 +1,13 @@
+
+services:
+  watcher.code:
+    build: .  # Dockerfile이 현재 디렉토리에 있다고 가정
+    container_name: watcher.code
+    environment:
+      - PYTHONUNBUFFERED=1  # 파이썬 출력 버퍼링 비활성화
+    volumes:
+      # 코드 서버 디렉토리 마운트
+      - /home/ubuntu/jcode:/watcher/codes:ro  # 실제 코드 서버 경로로 수정 필요
+      # 스냅샷 저장소 마운트
+      - ./snapshots:/watcher/snapshots
+      - .:/app

@@ -1,0 +1,18 @@
+    sudo docker run -d \
+        --name ai-1-202012180 \
+        -p 80:8443 \
+        -e PASSWORD="oslab1234" \
+        -e SUDO_PASSWORD='oslab1234' \
+        -e http_proxy=http://10.0.0.175:3000 \
+        -e https_proxy=http://10.0.0.175:3000 \
+        -v /home/ubuntu/jcode/ai-1-202012180/config:/config\
+        jcode ; \
+    sudo docker run -d \
+        --name os-3-202012180 \
+        -p 8080:8443 \
+        -e PASSWORD="oslab1234" \
+        -e SUDO_PASSWORD='oslab1234' \
+        -e http_proxy=http://10.0.0.175:3000 \
+        -e https_proxy=http://10.0.0.175:3000 \
+        -v /home/ubuntu/jcode/os-3-202012180/config:/config\
+        jcode

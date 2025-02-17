@@ -49,31 +49,29 @@ class CodeVisualizer:
 
     def _get_available_fonts(self):
         """코드용 폰트와 한글 폰트를 찾아 반환"""
-        # Windows 기준 폰트 경로
-        font_paths = {
-            'Consolas': 'C:/Windows/Fonts/consola.ttf',
-            'D2Coding': 'C:/Windows/Fonts/D2Coding.ttf',
-            'NanumGothicCoding': 'C:/Windows/Fonts/NanumGothicCoding.ttf',
-            'GulimChe': 'C:/Windows/Fonts/gulimche.ttc',
-            'Courier New': 'C:/Windows/Fonts/cour.ttf'
-        }
-        
-        # 기본 코드 폰트 (Consolas)
-        default_font = font_paths.get('Consolas')
-        if not default_font or not os.path.exists(default_font):
-            default_font = font_paths.get('Courier New')  # 폴백 폰트
-        
+        # 리눅스/윈도우 호환 가능한 폰트 경로 설정
+        if os.name == 'nt':  # Windows
+            font_paths = {
+                'Consolas': 'C:/Windows/Fonts/consola.ttf',
+                'D2Coding': 'C:/Windows/Fonts/D2Coding.ttf',
+                'Courier New': 'C:/Windows/Fonts/cour.ttf'
+            }
+        else:  # Linux (Ubuntu 기준)
+            font_paths = {
+                'DejaVu Sans Mono': '/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf',
+                'D2Coding': '/usr/share/fonts/truetype/d2coding/D2Coding.ttf',
+                'NanumGothicCoding': '/usr/share/fonts/truetype/nanum/NanumGothicCoding.ttf'
+            }
+
+        # 기본 코드 폰트 설정
+        default_fonts = ['DejaVu Sans Mono', 'Consolas', 'Courier New']
+        default_font = next((font_paths[f] for f in default_fonts if f in font_paths and os.path.exists(font_paths[f])), None)
+
         # 한글 폰트 찾기
-        korean_fonts = ['D2Coding', 'NanumGothicCoding', 'GulimChe']
-        korean_font = None
-        for font in korean_fonts:
-            font_path = font_paths.get(font)
-            if font_path and os.path.exists(font_path):
-                korean_font = font_path
-                break
-        
-        # 한글 폰트가 없으면 기본 폰트 사용
-        return default_font, korean_font or default_font
+        korean_fonts = ['D2Coding', 'NanumGothicCoding']
+        korean_font = next((font_paths[f] for f in korean_fonts if f in font_paths and os.path.exists(font_paths[f])), default_font)
+
+        return default_font, korean_font
 
     def _create_code_image(self, code_path, output_path, min_height, max_line_length):
         """코드 파일을 구문 강조된 이미지로 변환"""
@@ -140,19 +138,19 @@ class CodeVisualizer:
 
     def create_animation(self, user_id, file_name):
         """특정 사용자의 특정 파일에 대한 스냅샷들을 애니메이션으로 변환"""
-        # 스냅샷 디렉토리 경로
-        snapshot_path = Path(self.snapshot_dir) / user_id / file_name
+        # 스냅샷 디렉토리 경로 (사용자ID/파일명.확장자/ 구조)
+        snapshot_dir = Path(self.snapshot_dir) / user_id / file_name
         
-        if not snapshot_path.exists():
-            print(f"스냅샷 경로를 찾을 수 없습니다: {snapshot_path}")
+        if not snapshot_dir.exists():
+            print(f"스냅샷 경로를 찾을 수 없습니다: {snapshot_dir}")
             return
-        
+
         # 임시 이미지 저장 디렉토리
         temp_dir = Path(self.output_dir) / "temp"
         os.makedirs(temp_dir, exist_ok=True)
-        
+
         # 스냅샷 파일 목록 가져오기 및 정렬
-        snapshot_files = [f for f in snapshot_path.glob("*") if f.is_file()]
+        snapshot_files = [f for f in snapshot_dir.glob("*") if f.is_file()]
         sorted_snapshots = self._sort_snapshots(snapshot_files)
         
         if not sorted_snapshots:
@@ -165,7 +163,7 @@ class CodeVisualizer:
         # 각 스냅샷을 이미지로 변환
         temp_images = []
         for snapshot in sorted_snapshots:
-            temp_image = temp_dir / f"temp_{len(temp_images)}.png"
+            temp_image = snapshot.parent / f"{snapshot.stem}.png"
             self._create_code_image(snapshot, temp_image, max_lines, max_line_length)
             temp_images.append(temp_image)
         
@@ -184,7 +182,7 @@ class CodeVisualizer:
                     frames.append(np.array(resized_img))
         
         # GIF 생성
-        output_path = Path(self.output_dir) / f"{user_id}_{file_name}.gif"
+        output_path = snapshot.parent / f"{file_name}.gif"
         imageio.mimsave(output_path, frames, duration=2.0)
         
         print(f"애니메이션 생성 완료: {output_path}")
@@ -195,13 +193,13 @@ if __name__ == "__main__":
     visualizer = CodeVisualizer()
     
     # target 디렉토리의 모든 사용자와 파일에 대해 애니메이션 생성
-    target_dir = Path("target")
+    target_dir = Path("snapshots")
     for user_dir in target_dir.iterdir():
         if user_dir.is_dir():
             user_id = user_dir.name
-            # 재귀적으로 모든 .c 파일 찾기
-            for c_file in user_dir.rglob("*.c"):
-                # 파일 이름만 추출
-                file_name = c_file.name
-                print(f"Processing: {user_id}/{file_name}")
-                visualizer.create_animation(user_id, file_name)
+            # 각 파일 디렉토리 찾기 (확장자가 있는 디렉토리)
+            for file_dir in user_dir.iterdir():
+                if file_dir.is_dir() and '.' in file_dir.name:
+                    file_name = file_dir.name
+                    print(f"Processing: {user_id}/{file_name}")
+                    visualizer.create_animation(user_id, file_name)
