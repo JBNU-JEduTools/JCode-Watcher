@@ -1,70 +1,65 @@
+# inotifywait -m -r -e modify  --format '%w%f %e' --exclude '.*\.swp' "/home/ubuntu/jcode/os-3-202012180/config/workspace" > bench.log
+
+
+
+import os
 import time
-import random
-import sys
+import threading
 
-FILE_PATH = "dummy_code.py"  # 수정을 가할 대상 파일
-INTERVAL = 1                 # 수정 간격(초)
-MAX_ITER = 50                # 최대 수정 횟수 (필요에 따라 조정)
+# 설정값
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+TEST_DIR = os.path.join(CURRENT_DIR, 'bench')  # 현재 경로 아래 bench 폴더 생성
+FILE_COUNT = 500       # 동시에 생성·수정할 파일 개수
+MODIFY_COUNT = 5    # 각 파일이 수정될 횟수
+DELAY_BETWEEN_MODS = 0.1  # 각 수정 사이 지연(초)
 
-# 수정할 때 추가할 임시 줄(주석 등)
-ADDITIONAL_LINES = [
-    "# TODO: This is a dummy comment.\n",
-    "# Random comment generated.\n",
-    "# Another random line.\n",
-    "# Inserting line for inotify test.\n"
-]
+# 스레드 함수: 단일 파일을 여러 번 수정
+def modify_file(file_index):
+    file_path = os.path.join(TEST_DIR, f'stress_test_{file_index}.c')
 
-def modify_code():
-    """
-    1) 기존 코드를 불러옴
-    2) 랜덤하게 몇 줄을 추가하거나 삭제
-    3) 덮어쓰기(저장)
-    4) 수정 시각 출력
-    """
-    try:
-        # 1) 기존 파일 읽기
-        with open(FILE_PATH, 'r', encoding='utf-8') as f:
-            lines = f.readlines()
-    except FileNotFoundError:
-        print(f"파일 {FILE_PATH}이(가) 존재하지 않습니다.")
-        sys.exit(1)
+    # 초기에 파일을 생성
+    with open(file_path, 'w') as f:
+        f.write(f"Initial content for file {file_index}\n")
 
-    # 2) 무작위로 한두 줄 수정(추가 or 삭제)
-    action = random.choice(["add", "delete"])
+    # 여러 번 수정
+    for i in range(MODIFY_COUNT):
+        with open(file_path, 'a') as f:
+            f.write(f"Modification round {i}\n")
+        time.sleep(DELAY_BETWEEN_MODS)
+
+# 메인 함수
+if __name__ == '__main__':
+    # 벤치마크 시작 시간
+    start_time = time.time()
+
+    # 테스트 디렉토리 생성
+    if not os.path.exists(TEST_DIR):
+        os.makedirs(TEST_DIR)
+
+    # 기존 파일 제거(재실행 시 깨끗한 환경으로 시작하도록)
+    for filename in os.listdir(TEST_DIR):
+        if filename.startswith('stress_test_'):
+            os.remove(os.path.join(TEST_DIR, filename))
+
+    # 스레드 목록
+    threads = []
+
+    # 여러 파일에 대해 수정 스레드 시작
+    for idx in range(FILE_COUNT):
+        t = threading.Thread(target=modify_file, args=(idx,))
+        t.start()
+        threads.append(t)
+
+    # 모든 스레드가 작업을 마칠 때까지 대기
+    for t in threads:
+        t.join()
+
+    # 벤치마크 종료
+    end_time = time.time()
     
-    if action == "add":
-        # 랜덤 위치에 새 라인을 삽입
-        new_line = random.choice(ADDITIONAL_LINES)
-        insert_idx = random.randint(0, len(lines))
-        lines.insert(insert_idx, new_line)
-        print(f"[{time.strftime('%H:%M:%S')}] Added a line at {insert_idx}")
-    else:
-        # 삭제 가능한 경우에만 삭제
-        if len(lines) > 0:
-            delete_idx = random.randint(0, len(lines) - 1)
-            removed = lines.pop(delete_idx)
-            print(f"[{time.strftime('%H:%M:%S')}] Deleted line {delete_idx}: {removed.strip()}")
-        else:
-            print(f"[{time.strftime('%H:%M:%S')}] No lines to delete; skip delete.")
-
-    # 3) 변경 내용을 다시 파일에 저장
-    with open(FILE_PATH, 'w', encoding='utf-8') as f:
-        f.writelines(lines)
-
-def main():
-    print(f"=== Auto Modifier Start ===")
-    print(f"타겟 파일: {FILE_PATH}")
-    print(f"수정 간격: {INTERVAL}초, 최대 반복: {MAX_ITER}회\n")
-    
-    for i in range(MAX_ITER):
-        modify_code()
-        # 4) 타임스탬프 로그 출력
-        print(f" => {i+1}번째 수정 완료 (총 {MAX_ITER}회 중)")
-        
-        # 5) 1초 대기
-        time.sleep(INTERVAL)
-
-    print("\n=== 모든 수정 작업이 완료되었습니다. ===")
-
-if __name__ == "__main__":
-    main()
+    # 결과 출력
+    print("================ Stress Test Complete ================")
+    print(f"총 파일 개수: {FILE_COUNT}")
+    print(f"각 파일당 수정 횟수: {MODIFY_COUNT}")
+    print(f"최종 총 수정 이벤트 수: {FILE_COUNT * MODIFY_COUNT}")
+    print(f"실행 시간: {end_time - start_time:.2f}초")
