@@ -1,6 +1,7 @@
 """파일 감시 관련 구현"""
 from pathlib import Path
 from ..utils.logger import get_logger
+from ..exceptions import FileWatcherError, WatcherConfigError
 
 class FileWatcher:
     """파일 감시 클래스"""
@@ -17,13 +18,20 @@ class FileWatcher:
         
         # 기본 경로 존재 여부 확인
         if not self.base_path.exists():
-            self.logger.error(f"기본 경로가 존재하지 않습니다: {self.base_path}")
+            raise WatcherConfigError(f"기본 경로가 존재하지 않습니다: {self.base_path}")
         elif not self.base_path.is_dir():
-            self.logger.error(f"기본 경로가 디렉토리가 아닙니다: {self.base_path}")
+            raise WatcherConfigError(f"기본 경로가 디렉토리가 아닙니다: {self.base_path}")
         
     def find_watch_directories(self) -> list[Path]:
-        """감시할 디렉토리 목록 반환"""
-        watch_dirs = []
+        """감시할 디렉토리 목록 반환
+        
+        Returns:
+            list[Path]: 감시할 디렉토리 목록. 빈 리스트는 감시할 디렉토리가 없음을 의미
+            
+        Raises:
+            FileWatcherError: 디렉토리 검색 중 오류 발생 시
+            WatcherConfigError: 설정이 올바르지 않은 경우
+        """
         self.logger.debug(f"감시 디렉토리 검색 시작: {self.base_path}")
         
         try:
@@ -36,8 +44,9 @@ class FileWatcher:
             student_dirs = list(self.base_path.glob(self.watch_pattern))
             if not student_dirs:
                 self.logger.warning(f"'{self.watch_pattern}' 패턴과 일치하는 디렉토리를 찾을 수 없습니다")
-                return []
+                return []  # 정상적인 "없음" 상황
                 
+            watch_dirs = []
             for student_dir in student_dirs:
                 if not student_dir.is_dir():
                     self.logger.debug(f"디렉토리 아님, 건너뜀: {student_dir}")
@@ -48,8 +57,7 @@ class FileWatcher:
                 # workspace 디렉토리 경로
                 workspace_dir = student_dir / "config" / "workspace"
                 if not workspace_dir.exists() or not workspace_dir.is_dir():
-                    self.logger.debug(f"workspace 디렉토리 없음: {workspace_dir}")
-                    continue
+                    raise WatcherConfigError(f"workspace 디렉토리가 없거나 올바르지 않음: {workspace_dir}")
                     
                 self.logger.debug(f"workspace 디렉토리 발견: {workspace_dir}")
                 
@@ -75,6 +83,7 @@ class FileWatcher:
                 
             return watch_dirs
             
+        except WatcherConfigError:
+            raise
         except Exception as e:
-            self.logger.error(f"디렉토리 검색 중 오류 발생: {e}")
-            return [] 
+            raise FileWatcherError(f"디렉토리 검색 중 오류 발생: {e}") from e 

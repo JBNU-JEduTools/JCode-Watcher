@@ -6,7 +6,7 @@ class Config:
     """전역 설정 클래스"""
     
     # 로깅 설정
-    LOG_LEVEL = os.getenv("WATCHER_LOG_LEVEL", "INFO").upper()
+    LOG_LEVEL = os.getenv("WATCHER_LOG_LEVEL", "DEBUG").upper()
     LOG_LEVELS = {
         "DEBUG": logging.DEBUG,
         "INFO": logging.INFO,
