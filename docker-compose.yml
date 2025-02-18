@@ -1,5 +1,3 @@
-
-
 services:
   watcher:
     build: 
@@ -11,3 +9,7 @@ services:
       # 스냅샷 저장소 마운트
       - ./snapshots:/watcher/snapshots
       - ./src/:/app/src/
+    environment:
+      - WATCHER_LOG_LEVEL=DEBUG
+      # API 서버 설정
+      - WATCHER_API_URL=http://api:5000

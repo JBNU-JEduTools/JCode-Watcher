@@ -3,55 +3,44 @@ import asyncio
 from typing import Tuple
 from ..config.settings import Config
 from ..utils.logger import get_logger
-from .exceptions import QueueError
 
 class EventQueue:
-    """이벤트 큐 관리 클래스"""
+    """파일 시스템 이벤트를 비동기적으로 처리하기 위한 간단한 큐"""
     
-    def __init__(self, loop: asyncio.AbstractEventLoop):
+    def __init__(self, loop: asyncio.AbstractEventLoop = None):
+        """
+        Args:
+            loop: 사용할 이벤트 루프 (기본값: 현재 실행 중인 루프)
+        """
         self.queue = asyncio.Queue(maxsize=Config.QUEUE_SIZE)
-        self.loop = loop
         self.logger = get_logger(self.__class__.__name__)
+        self.loop = loop or asyncio.get_event_loop()
         
     def put_event_threadsafe(self, event_type: str, file_path: str) -> None:
-        """외부 스레드에서 이벤트를 큐에 추가"""
+        """외부 스레드에서 이벤트를 큐에 추가
+        
+        Args:
+            event_type: 이벤트 타입 (예: "modified")
+            file_path: 이벤트가 발생한 파일 경로
+            
+        Raises:
+            QueueError: 큐에 이벤트를 추가하지 못한 경우
+        """
         try:
-            future = asyncio.run_coroutine_threadsafe(
-                self.put_event(event_type, file_path),
+            asyncio.run_coroutine_threadsafe(
+                self.queue.put((event_type, file_path)),
                 self.loop
             )
-            future.result()
         except Exception as e:
-            raise QueueError(f"이벤트 큐 추가 실패 (스레드): {e}") from e
-            
-    async def put_event(self, event_type: str, file_path: str) -> None:
-        """비동기 컨텍스트에서 이벤트를 큐에 추가"""
-        try:
-            await self.queue.put((event_type, file_path))
-            self.logger.debug(f"이벤트 큐에 추가됨: {event_type} - {file_path}")
-        except asyncio.QueueFull as e:
-            raise QueueError("이벤트 큐가 가득 찼습니다") from e
-        except Exception as e:
-            raise QueueError(f"이벤트 큐 추가 실패: {e}") from e
+            self.logger.error(f"이벤트 추가 실패: {e}")
+            raise
             
     async def get_event(self) -> Tuple[str, str]:
-        """이벤트를 큐에서 가져옴"""
-        try:
-            event = await self.queue.get()
-            self.queue.task_done()
-            self.logger.debug(f"이벤트 큐에서 가져옴: {event}")
-            return event
-        except Exception as e:
-            raise QueueError(f"이벤트 큐에서 가져오기 실패: {e}") from e
+        """이벤트를 큐에서 가져오기"""
+        event = await self.queue.get()
+        self.queue.task_done()
+        return event
             
     async def drain(self) -> None:
-        """큐의 모든 작업이 완료될 때까지 대기"""
-        try:
-            await asyncio.wait_for(
-                self.queue.join(),
-                timeout=5.0
-            )
-        except asyncio.TimeoutError as e:
-            raise QueueError("큐 드레인 시간 초과") from e
-        except Exception as e:
-            raise QueueError(f"큐 드레인 실패: {e}") from e 
+        """큐 드레인"""
+        await self.queue.join() 

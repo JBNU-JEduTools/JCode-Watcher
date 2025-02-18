@@ -6,7 +6,7 @@ class Config:
     """전역 설정 클래스"""
     
     # 로깅 설정
-    LOG_LEVEL = os.getenv("WATCHER_LOG_LEVEL", "DEBUG").upper()
+    LOG_LEVEL = os.getenv("WATCHER_LOG_LEVEL", "INFO").upper()
     LOG_LEVELS = {
         "DEBUG": logging.DEBUG,
         "INFO": logging.INFO,
@@ -15,6 +15,17 @@ class Config:
         "CRITICAL": logging.CRITICAL
     }
     LOG_LEVEL_VALUE = LOG_LEVELS.get(LOG_LEVEL, logging.INFO)
+    
+    # 외부 라이브러리 로깅 레벨
+    LIBRARY_LOG_LEVELS = {
+        "watchdog": logging.WARNING,
+        "asyncio": logging.WARNING,
+        "aiohttp": logging.WARNING
+    }
+    
+    # API 서버 설정
+    API_URL = os.getenv("WATCHER_API_URL", "http://localhost:5000")
+    API_TIMEOUT = float(os.getenv("WATCHER_API_TIMEOUT", "5.0"))
     
     # 기본 경로 설정
     BASE_PATH = os.getenv("WATCHER_BASE_PATH", "/watcher/codes")

@@ -1,52 +1,60 @@
-"""Watcher 애플리케이션의 예외 클래스들"""
+"""예외 정의
+
+애플리케이션에서 사용되는 예외 클래스들을 정의합니다.
+"""
 
 class WatcherError(Exception):
-    """Watcher 애플리케이션의 기본 예외 클래스"""
-    pass
-
-class StorageError(WatcherError):
-    """스토리지 관련 예외
+    """기본 예외 클래스
     
-    파일 저장, 읽기, 삭제 등 스토리지 작업 중 발생하는 모든 예외
+    모든 워처 관련 예외의 기본 클래스입니다.
     """
-    pass
-
-class MetadataError(WatcherError):
-    """메타데이터 관련 예외
     
-    메타데이터 생성, 검증, 처리 중 발생하는 예외
+    def __init__(self, message: str, cause: Exception = None):
+        """
+        Args:
+            message: 예외 메시지
+            cause: 원인이 된 예외 (선택사항)
+        """
+        super().__init__(message)
+        self.cause = cause
+        
+    def __str__(self) -> str:
+        if self.cause:
+            return f"{super().__str__()} (원인: {self.cause})"
+        return super().__str__()
+
+class ConfigurationError(WatcherError):
+    """설정 관련 예외
+    
+    설정값이 유효하지 않거나 필수 설정이 누락된 경우 발생
     """
-    pass
+
+class QueueError(WatcherError):
+    """큐 관련 예외
+    
+    이벤트 큐 작업 중 오류가 발생한 경우
+    """
+
+class QueueFullError(QueueError):
+    """큐 포화 예외
+    
+    이벤트 큐가 가득 찬 경우 발생
+    """
+
+class SnapshotError(WatcherError):
+    """스냅샷 관련 예외
+    
+    스냅샷 생성이나 관리 중 오류가 발생한 경우
+    """
 
 class ApiError(WatcherError):
     """API 통신 관련 예외
     
-    외부 API 통신 중 발생하는 예외 (타임아웃, 연결 실패 등)
+    API 서버와의 통신 중 오류가 발생한 경우
     """
-    pass
 
-class WatcherConfigError(WatcherError):
-    """감시자 설정 및 초기화 관련 예외
+class FileNotFoundInWorkspaceError(WatcherError):
+    """작업 공간 파일 누락 예외
     
-    설정 파일 처리, 디렉토리 구조 검증, 감시자 초기화 등 과정에서 발생하는 예외
-    """
-    pass
-
-class QueueError(WatcherError):
-    """이벤트 큐 처리 관련 예외
-    
-    이벤트 큐 작업(추가, 제거, 대기 등) 중 발생하는 예외
-    """
-    pass
-
-class ConfigError(WatcherError):
-    """설정 관련 예외"""
-    pass
-
-class FileError(WatcherError):
-    """파일 처리 관련 예외"""
-    pass
-
-class WatcherSetupError(WatcherError):
-    """감시자 초기화 및 설정 관련 예외"""
-    pass 
+    필요한 파일이나 디렉토리를 찾을 수 없는 경우 발생
+    """ 
