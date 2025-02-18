@@ -7,15 +7,15 @@ from watchdog.observers import Observer
 
 from .config.settings import Config
 from .utils.file_filter import FileFilter
-from .services.metadata_service import ApiMetadataService
-from .services.snapshot_service import SnapshotManager
-from .storage.filesystem import FileSystemSnapshotStorage
+from .utils.path_parser import PathParser
+from .api.client import SnapshotApiClient
+from .snapshot.repository import SnapshotRepository
 from .utils.event_queue import EventQueue
 from .utils.file_comparator import FileComparator
 from .utils.logger import get_logger
-from .watchers.event_handler import FileChangeHandler
-from .watchers.file_watcher import FileWatcher
-from .exceptions import (
+from .tracking.observer import ChangeObserver
+from .tracking.detector import ChangeDetector
+from .utils.exceptions import (
     WatcherError, ApiError, MetadataError, 
     StorageError, QueueError, WatcherSetupError
 )
@@ -69,16 +69,16 @@ class Application:
         try:
             # 컴포넌트 초기화
             self.event_queue = EventQueue(self.loop)
-            self.storage = FileSystemSnapshotStorage(Path(Config.SNAPSHOT_PATH))
+            self.storage = SnapshotRepository(Path(Config.SNAPSHOT_PATH))
             self.comparator = FileComparator()
-            self.metadata_service = ApiMetadataService()
-            self.snapshot_manager = SnapshotManager(self.storage, self.comparator, self.metadata_service)
+            self.api_client = SnapshotApiClient()
             self.file_filter = FileFilter()
+            self.path_parser = PathParser()
             
             # 파일 감시 설정
-            self.handler = FileChangeHandler(self.event_queue, self.file_filter)
+            self.handler = ChangeObserver(self.event_queue, self.file_filter)
             self.observer = Observer()
-            self.file_watcher = FileWatcher(
+            self.detector = ChangeDetector(
                 Path(Config.BASE_PATH),
                 Config.WATCH_PATTERN,
                 Config.HOMEWORK_PATTERN
@@ -99,7 +99,7 @@ class Application:
         
         try:
             # 감시 디렉토리 설정
-            watch_dirs = self.file_watcher.find_watch_directories()
+            watch_dirs = self.detector.find_target_directories()
             if not watch_dirs:
                 raise WatcherSetupError("감시할 디렉토리가 없습니다. 설정을 확인하세요.")
                 
@@ -124,7 +124,7 @@ class Application:
             while True:
                 try:
                     _, file_path = await self.event_queue.get_event()
-                    await self.snapshot_manager.save_snapshot(file_path)
+                    await self.storage.save(Path(file_path), self.path_parser.parse_path(file_path))
                 except asyncio.CancelledError:
                     break
                 except (ApiError, MetadataError, StorageError, QueueError) as e:

@@ -3,7 +3,7 @@ import asyncio
 from typing import Tuple
 from ..config.settings import Config
 from ..utils.logger import get_logger
-from ..exceptions import QueueError
+from .exceptions import QueueError
 
 class EventQueue:
     """이벤트 큐 관리 클래스"""

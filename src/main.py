@@ -5,7 +5,7 @@ watchdog과 asyncio를 사용하여 특정 디렉토리의 파일 변경을 감�
 import asyncio
 from .app import Application
 from .utils.logger import setup_logger, get_logger
-from .exceptions import (
+from .utils.exceptions import (
     WatcherError, ApiError, MetadataError, 
     StorageError, QueueError
 )
