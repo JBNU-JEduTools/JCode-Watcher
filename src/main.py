@@ -14,15 +14,12 @@ from .services.snapshot_service import SnapshotManager
 from .storage.filesystem import FileSystemSnapshotStorage
 from .utils.event_queue import EventQueue
 from .utils.file_comparator import FileComparator
+from .utils.logger import setup_logger
 from .watchers.event_handler import FileChangeHandler
 from .watchers.file_watcher import FileWatcher
 
 # 로깅 설정
-logging.basicConfig(
-    level=logging.DEBUG,  # 디버그 레벨로 변경
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
-)
+setup_logger()
 
 async def main():
     """메인 함수"""
@@ -55,11 +52,11 @@ async def main():
         logging.error("감시할 디렉토리가 없습니다. 설정을 확인하세요.")
         return
         
+    # 감시 시작
     for watch_dir in watch_dirs:
         observer.schedule(handler, str(watch_dir), recursive=True)
-        logging.info(f"감시 시작: {watch_dir}")
+        logging.debug(f"감시자 등록: {watch_dir}")
     
-    # 옵저버 시작
     observer.start()
     logging.info("=== 파일 시스템 감시 시작 ===")
     

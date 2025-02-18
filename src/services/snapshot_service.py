@@ -1,5 +1,4 @@
 """스냅샷 관리 서비스 구현"""
-import logging
 from datetime import datetime
 from pathlib import Path
 from ..models.metadata import SnapshotMetadata
@@ -7,6 +6,7 @@ from ..services.metadata_service import MetadataService
 from ..storage.protocols import SnapshotStorage
 from ..utils.file_comparator import FileComparator
 from ..utils.path_parser import PathParser
+from ..utils.logger import get_logger
 
 class SnapshotManager:
     """스냅샷 관리 클래스"""
@@ -16,6 +16,8 @@ class SnapshotManager:
         self.comparator = comparator
         self.path_parser = PathParser()
         self.metadata_service = metadata_service
+        self.logger = get_logger(self.__class__.__name__)
+        self.logger.debug("스냅샷 관리자 초기화됨")
         
     async def save_snapshot(self, file_path: str) -> None:
         """파일 스냅샷 저장"""
@@ -28,10 +30,10 @@ class SnapshotManager:
             if latest_snapshot:
                 try:
                     if not self.comparator.is_different(source_path, latest_snapshot):
-                        logging.info(f"변경사항 없음, 스냅샷 저장 건너뜀: {source_path}")
+                        self.logger.info(f"변경사항 없음, 스냅샷 저장 건너뜀: {source_path}")
                         return
                 except Exception as e:
-                    logging.warning(f"파일 비교 중 오류 발생, 스냅샷 계속 진행: {e}")
+                    self.logger.warning(f"파일 비교 중 오류 발생, 스냅샷 계속 진행: {e}")
             
             # 스냅샷 저장
             snapshot_path = self.storage.save(source_path, snapshot_info)
@@ -49,9 +51,8 @@ class SnapshotManager:
                     "file_size": source_path.stat().st_size
                 }
                 
-                # 메타데이터 등록
-                if not await self.metadata_service.register_snapshot(metadata):
-                    logging.warning(f"메타데이터 등록 실패, 스냅샷은 저장됨: {snapshot_path}")
+                # 메타데이터 등록 (실패는 하위 컴포넌트에서 처리)
+                await self.metadata_service.register_snapshot(metadata)
             
         except Exception as e:
-            logging.error(f"스냅샷 저장 중 오류 발생: {e}") 
+            self.logger.error(f"스냅샷 저장 중 오류 발생: {e}") 

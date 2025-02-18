@@ -1,15 +1,17 @@
 """파일시스템 기반 스냅샷 저장소 구현"""
-import logging
 import shutil
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
+from ..utils.logger import get_logger
 
 class FileSystemSnapshotStorage:
     """파일 시스템 기반 스냅샷 저장소"""
     
     def __init__(self, base_path: Path):
         self.base_path = base_path
+        self.logger = get_logger(self.__class__.__name__)
+        self.logger.debug(f"스냅샷 저장소 초기화: {base_path}")
         
     def _get_snapshot_dir(self, snapshot_info: tuple[str, str, str, str, str]) -> Path:
         """스냅샷 디렉토리 경로 생성
@@ -27,7 +29,7 @@ class FileSystemSnapshotStorage:
         snapshot_dir = self.base_path / class_div / hw_dir / student_id / flattened_filename
         snapshot_dir.mkdir(parents=True, exist_ok=True)
         
-        logging.debug(f"스냅샷 디렉토리 생성: {snapshot_dir}")
+        self.logger.debug(f"스냅샷 디렉토리 생성: {snapshot_dir}")
         return snapshot_dir
         
     def save(self, source_path: Path, snapshot_info: tuple[str, str, str, str, str]) -> Optional[Path]:
@@ -46,10 +48,10 @@ class FileSystemSnapshotStorage:
         
         try:
             shutil.copy2(source_path, snapshot_path)
-            logging.info(f"스냅샷 저장 완료: {snapshot_path}")
+            self.logger.info(f"스냅샷 저장 완료: {snapshot_path}")
             return snapshot_path
         except Exception as e:
-            logging.error(f"스냅샷 저장 실패: {e}")
+            self.logger.error(f"스냅샷 저장 실패: {e}")
             return None
             
     def get_latest(self, snapshot_info: tuple[str, str, str, str, str]) -> Optional[Path]:
@@ -58,8 +60,11 @@ class FileSystemSnapshotStorage:
         try:
             snapshots = list(snapshot_dir.glob("*"))
             if not snapshots:
+                self.logger.debug(f"스냅샷이 없음: {snapshot_dir}")
                 return None
-            return max(snapshots, key=lambda x: x.stat().st_mtime)
+            latest = max(snapshots, key=lambda x: x.stat().st_mtime)
+            self.logger.debug(f"최신 스냅샷 조회: {latest}")
+            return latest
         except Exception as e:
-            logging.error(f"최신 스냅샷 조회 실패: {e}")
+            self.logger.error(f"최신 스냅샷 조회 실패: {e}")
             return None 

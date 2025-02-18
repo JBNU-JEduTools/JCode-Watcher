@@ -5,7 +5,6 @@ services:
     build: 
       context: .
       dockerfile: Dockerfile
-    container_name: watcher.code
     volumes:
       # 코드 서버 디렉토리 마운트 (읽기 전용)
       - /home/ubuntu/jcode:/watcher/codes:ro

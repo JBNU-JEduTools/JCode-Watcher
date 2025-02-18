@@ -1,8 +1,20 @@
 """설정 관리 모듈"""
 import os
+import logging
 
 class Config:
     """전역 설정 클래스"""
+    
+    # 로깅 설정
+    LOG_LEVEL = os.getenv("WATCHER_LOG_LEVEL", "INFO").upper()
+    LOG_LEVELS = {
+        "DEBUG": logging.DEBUG,
+        "INFO": logging.INFO,
+        "WARNING": logging.WARNING,
+        "ERROR": logging.ERROR,
+        "CRITICAL": logging.CRITICAL
+    }
+    LOG_LEVEL_VALUE = LOG_LEVELS.get(LOG_LEVEL, logging.INFO)
     
     # 기본 경로 설정
     BASE_PATH = os.getenv("WATCHER_BASE_PATH", "/watcher/codes")
