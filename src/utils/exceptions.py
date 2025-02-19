@@ -57,4 +57,11 @@ class FileNotFoundInWorkspaceError(WatcherError):
     """작업 공간 파일 누락 예외
     
     필요한 파일이나 디렉토리를 찾을 수 없는 경우 발생
+    """
+
+class InvalidHomeworkPathError(WatcherError):
+    """과제 경로 형식 오류
+    
+    과제 파일 경로가 예상된 형식과 일치하지 않는 경우 발생
+    예: 잘못된 과목 코드, 과제 번호 누락, 잘못된 경로 구조 등
     """ 

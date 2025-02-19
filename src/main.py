@@ -15,6 +15,7 @@ from .homework_handler import HomeworkHandler
 from .homework_processor import HomeworkProcessor
 from .utils.event_queue import EventQueue
 from .utils.logger import setup_logger, get_logger
+from .utils.exceptions import WatcherError
 from .config.settings import Config
 
 # 로깅 설정
@@ -65,8 +66,10 @@ async def main() -> None:
             
     except asyncio.CancelledError:
         logger.info("프로그램 종료")
+    except WatcherError:
+        pass
     except Exception as e:
-        logger.error(f"실행 실패: {e}")
+        logger.error(f"예상치 못한 오류 발생: {e}", exc_info=True)
         sys.exit(1)
     finally:
         if observer and observer.is_alive():
