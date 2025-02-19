@@ -64,7 +64,7 @@ class ApiClient:
             snapshot_data: 등록할 스냅샷 데이터
             
         Raises:
-            ApiError: API 통신 실패 시 (세션 미초기화, 연결 실패, 응답 오류 등)
+            ApiError: API 통신 실패 시 (세션 미초기화, 연결 실패, 타임아웃, SSL 오류 등)
         """
         if not self.session:
             raise ApiError("API 세션이 초기화되지 않았습니다")

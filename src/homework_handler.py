@@ -41,7 +41,7 @@ class HomeworkHandler(FileSystemEventHandler):
         
         # 디렉토리 이벤트는 무시
         if event.is_directory:
-            logger.debug(f"Directory event ignored: {file_path}")
+            logger.debug(f"디렉토리 변경 이벤트는 처리하지 않습니다: {file_path}")
             return
             
         # 무시해야 할 파일인지 확인
@@ -54,13 +54,11 @@ class HomeworkHandler(FileSystemEventHandler):
             
             # 이벤트 큐에 추가
             self.event_queue.put_event_threadsafe("modified", homework_info)
-            logger.debug(f"Added event for: {file_path}")
+            logger.debug(f"과제 파일 변경을 감지했습니다: {file_path}")
             
         except InvalidHomeworkPathError as e:
-            # 잘못된 과제 경로는 warning으로 로깅하고 무시
-            logger.warning(f"Invalid homework path: {file_path} - {str(e)}")
+            logger.warning(f"과제 파일 경로가 올바르지 않습니다: {str(e)}")
             
         except Exception as e:
-            # 예상치 못한 에러는 error로 로깅하고 전파
-            logger.error(f"Unexpected error while handling file: {file_path}", exc_info=True)
+            logger.error(f"과제 파일 처리 중 예상치 못한 오류가 발생했습니다: {str(e)}", exc_info=True)
             raise 

@@ -10,7 +10,6 @@ from pathlib import Path
 from typing import NamedTuple, Optional
 
 from .utils.logger import get_logger
-from .utils.exceptions import SnapshotError
 
 class SnapshotInfo(NamedTuple):
     """스냅샷 정보"""
@@ -21,16 +20,9 @@ class SnapshotInfo(NamedTuple):
     original_path: str  # 원본 파일 경로
 
 class SnapshotStorage:
-    """스냅샷 저장소
-    
-    파일의 스냅샷을 생성하고 저장합니다.
-    """
+    """스냅샷 저장소"""
     
     def __init__(self, base_path: Path):
-        """
-        Args:
-            base_path: 스냅샷 저장 기본 경로
-        """
         self.base_path = base_path
         self.logger = get_logger(self.__class__.__name__)
             
@@ -45,23 +37,26 @@ class SnapshotStorage:
             Optional[Path]: 생성된 스냅샷 경로 또는 None (변경사항 없는 경우)
             
         Raises:
-            SnapshotError: 스냅샷 생성 실패 시
+            OSError: 파일 시스템 작업 실패 시
         """
-        try:
-            info = SnapshotInfo(*snapshot_info)
-            source_path = Path(file_path)
+        info = SnapshotInfo(*snapshot_info)
+        source_path = Path(file_path)
+        
+        if not await self._has_file_changed(source_path, info):
+            return None
             
-            if not await self._needs_snapshot(source_path, info):
-                return None
-                
-            return await self._create(source_path, info)
-                
-        except Exception as e:
-            self.logger.error(f"스냅샷 생성 실패: {file_path}", exc_info=True)
-            raise SnapshotError(f"스냅샷 생성 실패: {e}") from e
+        return await self._create(source_path, info)
             
-    async def _needs_snapshot(self, source_path: Path, info: SnapshotInfo) -> bool:
-        """스냅샷 필요 여부 확인"""
+    async def _has_file_changed(self, source_path: Path, info: SnapshotInfo) -> bool:
+        """파일 변경 여부 확인
+        
+        Args:
+            source_path: 검사할 원본 파일 경로
+            info: 스냅샷 정보
+            
+        Returns:
+            bool: 파일이 변경되었으면 True, 아니면 False
+        """
         snapshot_dir = self._get_snapshot_dir(info)
         if not snapshot_dir.exists():
             return True
