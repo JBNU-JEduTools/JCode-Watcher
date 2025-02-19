@@ -8,7 +8,6 @@ import signal
 from pathlib import Path
 from watchdog.observers import Observer
 import logging
-from aiohttp import ClientError
 
 from .snapshot import SnapshotStorage
 from .api import ApiClient
@@ -18,21 +17,18 @@ from .homework_processor import HomeworkProcessor
 from .utils.event_queue import EventQueue
 from .config.settings import Config
 
-# 로거 설정
 logger = logging.getLogger(__name__)
 
 async def main() -> None:
-    """메인 함수"""
+    """메인 실행 함수"""
     observer = None
+    api_client = None
     
     try:
         # 초기화
-        loop = asyncio.get_running_loop()
-        event_queue = EventQueue(loop)
+        event_queue = EventQueue(asyncio.get_running_loop())
         path_manager = HomeworkPath(Config.BASE_PATH)
-        handler = HomeworkHandler(path_manager, event_queue)
         storage = SnapshotStorage(Path(Config.SNAPSHOT_PATH))
-        logger.info("시스템 초기화 완료")
         
         # 감시 디렉토리 설정
         directories = path_manager.find_homework_dirs()
@@ -43,35 +39,37 @@ async def main() -> None:
         # 감시 시작
         observer = Observer()
         for directory in directories:
+            handler = HomeworkHandler(path_manager, event_queue)
             observer.schedule(handler, directory, recursive=True)
-            logger.debug(f"감시 디렉토리 추가: {directory}")
             
         observer.start()
         logger.info(f"과제 감시 시작 (대상: {len(directories)}개)")
         
-        # API 클라이언트 및 이벤트 처리
-        async with ApiClient(Config.API_URL) as api_client:
-            def handle_stop(*_):
-                observer.stop()
-                for task in asyncio.all_tasks():
-                    task.cancel()
-                    
-            signal.signal(signal.SIGINT, handle_stop)
-            signal.signal(signal.SIGTERM, handle_stop)
-            
-            processor = HomeworkProcessor(event_queue, storage, api_client)
-            await processor.run()
-            
-    except asyncio.CancelledError:
-        logger.info("프로그램 종료 요청")
-    except Exception as e:
-        logger.error(f"치명적 오류 발생: {str(e)}")
-        sys.exit(1)
+        # 시그널 핸들러 설정
+        def handle_stop(*_):
+            observer.stop()
+            for task in asyncio.all_tasks():
+                task.cancel()
+                
+        signal.signal(signal.SIGINT, handle_stop)
+        signal.signal(signal.SIGTERM, handle_stop)
+        
+        # API 클라이언트 초기화
+        api_client = ApiClient(Config.API_URL)
+        await api_client.connect()
+        
+        # 이벤트 처리 시작
+        processor = HomeworkProcessor(event_queue, storage, api_client)
+        await processor.run()
+                
+    except KeyboardInterrupt:
+        logger.info("프로그램 종료")
     finally:
-        if observer and observer.is_alive():
+        if api_client:
+            await api_client.disconnect()
+        if observer:
             observer.stop()
             observer.join()
-            logger.info("감시 작업 종료")
-            
+
 if __name__ == "__main__":
     asyncio.run(main())
