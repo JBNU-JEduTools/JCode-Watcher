@@ -30,10 +30,11 @@ class HomeworkProcessor:
                     continue
                     
                 source_path = Path(homework_info.original_path)
-                logger.debug(f"과제 파일 이벤트 수신: {source_path}")
+                logger.info(f"과제 파일 변경 감지: {homework_info.filename} ({homework_info.class_div}/{homework_info.hw_dir}/{homework_info.student_id})")
                 
                 # 스냅샷 생성 및 API 전송
                 snapshot = await self.storage.create(source_path, homework_info)
+                logger.info(f"스냅샷 생성 완료: {snapshot.name} (원본: {homework_info.filename})")
                 if snapshot:
                     snapshot_data = {
                         "class_div": homework_info.class_div,
@@ -44,6 +45,5 @@ class HomeworkProcessor:
                         "snapshot_path": str(snapshot)
                     }
                     await self.api_client.send_snapshot(snapshot_data)
-                    logger.info(f"스냅샷 생성 및 전송 완료: {source_path}")
             except ClientError:
                 logger.warning("API 서버 연결 실패")
