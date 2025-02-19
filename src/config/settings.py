@@ -13,7 +13,7 @@ class Config:
     LOG_LEVEL_VALUE = getattr(logging, LOG_LEVEL, logging.INFO)
     
     # API 서버 설정
-    API_URL = os.getenv("WATCHER_API_URL", "http://localhost:5000")
+    API_URL = os.getenv("WATCHER_API_URL", "http://localhost:3000")
     API_TIMEOUT = float(os.getenv("WATCHER_API_TIMEOUT", "5.0"))
     
     # 기본 경로 설정

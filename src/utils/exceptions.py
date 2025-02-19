@@ -18,10 +18,10 @@ class ApiError(Exception):
     예: 연결 실패, 타임아웃, 인증 실패 등
     """
 
-class InvalidHomeworkPathError(Exception):
-    """과제 경로 형식 오류
+class InvalidSourcePathError(Exception):
+    """소스코드 경로 형식 오류
     
-    과제 파일 경로가 지정된 형식과 일치하지 않는 경우 발생하는 오류입니다.
-    예상되는 경로 형식: /watcher/codes/{과목-분반-학번}/config/workspace/{과제번호}/{파일명}
+    소스코드 파일 경로가 지정된 형식과 일치하지 않는 경우 발생하는 오류입니다.
+    예상되는 경로 형식: /watcher/codes/{분반-학번}/config/workspace/{작업디렉토리}/{파일명}
     예시: /watcher/codes/os-3-202012180/config/workspace/hw1/main.c
     """

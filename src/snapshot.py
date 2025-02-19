@@ -26,37 +26,17 @@ class SnapshotStorage:
         self.base_path = base_path
         self.logger = get_logger(self.__class__.__name__)
             
-    async def create(self, file_path: str, snapshot_info: tuple) -> Optional[Path]:
-        """스냅샷 생성
-        
-        Args:
-            file_path: 원본 파일 경로
-            snapshot_info: 스냅샷 정보 튜플
-            
-        Returns:
-            Optional[Path]: 생성된 스냅샷 경로 또는 None (변경사항 없는 경우)
-            
-        Raises:
-            OSError: 파일 시스템 작업 실패 시
-        """
-        info = SnapshotInfo(*snapshot_info)
-        source_path = Path(file_path)
-        
-        if not await self._has_file_changed(source_path, info):
-            return None
-            
-        return await self._create(source_path, info)
-            
-    async def _has_file_changed(self, source_path: Path, info: SnapshotInfo) -> bool:
+    async def has_file_changed(self, source_path: Path, snapshot_info: tuple) -> bool:
         """파일 변경 여부 확인
         
         Args:
             source_path: 검사할 원본 파일 경로
-            info: 스냅샷 정보
+            snapshot_info: 스냅샷 정보 튜플
             
         Returns:
             bool: 파일이 변경되었으면 True, 아니면 False
         """
+        info = SnapshotInfo(*snapshot_info)
         snapshot_dir = self._get_snapshot_dir(info)
         if not snapshot_dir.exists():
             return True
@@ -82,12 +62,22 @@ class SnapshotStorage:
                 if not chunk1:  # EOF
                     return False
             
-    def _get_snapshot_dir(self, info: SnapshotInfo) -> Path:
-        """스냅샷 디렉토리 경로 생성"""
-        return self.base_path / info.class_div / info.hw_dir / info.student_id / info.filename
+    async def create(self, file_path: str, snapshot_info: tuple) -> Optional[Path]:
+        """스냅샷 생성
         
-    async def _create(self, source_path: Path, info: SnapshotInfo) -> Path:
-        """스냅샷 생성"""
+        Args:
+            file_path: 원본 파일 경로
+            snapshot_info: 스냅샷 정보 튜플
+            
+        Returns:
+            Optional[Path]: 생성된 스냅샷 경로
+            
+        Raises:
+            OSError: 파일 시스템 작업 실패 시
+        """
+        info = SnapshotInfo(*snapshot_info)
+        source_path = Path(file_path)
+        
         snapshot_dir = self._get_snapshot_dir(info)
         snapshot_dir.mkdir(parents=True, exist_ok=True)
         
@@ -95,4 +85,8 @@ class SnapshotStorage:
         snapshot_path = snapshot_dir / f"{timestamp}{source_path.suffix}"
         
         await asyncio.to_thread(shutil.copy2, source_path, snapshot_path)
-        return snapshot_path 
+        return snapshot_path
+            
+    def _get_snapshot_dir(self, info: SnapshotInfo) -> Path:
+        """스냅샷 디렉토리 경로 생성"""
+        return self.base_path / info.class_div / info.hw_dir / info.student_id / info.filename 

@@ -11,9 +11,9 @@ import logging
 
 from .snapshot import SnapshotStorage
 from .api import ApiClient
-from .homework_path import HomeworkPath
-from .homework_handler import HomeworkHandler
-from .homework_processor import HomeworkProcessor
+from .source_code_path import SourceCodePath
+from .source_code_handler import SourceCodeEventHandler
+from .source_code_processor import SourceCodeProcessor
 from .utils.event_queue import EventQueue
 from .config.settings import Config
 
@@ -27,23 +27,23 @@ async def main() -> None:
     try:
         # 초기화
         event_queue = EventQueue(asyncio.get_running_loop())
-        path_manager = HomeworkPath(Config.BASE_PATH)
+        path_manager = SourceCodePath(Config.BASE_PATH)
         storage = SnapshotStorage(Path(Config.SNAPSHOT_PATH))
         
         # 감시 디렉토리 설정
-        directories = path_manager.find_homework_dirs()
+        directories = path_manager.find_source_dirs()
         if not directories:
-            logger.warning(f"감시할 과제 디렉토리 없음: {Config.BASE_PATH}")
+            logger.warning(f"감시할 소스코드 디렉토리 없음: {Config.BASE_PATH}")
             return
             
         # 감시 시작
         observer = Observer()
         for directory in directories:
-            handler = HomeworkHandler(path_manager, event_queue)
+            handler = SourceCodeEventHandler(path_manager, event_queue)
             observer.schedule(handler, directory, recursive=True)
             
         observer.start()
-        logger.info(f"과제 감시 시작 (대상: {len(directories)}개)")
+        logger.info(f"소스코드 감시 시작 (대상: {len(directories)}개)")
         
         # 시그널 핸들러 설정
         def handle_stop(*_):
@@ -59,7 +59,7 @@ async def main() -> None:
         await api_client.connect()
         
         # 이벤트 처리 시작
-        processor = HomeworkProcessor(event_queue, storage, api_client)
+        processor = SourceCodeProcessor(event_queue, storage, api_client)
         await processor.run()
                 
     except KeyboardInterrupt:

@@ -12,4 +12,4 @@ services:
     environment:
       - WATCHER_LOG_LEVEL=DEBUG
       # API 서버 설정
-      - WATCHER_API_URL=http://api:5000
+      - WATCHER_API_URL=http://172.17.0.1:3000
