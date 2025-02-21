@@ -1,8 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routers.student import router as student_router
+from app.routers.student import router as student_router
 from app.routers.assignment import router as total_router
-from db.connection import create_db_and_tables
+from app.db.connection import create_db_and_tables
+from app.routers.snapshot import router as snapshot_router
+
 app = FastAPI()
 
 # CORS 설정
@@ -22,9 +24,7 @@ def on_startup():
 # 라우터 포함
 # app.include_router(student_router, tags=["Student"])
 # app.include_router(total_router, tags=["Total"])
+app.include_router(snapshot_router, tags=["Snapshot"])
 
-# 아래 코드 포함 시 python main.py 로 실행 가능
-# 미포함시 uvicorn 명령어로 실행 필요 - uvicorn main:app --reload --port 3000 --host 0.0.0.0
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=3000, reload=True)
+
+# 실행 - uvicorn main:app --reload --port 3000 --host 0.0.0.0

@@ -4,7 +4,7 @@ from collections import defaultdict
 import numpy as np
 from app.schemas.student import SnapshotAvgResponse
 from app.crud.student import get_snapshot_data
-from app.db import get_db
+from app.db.connection import get_session
 from sqlmodel import Session
 BASE_DIR = Path("/home/ubuntu/watcher.v2/snapshots")
 
@@ -18,7 +18,7 @@ def get_snapshot_avg(
     hw_name: str, 
     student_id: int, 
     filename: str, 
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_session)
 ):
     
     results = get_snapshot_data(db, class_div, hw_name, student_id, filename)

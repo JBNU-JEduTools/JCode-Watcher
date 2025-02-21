@@ -1,12 +1,21 @@
-from app.schemas.snapshot import Snapshot
 from sqlmodel import Session
 from pathlib import Path
-from fastapi import HTTPException
-BASE_DIR = Path("/home/ubuntu/watcher.v2/snapshots")
+from app.models.snapshot import Snapshot
 
-def snapshot_register(db: Session, snapshot: Snapshot):
-    snapshot_dir = BASE_DIR / snapshot.class_div / snapshot.hw_name / snapshot.student_id / snapshot.filename
+def snapshot_register(db: Session, snapshot_data):
+    snapshot = Snapshot(
+        class_div=snapshot_data["class_div"],
+        hw_name=snapshot_data["hw_name"],
+        student_id=snapshot_data["student_id"],
+        filename=snapshot_data["filename"],
+        timestamp=snapshot_data["timestamp"],
+        file_size=snapshot_data["file_size"]
+    )
     
-    if not snapshot_dir.exists():
-        raise HTTPException(status_code=404, detail="Snapshot directory not found")
+    db.add(snapshot)
+    db.commit()
+    db.refresh(snapshot)
+    
+    return snapshot
+    
     
