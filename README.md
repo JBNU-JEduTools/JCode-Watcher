@@ -46,9 +46,21 @@ https://fastapi.tiangolo.com/tutorial/bigger-applications/
 ```
 pip install "fastapi[all]"
 
-uvicorn main:app --reload
+uvicorn main:app --reload --port 3000 --host 0.0.0.0
 ```
 
 - FastAPI 공식문서 tutorial : https://fastapi.tiangolo.com/tutorial/
 
 - /docs 에서 api 문서 확인 가능 - swagger
+
+## DB 확인
+
+```
+sqlite3 database.db
+
+> .tables   # 테이블 목록 확인
+
+> SELECT * FROM snapshot;  # 테이블 데이터 확인
+```
+
+

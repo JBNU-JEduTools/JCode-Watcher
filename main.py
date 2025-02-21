@@ -4,6 +4,7 @@ from app.routers.student import router as student_router
 from app.routers.assignment import router as total_router
 from app.db.connection import create_db_and_tables
 from app.routers.snapshot import router as snapshot_router
+from app.routers.selection import router as selection_router
 
 app = FastAPI()
 
@@ -25,6 +26,4 @@ def on_startup():
 # app.include_router(student_router, tags=["Student"])
 # app.include_router(total_router, tags=["Total"])
 app.include_router(snapshot_router, tags=["Snapshot"])
-
-
-# 실행 - uvicorn main:app --reload --port 3000 --host 0.0.0.0
+app.include_router(selection_router, tags=["Selection"])
