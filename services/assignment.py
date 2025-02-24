@@ -1,6 +1,5 @@
 from collections import defaultdict
 import numpy as np
-from app.schemas.assignment import AssignmentResponse
 from app.crud.assignment import get_monitoring_data
 from sqlmodel import Session
 

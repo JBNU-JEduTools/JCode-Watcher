@@ -1,7 +1,7 @@
 import numpy as np
 from sqlmodel import Session
 from app.crud.student import get_snapshot_data, get_assignment_snapshots
-
+from datetime import datetime
 
 def calculate_snapshot_avg(db: Session, class_div: str, hw_name: str, student_id: int, filename: str):
     results = get_snapshot_data(db, class_div, hw_name, student_id, filename)
@@ -32,7 +32,10 @@ def calculate_assignment_snapshot_avg(db: Session, class_div: str, student_id: i
         "snapshot_size_avg": snapshot_size_avg
     }
 
-def get_graph_data(db: Session, class_div: str, hw_name: str, student_id: int):
+def format_timestamp(timestamp: str) -> str:
+    return datetime.strptime(timestamp, "%Y%m%d_%H%M%S").strftime("%Y-%m-%d %H:%M:%S")
+    
+def fetch_graph_data(db: Session, class_div: str, hw_name: str, student_id: int):
     results = get_assignment_snapshots(db, class_div, student_id, hw_name)
     
     if not results:
@@ -46,7 +49,7 @@ def get_graph_data(db: Session, class_div: str, hw_name: str, student_id: int):
             snapshot_trends[key] = []
             
         snapshot_trends[key].append({
-            "timestamp": snapshot.timestamp,
+            "timestamp": format_timestamp(snapshot.timestamp),
             "size": snapshot.file_size
         })
         

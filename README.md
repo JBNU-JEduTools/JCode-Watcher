@@ -36,6 +36,9 @@ https://fastapi.tiangolo.com/tutorial/bigger-applications/
 │   └── crud/            # CRUD 작업 정의(DB 처리 로직)
 │   │   ├── example.py
 │   │   └── example2.py
+│   └── services/        # 비즈니스 로직 정의
+│   │   ├── example.py
+│   │   └── example2.py
 ```
 
 
@@ -45,6 +48,8 @@ https://fastapi.tiangolo.com/tutorial/bigger-applications/
 
 ```
 pip install "fastapi[all]"
+
+pip install sqlmodel
 
 uvicorn main:app --reload --port 3000 --host 0.0.0.0
 ```

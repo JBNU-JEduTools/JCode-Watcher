@@ -19,7 +19,7 @@ class SnapshotCreate(SnapshotBase):
     file_size: int
 
 class SnapshotTrend(SQLModel):
-    timestamp: datetime
+    timestamp: str
     size: int
 
 class GraphResponse(SQLModel):
