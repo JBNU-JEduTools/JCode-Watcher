@@ -51,7 +51,7 @@ pip install "fastapi[all]"
 
 pip install sqlmodel
 
-uvicorn main:app --reload --port 3000 --host 0.0.0.0
+uvicorn app.main:app --reload --port 3000 --host 0.0.0.0
 ```
 
 - FastAPI 공식문서 tutorial : https://fastapi.tiangolo.com/tutorial/
