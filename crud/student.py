@@ -15,4 +15,12 @@ def get_snapshot_data(db: Session, class_div:str, hw_name:str, student_id:int, f
     results = db.exec(statement).all()
     return results
     
-    
+def get_assignment_snapshots(db: Session, class_div: str, student_id: int, hw_name: str):
+    statement = select(Snapshot).where(
+        Snapshot.class_div == class_div,
+        Snapshot.student_id == student_id,
+        Snapshot.hw_name == hw_name
+    )
+    results = db.exec(statement).all()
+    return results
+
