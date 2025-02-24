@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routers.student import router as student_router
-from app.routers.assignment import router as total_router
+from app.routers.assignment import router as assignment_router
 from app.db.connection import create_db_and_tables
 from app.routers.snapshot import router as snapshot_router
 from app.routers.selection import router as selection_router
@@ -23,7 +23,7 @@ def on_startup():
     create_db_and_tables()
 
 # 라우터 포함
-# app.include_router(student_router, tags=["Student"])
-# app.include_router(total_router, tags=["Total"])
+app.include_router(student_router, tags=["Student"])
+app.include_router(assignment_router, tags=["Assignment"])
 app.include_router(snapshot_router, tags=["Snapshot"])
 app.include_router(selection_router, tags=["Selection"])
