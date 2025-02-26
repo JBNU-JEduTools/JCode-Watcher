@@ -33,6 +33,7 @@ def get_snapshot_avg(
 @router.get("/api/assignments/snapshot_avg/{class_div}/{hw_name}/{student_id}", response_model=SnapshotAvgResponse)
 def get_assignment_snapshot_avg(class_div: str, student_id: int, hw_name: str, db: Session = Depends(get_session)):
     result = calculate_assignment_snapshot_avg(db, class_div, student_id, hw_name)
+    print(result)
     
     if not result:
         raise HTTPException(status_code=404, detail="Snapshot data not found")
