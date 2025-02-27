@@ -31,34 +31,64 @@ class SourceCodeEventHandler(FileSystemEventHandler):
     def on_modified(self, event: FileModifiedEvent) -> None:
         """파일 수정 이벤트 처리
         
+        다음 순서로 이벤트를 필터링하고 처리합니다:
+        1. FileModifiedEvent 타입 검증
+        2. 디렉토리 이벤트 필터링
+        3. 제외 대상 파일 필터링
+        4. 경로 정보 파싱 및 검증
+        5. 이벤트 큐에 추가
+        
         Args:
             event: 파일 수정 이벤트
         """
+        # 1. 이벤트 타입 검증
         if not isinstance(event, FileModifiedEvent):
             return
             
         file_path = event.src_path
         
-        # 디렉토리 이벤트는 무시
-        if event.is_directory:
-            logger.debug(f"이벤트 필터링: 디렉토리 이벤트 무시 ({file_path})")
+        # 2. 디렉토리 이벤트 필터링
+        if self._is_directory_event(event):
             return
             
-        # 제외 대상 파일인지 확인
+        # 3. 제외 대상 파일 필터링
         if self.path_manager.is_excluded(file_path):
             return
             
         try:
-            # 경로 정보 파싱 및 검증
+            # 4. 경로 정보 파싱 및 검증
             source_info = self.path_manager.parse_path(file_path)
             
-            # 이벤트 큐에 추가
-            self.event_queue.put_event_threadsafe("modified", source_info)
-            logger.debug(f"이벤트 감지: 큐에 추가됨 ({file_path})")
+            # 5. 이벤트 큐에 추가
+            self._queue_event(source_info)
             
         except InvalidSourcePathError as e:
             logger.warning(f"이벤트 필터링: 잘못된 소스코드 경로 형식 ({str(e)})")
             
         except Exception as e:
             logger.error(f"소스코드 변경 이벤트 처리 실패: {str(e)}", exc_info=True)
-            raise 
+            raise
+            
+    def _is_directory_event(self, event: FileModifiedEvent) -> bool:
+        """디렉토리 이벤트인지 확인"""
+        if event.is_directory:
+            try:
+                # 경로 정보 파싱 시도
+                info = self.path_manager.parse_path(event.src_path)
+                logger.debug(
+                    f"이벤트 필터링: 디렉토리 이벤트 무시 "
+                    f"[{info.class_div}/{info.student_id}/{info.hw_dir}/{Path(event.src_path).name}]"
+                )
+            except InvalidSourcePathError:
+                # 파싱 실패 시 기본 로그 출력
+                logger.debug(f"이벤트 필터링: 디렉토리 이벤트 무시 ({event.src_path})")
+            return True
+        return False
+        
+    def _queue_event(self, source_info: SourceCodeInfo) -> None:
+        """이벤트를 큐에 추가"""
+        self.event_queue.put_event_threadsafe("modified", source_info)
+        logger.debug(
+            f"이벤트 감지: 큐에 추가됨 "
+            f"[{source_info.class_div}/{source_info.student_id}/{source_info.hw_dir}/{Path(source_info.original_path).name}]"
+        ) 

@@ -40,22 +40,34 @@ class SourceCodeProcessor:
                     continue
                     
                 source_path = Path(source_info.original_path)
-                logger.info(f"소스코드 변경 감지: {source_info.class_div}/{source_info.hw_dir}/{source_info.student_id}/{source_info.filename}")
+                logger.info(
+                    f"소스코드 변경 감지 "
+                    f"[{source_info.class_div}/{source_info.student_id}/{source_info.hw_dir}/{source_info.filename}]"
+                )
                 
                 # 파일 변경 여부 확인
                 if not await self.storage.has_file_changed(source_path, source_info):
-                    logger.debug(f"스냅샷 생성 중단: 변경사항 없음")
+                    logger.debug(
+                        f"스냅샷 생성 중단: 변경사항 없음 "
+                        f"[{source_info.class_div}/{source_info.student_id}/{source_info.hw_dir}/{source_info.filename}]"
+                    )
                     continue
                 
                 # 스냅샷 생성
                 snapshot = await self.storage.create(source_path, source_info)
-                logger.info(f"스냅샷 생성 완료: {snapshot.name}")
+                logger.info(
+                    f"스냅샷 생성 완료 "
+                    f"[{source_info.class_div}/{source_info.student_id}/{source_info.hw_dir}/{source_info.filename}]"
+                )
                 
                 # API 전송
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 endpoint = f"/api/{source_info.class_div}/{source_info.hw_dir}/{source_info.student_id}/{source_info.filename}/{timestamp}"
                 await self.api_client.send_snapshot(endpoint, {"bytes": snapshot.stat().st_size})
-                logger.info(f"소스코드 스냅샷 메타데이터 기록: {snapshot.stat().st_size} bytes")
+                logger.info(
+                    f"소스코드 스냅샷 메타데이터 기록 ({snapshot.stat().st_size} bytes) "
+                    f"[{source_info.class_div}/{source_info.student_id}/{source_info.hw_dir}/{source_info.filename}]"
+                )
                 
             except ClientError as e:
-                logger.error(f"메타데이터 기록 실패: API 서버 오류 ({e.__class__.__name__} - {str(e)})", exc_info=True) 
+                logger.error(f"메타데이터 기록 실패: API 서버 오류 ({e.__class__.__name__} - {str(e)})", exc_info=False) 

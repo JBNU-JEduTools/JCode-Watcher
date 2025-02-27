@@ -78,6 +78,7 @@ async def main() -> None:
         for directory in directories:
             handler = SourceCodeEventHandler(path_manager, event_queue)
             observer.schedule(handler, directory, recursive=True)
+            logger.debug(f"감시 핸들러 등록: {directory}")
             
         observer.start()
         logger.info(f"소스코드 감시 시작 (대상: {len(directories)}개)")
