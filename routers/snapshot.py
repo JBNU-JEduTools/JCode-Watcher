@@ -6,10 +6,11 @@ from sqlmodel import Session
 from fastapi import Depends
 from app.crud.snapshot import snapshot_register
 from app.schemas.snapshot import SnapshotCreate
+from app.schemas.config import settings
 
 router = APIRouter(tags=["Snapshot"])
 
-BASE_DIR = Path("/home/ubuntu/watcher.v2/snapshots")
+BASE_DIR = Path(settings.BASE_DIR)
 
 @router.post("/api/{class_div}/{hw_name}/{student_id}/{filename}/{timestamp}")
 def register_snapshot(

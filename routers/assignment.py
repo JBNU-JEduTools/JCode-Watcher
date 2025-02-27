@@ -7,8 +7,6 @@ from app.services.assignment import calculate_monitoring_data
 from sqlmodel import Session
 from app.schemas.assignment import AssignmentResponse
 
-BASE_DIR = Path("/home/ubuntu/Couch")
-
 # 전체 학생 대상(한 과제 안에서)
 router = APIRouter(tags=["Assignment"])
 

@@ -51,6 +51,8 @@ pip install "fastapi[all]"
 
 pip install sqlmodel
 
+pip install pydantic-settings
+
 uvicorn app.main:app --reload --port 3000 --host 0.0.0.0
 ```
 
@@ -67,5 +69,22 @@ sqlite3 database.db
 
 > SELECT * FROM snapshot;  # 테이블 데이터 확인
 ```
+
+
+### ToDo
+
+- bytes 표시 -> B, 회차 표시
+
+- 스냅샷 내용 조회 시 vscode 처럼 왼쪽에 스냅샷 목록 -> 선택 시 내용 조회 & 버튼 클릭 시 차례대로 보여주도록
+
+- 첫 타임스탬프 & 마지막 타임스탬프
+
+- 총 작업 시간 & 쉬는시간(간격)
+
+- 학생별 watcher 접근 시 코드 파일 목록 default는 전체 - 명시적으로 띄우기
+
+- 스크롤 시 정해진 자리로 이동
+
+- docker
 
 
