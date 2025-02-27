@@ -100,9 +100,11 @@ class SourceCodePath:
         """hw* 디렉토리의 직계 자식인지 확인"""
         try:
             info = self.parse_path(str(path))
-            parent = path.parent.name
+            # hw* 디렉토리 바로 아래의 파일인지 확인
+            parts = path.parts
+            hw_index = next((i for i, part in enumerate(parts) if part.startswith("hw")), -1)
             
-            if parent != info.hw_dir:
+            if hw_index == -1 or hw_index + 2 != len(parts):
                 logger.debug(
                     f"이벤트 필터링: hw* 디렉토리의 직계 자식이 아닌 파일 무시 "
                     f"[{info.class_div}/{info.student_id}/{info.hw_dir}/{path.name}]"
@@ -148,6 +150,9 @@ class SourceCodePath:
     def find_source_dirs(self) -> List[str]:
         """작업 디렉토리 검색
         
+        학생별 hw* 디렉토리를 검색합니다.
+        예상 경로: /watcher/codes/{분반-학번}/hw*
+        
         Returns:
             List[str]: 발견된 작업 디렉토리 목록
             
@@ -158,42 +163,51 @@ class SourceCodePath:
             raise ConfigError(f"기본 경로 접근 권한이 없습니다: {self.base_path}")
         
         try:
+            # 학생 디렉토리 검색
             class_dirs = [
                 d for d in self.base_path.glob("*-*-*")
                 if d.is_dir() and self.parse_class_dir(d.name)
             ]
+            
+            # 학생 디렉토리 목록 출력
+            if class_dirs:
+                logger.debug(
+                    "발견된 학생 디렉토리: " + 
+                    ", ".join(d.name for d in class_dirs)
+                )
+            else:
+                logger.warning("학생 디렉토리를 찾을 수 없습니다")
+                return []
+                
+            # 각 학생 디렉토리 아래의 hw* 디렉토리 검색
+            source_dirs = []
+            for class_dir in class_dirs:
+                try:
+                    dirs = [d for d in class_dir.glob("hw*") if d.is_dir()]
+                    if dirs:
+                        logger.debug(
+                            f"{class_dir.name}의 감시 대상: " +
+                            ", ".join(f"{d.parent.name}/{d.name}" for d in dirs)
+                        )
+                    source_dirs.extend(str(d) for d in dirs)
+                except PermissionError:
+                    logger.error(f"작업 디렉토리 접근 거부됨: {class_dir}")
+            
+            if source_dirs:
+                logger.info(f"감시 대상 디렉토리 발견: {len(source_dirs)}개")
+            else:
+                logger.warning("감시할 hw* 디렉토리를 찾을 수 없습니다")
+                
+            return source_dirs
+            
         except PermissionError as e:
             raise ConfigError(f"분반 디렉토리 접근 권한이 없습니다: {e}")
-        
-        if not class_dirs:
-            return []
-            
-        source_dirs = []
-        for class_dir in class_dirs:
-            try:
-                workspace = class_dir / "config" / "workspace"
-                if not workspace.exists():
-                    logger.debug(f"workspace 폴더 없음: {workspace}")
-                    continue
-                    
-                if not workspace.is_dir():
-                    logger.debug(f"workspace가 폴더가 아님: {workspace}")
-                    continue
-                    
-                if not os.access(workspace, os.R_OK):
-                    logger.debug(f"workspace 읽기 권한 없음: {workspace}")
-                    continue
-                    
-                dirs = [d for d in workspace.glob("hw*") if d.is_dir()]
-                source_dirs.extend(str(d) for d in dirs)
-                
-            except PermissionError as e:
-                logger.debug(f"작업 디렉토리 접근 거부됨: {class_dir}")
-                
-        return source_dirs
             
     def parse_path(self, file_path: str) -> SourceCodeInfo:
         """소스코드 파일 경로 파싱
+        
+        예상되는 경로 형식: /watcher/codes/{분반-학번}/hw*/{파일명}
+        예시: /watcher/codes/os-3-202012180/hw1/main.c
         
         Args:
             file_path: 파싱할 파일 경로
@@ -210,14 +224,14 @@ class SourceCodePath:
         path = Path(file_path)
         parts = path.parts
         
-        # 최소 경로 깊이 검사
-        if len(parts) < 6:
+        # 최소 경로 깊이 검사 (/watcher/codes/os-3-202012345/hw1/main.c -> 최소 5)
+        if len(parts) < 5:
             raise InvalidSourcePathError(
-                f"경로 깊이가 부족합니다 (최소 6, 현재 {len(parts)}): {file_path}"
+                f"경로 깊이가 부족합니다 (최소 5, 현재 {len(parts)}): {file_path}"
             )
             
         # 기본 정보 추출
-        student_dir = parts[3]
+        student_dir = parts[3]  # os-3-202012345
         if not (course_info := self.parse_class_dir(student_dir)):
             raise InvalidSourcePathError(
                 f"디렉토리 형식이 잘못되었습니다 (예상 형식: 분반-학번): {student_dir}"
