@@ -85,6 +85,10 @@ sqlite3 database.db
 
 - 스크롤 시 정해진 자리로 이동
 
+- 스냅샷 내용 조회 시 nginx 설정
+
+- 코드 디렉터리 depth 고려(@)해 수정
+
 - docker
 
 

@@ -23,17 +23,6 @@ def insert_data():
             Snapshot(class_div="os-1", hw_name="hw1", student_id=202577777, filename="gggg.c", timestamp="20250224_083300", file_size=9),
             Snapshot(class_div="os-1", hw_name="hw1", student_id=202588888, filename="hhhh.c", timestamp="20250224_083400", file_size=46),
             Snapshot(class_div="os-1", hw_name="hw1", student_id=202599999, filename="iiii.c", timestamp="20250224_083500", file_size=28),
-            
-            # Snapshot(class_div="os-1", hw_name="hw2", student_id=202212112, filename="example.c", timestamp="20250220_082535", file_size=2),
-            # Snapshot(class_div="os-1", hw_name="hw2", student_id=202212112, filename="example.c", timestamp="20250220_082804", file_size=15),
-            # Snapshot(class_div="os-1", hw_name="hw2", student_id=202212112, filename="example.c", timestamp="20250223_082900", file_size=50),
-            # Snapshot(class_div="os-1", hw_name="hw2", student_id=202212112, filename="example.c", timestamp="20250223_083000", file_size=42),
-            # Snapshot(class_div="os-1", hw_name="hw2", student_id=202212112, filename="example.c", timestamp="20250223_083100", file_size=67),
-            # Snapshot(class_div="os-1", hw_name="hw2", student_id=202212112, filename="example.c", timestamp="20250223_083200", file_size=89),
-            # Snapshot(class_div="os-1", hw_name="hw2", student_id=202212112, filename="example.c", timestamp="20250225_083300", file_size=75),
-            # Snapshot(class_div="os-1", hw_name="hw2", student_id=202212112, filename="example.c", timestamp="20250225_083400", file_size=80),
-            # Snapshot(class_div="os-1", hw_name="hw2", student_id=202212112, filename="example.c", timestamp="20250226_083500", file_size=93),
-            # Snapshot(class_div="os-1", hw_name="hw2", student_id=202212112, filename="example.c", timestamp="20250226_083600", file_size=100)
         ]
         
         session.add_all(snapshots)

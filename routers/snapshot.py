@@ -7,6 +7,7 @@ from fastapi import Depends
 from app.crud.snapshot import snapshot_register
 from app.schemas.snapshot import SnapshotCreate
 from app.schemas.config import settings
+from urllib.parse import unquote
 
 router = APIRouter(tags=["Snapshot"])
 
@@ -23,11 +24,13 @@ def register_snapshot(
     db: Session=Depends(get_session)
 ):
     
+    file_depth = unquote(filename).replace('@', '/')   # 모든 @ 문자를 / 로 변환
+    
     snapshot_data = {
         "class_div": class_div,
         "hw_name": hw_name,
         "student_id": student_id,
-        "filename": filename,
+        "filename": file_depth,
         "timestamp": timestamp,
         "file_size": file_size.bytes
     }
