@@ -6,16 +6,18 @@ import aiohttp
 from typing import Dict, Any
 
 from .utils.logger import get_logger
+from .config.settings import Config
 
 logger = get_logger(__name__)
 
 class ApiClient:
     """API 클라이언트 클래스"""
     
-    def __init__(self, base_url: str):
-        if not base_url:
+    def __init__(self):
+        """API 클라이언트 초기화"""
+        if not Config.API_URL:
             raise ValueError("API URL이 설정되지 않았습니다")
-        self._base_url = base_url.rstrip('/')
+        self._base_url = Config.API_URL.rstrip('/')
         self._session: aiohttp.ClientSession | None = None
         
     async def connect(self) -> None:

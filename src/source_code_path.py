@@ -43,26 +43,37 @@ class SourceCodePath:
         self.ignore_patterns = Config.IGNORE_PATTERNS
         
     def is_excluded(self, file_path: str) -> bool:
-        """파일이 처리 대상에서 제외되는지 확인
-        
+        """파일이 감시 대상에서 제외되어야 하는지 확인
+
+        다음 조건에 해당하는 파일은 제외됩니다:
+        1. 허용되지 않은 확장자
+        2. 무시 패턴과 일치하는 파일
+        3. 파일 이름이 'main'이 아닌 파일
+        4. hw* 디렉토리의 직계 자식이 아닌 파일
+
         Args:
-            file_path: 검사할 파일 경로
-            
+            file_path: 확인할 파일 경로
+
         Returns:
-            bool: 제외 대상이면 True, 아니면 False
+            bool: 제외 대상이면 True
         """
         try:
             path = Path(file_path)
             
-            # 확장자 검사
-            if path.suffix not in self.allowed_extensions:
-                logger.debug(f"허용되지 않은 파일 확장자입니다 (허용: {', '.join(self.allowed_extensions)}): {file_path}")
+            # 1. 확장자 필터링
+            if self._is_invalid_extension(path):
                 return True
                 
-            # 무시 패턴 검사
-            if any(fnmatch.fnmatch(file_path, pattern)
-                  for pattern in self.ignore_patterns):
-                logger.debug(f"무시 패턴과 일치하는 파일입니다 (패턴: {', '.join(self.ignore_patterns)}): {file_path}")
+            # 2. 무시 패턴 필터링
+            if self._matches_ignore_pattern(file_path):
+                return True
+
+            # 3. hw* 디렉토리 직계 자식 검사
+            if not self._is_direct_child_of_hw(path):
+                return True
+                
+            # 4. 메인 파일 필터링
+            if not self._is_main_file(path):
                 return True
                 
             return False
@@ -70,6 +81,54 @@ class SourceCodePath:
         except Exception as e:
             logger.error(f"파일 경로 검증 중 오류가 발생했습니다: {str(e)}")
             return True
+            
+    def _is_invalid_extension(self, path: Path) -> bool:
+        """허용되지 않은 확장자인지 확인"""
+        if path.suffix not in self.allowed_extensions:
+            logger.debug(f"허용되지 않은 파일 확장자입니다 (허용: {', '.join(self.allowed_extensions)}): {path}")
+            return True
+        return False
+        
+    def _matches_ignore_pattern(self, file_path: str) -> bool:
+        """무시 패턴과 일치하는지 확인"""
+        if any(fnmatch.fnmatch(file_path, pattern) for pattern in self.ignore_patterns):
+            logger.debug(f"무시 패턴과 일치하는 파일입니다 (패턴: {', '.join(self.ignore_patterns)}): {file_path}")
+            return True
+        return False
+        
+    def _is_direct_child_of_hw(self, path: Path) -> bool:
+        """hw* 디렉토리의 직계 자식인지 확인"""
+        try:
+            info = self.parse_path(str(path))
+            parent = path.parent.name
+            
+            if parent != info.hw_dir:
+                logger.debug(
+                    f"이벤트 필터링: hw* 디렉토리의 직계 자식이 아닌 파일 무시 "
+                    f"[{info.class_div}/{info.student_id}/{info.hw_dir}/{path.name}]"
+                )
+                return False
+            return True
+        except InvalidSourcePathError:
+            logger.debug(f"이벤트 필터링: hw* 디렉토리의 직계 자식이 아닌 파일 무시 ({path})")
+            return False
+        
+    def _is_main_file(self, path: Path) -> bool:
+        """파일 이름이 'main'인지 확인"""
+        try:
+            # 경로 정보 파싱 시도
+            info = self.parse_path(str(path))
+            if path.stem != 'main':
+                logger.debug(
+                    f"이벤트 필터링: 파일 이름이 'main'이 아닌 파일 무시 "
+                    f"[{info.class_div}/{info.student_id}/{info.hw_dir}/{path.name}]"
+                )
+                return False
+        except InvalidSourcePathError:
+            # 파싱 실패 시 기본 로그 출력
+            logger.debug(f"이벤트 필터링: 파일 이름이 'main'이 아닌 파일 무시 ({path})")
+            return False
+        return True
         
     def parse_class_dir(self, dir_name: str) -> Optional[tuple[str, str]]:
         """분반 디렉토리명 파싱
