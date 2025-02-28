@@ -2,3 +2,8 @@ gifs
 snapshots
 venv
 .gitignore
+k8s
+docker-compose
+Dockerfile
+readme.md
+minikube.yaml
