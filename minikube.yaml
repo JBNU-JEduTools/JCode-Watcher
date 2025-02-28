@@ -1,0 +1,41 @@
+
+# Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: watcher-code
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: watcher-code
+  template:
+    metadata:
+      labels:
+        app: watcher-code
+    spec:
+      containers:
+      - name: watcher-code
+        image: watcher-code:latest
+        imagePullPolicy: Never  # minikube 환경에서는 로컬 이미지 사용
+        volumeMounts:
+        - name: jcode-vol
+          mountPath: /watcher/codes
+          readOnly: true
+        - name: snapshots-vol
+          mountPath: /watcher/snapshots
+        env:
+        - name: WATCHER_LOG_LEVEL
+          value: "DEBUG"
+        - name: WATCHER_API_URL
+          value: "http://172.17.0.1:3000"
+        # command: ["/bin/bash", "-c", "sleep infinity"]
+      volumes:
+      - name: jcode-vol
+        hostPath:  # minikube 개발환경에서는 hostPath 사용
+          path: /watcher/codes
+          type: Directory
+      - name: snapshots-vol
+        hostPath:
+          path: /watcher/snapshots
+          type: Directory 
