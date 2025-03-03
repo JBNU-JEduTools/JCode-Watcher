@@ -1,12 +1,12 @@
 from fastapi import APIRouter, HTTPException, Body
 from fastapi.responses import FileResponse
 from pathlib import Path
-from app.db.connection import get_session
+from db.connection import get_session
 from sqlmodel import Session
 from fastapi import Depends
-from app.crud.snapshot import snapshot_register
-from app.schemas.snapshot import SnapshotCreate
-from app.schemas.config import settings
+from crud.snapshot import snapshot_register
+from schemas.snapshot import SnapshotCreate
+from schemas.config import settings
 from urllib.parse import unquote
 
 router = APIRouter(tags=["Snapshot"])
@@ -24,13 +24,13 @@ def register_snapshot(
     db: Session=Depends(get_session)
 ):
     
-    file_depth = unquote(filename).replace('@', '/')   # 모든 @ 문자를 / 로 변환
+    # file_depth = unquote(filename).replace('@', '/')   # 모든 @ 문자를 / 로 변환
     
     snapshot_data = {
         "class_div": class_div,
         "hw_name": hw_name,
         "student_id": student_id,
-        "filename": file_depth,
+        "filename": filename,
         "timestamp": timestamp,
         "file_size": file_size.bytes
     }

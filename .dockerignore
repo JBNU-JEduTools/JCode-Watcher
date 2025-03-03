@@ -1,0 +1,9 @@
+*.db
+
+__pycache__/
+
+.env
+.env.example
+
+.git
+.gitignore

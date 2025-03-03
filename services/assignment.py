@@ -1,6 +1,6 @@
 from collections import defaultdict
 import numpy as np
-from app.crud.assignment import get_monitoring_data
+from crud.assignment import get_monitoring_data
 from sqlmodel import Session
 
 # 퍼센타일, 전체 학생별 평균 bytes&개수, 최근 작업자(타임스탬프, 학번, 사이즈) 

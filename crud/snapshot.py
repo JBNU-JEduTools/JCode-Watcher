@@ -1,6 +1,6 @@
 from sqlmodel import Session
 from pathlib import Path
-from app.models.snapshot import Snapshot
+from models.snapshot import Snapshot
 
 def snapshot_register(db: Session, snapshot_data):
     snapshot = Snapshot(

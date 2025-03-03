@@ -8,6 +8,12 @@ class SnapshotAvgResponse(BaseModel):
     snapshot_avg: int
     snapshot_size_avg: float
 
+class MonitoringResponse(BaseModel):
+    snapshot_avg: int
+    snapshot_size_avg: float
+    total: int
+    interval: int
+
 class SnapshotBase(SQLModel):
     class_div: str
     hw_name: str

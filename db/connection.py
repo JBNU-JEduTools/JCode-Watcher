@@ -1,8 +1,8 @@
 from sqlmodel import create_engine, SQLModel, Session
 from typing import Annotated
 from fastapi import Depends
-from app.models.snapshot import Snapshot
-from app.schemas.config import settings
+from models.snapshot import Snapshot
+from schemas.config import settings
 
 db_url = settings.DB_URL
 connect_args = {"check_same_thread": settings.CONNECT_ARGS}

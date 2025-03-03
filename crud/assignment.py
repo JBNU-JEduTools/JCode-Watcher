@@ -1,5 +1,5 @@
 from sqlmodel import Session, select
-from app.models.snapshot import Snapshot
+from models.snapshot import Snapshot
 
 def get_monitoring_data(db: Session, class_div: str, hw_name: str):
     statement = (

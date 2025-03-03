@@ -1,4 +1,4 @@
-from app.crud.selection import get_student_hw_files, get_student_hw_timestamps
+from crud.selection import get_student_hw_files, get_student_hw_timestamps
 from typing import List
 from sqlmodel import Session
 

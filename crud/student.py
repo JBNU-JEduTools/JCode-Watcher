@@ -1,5 +1,5 @@
 from sqlmodel import Session, select
-from app.models.snapshot import Snapshot
+from models.snapshot import Snapshot
 from fastapi import HTTPException
 import numpy as np
 

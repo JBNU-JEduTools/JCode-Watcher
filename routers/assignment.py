@@ -1,11 +1,11 @@
 from fastapi import APIRouter, HTTPException, Depends
 from pathlib import Path
 import numpy as np
-from app.db.connection import get_session
-from app.crud.assignment import get_monitoring_data
-from app.services.assignment import calculate_monitoring_data
+from db.connection import get_session
+from crud.assignment import get_monitoring_data
+from services.assignment import calculate_monitoring_data
 from sqlmodel import Session
-from app.schemas.assignment import AssignmentResponse
+from schemas.assignment import AssignmentResponse
 
 # 전체 학생 대상(한 과제 안에서)
 router = APIRouter(tags=["Assignment"])

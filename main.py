@@ -1,10 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers.student import router as student_router
-from app.routers.assignment import router as assignment_router
-from app.db.connection import create_db_and_tables, insert_data
-from app.routers.snapshot import router as snapshot_router
-from app.routers.selection import router as selection_router
+from routers.student import router as student_router
+from routers.assignment import router as assignment_router
+from db.connection import create_db_and_tables, insert_data
+from routers.snapshot import router as snapshot_router
+from routers.selection import router as selection_router
 
 app = FastAPI()
 

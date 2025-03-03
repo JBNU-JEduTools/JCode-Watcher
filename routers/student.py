@@ -2,9 +2,9 @@ from fastapi import APIRouter, HTTPException, Depends
 from pathlib import Path
 from collections import defaultdict
 import numpy as np
-from app.schemas.student import SnapshotAvgResponse, GraphResponse
-from app.db.connection import get_session
-from app.services.student import calculate_snapshot_avg, calculate_assignment_snapshot_avg, fetch_graph_data
+from schemas.student import SnapshotAvgResponse, GraphResponse, MonitoringResponse
+from db.connection import get_session
+from services.student import calculate_snapshot_avg, calculate_assignment_snapshot_avg, fetch_graph_data
 from sqlmodel import Session
 # BASE_DIR = Path("/home/ubuntu/watcher.v2/snapshots")
 
@@ -30,7 +30,7 @@ def get_snapshot_avg(
     
 
 # 학생별, 과제별 평균 스냅샷 개수, 크기 계산
-@router.get("/api/assignments/snapshot_avg/{class_div}/{hw_name}/{student_id}", response_model=SnapshotAvgResponse)
+@router.get("/api/assignments/snapshot_avg/{class_div}/{hw_name}/{student_id}", response_model=MonitoringResponse)
 def get_assignment_snapshot_avg(class_div: str, student_id: int, hw_name: str, db: Session = Depends(get_session)):
     result = calculate_assignment_snapshot_avg(db, class_div, student_id, hw_name)
     print(result)

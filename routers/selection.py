@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends
 from sqlmodel import Session
-from app.services.selection import fetch_student_hw_files, fetch_student_hw_timestamps
+from services.selection import fetch_student_hw_files, fetch_student_hw_timestamps
 from typing import List
-from app.db.connection import get_session
+from db.connection import get_session
 
 router = APIRouter(tags=["Selection"])
 

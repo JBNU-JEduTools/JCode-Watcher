@@ -1,6 +1,6 @@
 from typing import List
 from sqlmodel import Session, select
-from app.models.snapshot import Snapshot
+from models.snapshot import Snapshot
 
 def get_student_hw_files(db: Session, class_div: str, student_id: int, hw_name: str) -> List[Snapshot]:
     statement = (

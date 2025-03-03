@@ -51,9 +51,7 @@ pip install "fastapi[all]"
 
 pip install sqlmodel
 
-pip install pydantic-settings
-
-uvicorn app.main:app --reload --port 3000 --host 0.0.0.0
+uvicorn main:app --reload --port 3000 --host 0.0.0.0
 ```
 
 - FastAPI 공식문서 tutorial : https://fastapi.tiangolo.com/tutorial/
@@ -76,19 +74,19 @@ sqlite3 database.db
 - bytes 표시 -> B, 회차 표시
 
 - 스냅샷 내용 조회 시 vscode 처럼 왼쪽에 스냅샷 목록 -> 선택 시 내용 조회 & 버튼 클릭 시 차례대로 보여주도록
+    - 스냅샷 내용 조회 시 nginx 설정
 
-- 첫 타임스탬프 & 마지막 타임스탬프
-
-- 총 작업 시간 & 쉬는시간(간격)
+- 첫 타임스탬프 & 마지막 타임스탬프 :프런트에서 가져온 그래프 데이터 활용
+    - 총 작업 시간 & 쉬는시간(간격)
 
 - 학생별 watcher 접근 시 코드 파일 목록 default는 전체 - 명시적으로 띄우기
 
 - 스크롤 시 정해진 자리로 이동
 
-- 스냅샷 내용 조회 시 nginx 설정
-
 - 코드 디렉터리 depth 고려(@)해 수정
 
 - docker
+    - docker build -t watcher_back .
+    - docker run -p 3000:3000 -v $(pwd)/db:/app/db --env-file .env --name watcher_back_container watcher_back
 
 
