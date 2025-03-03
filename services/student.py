@@ -51,6 +51,8 @@ def calculate_assignment_snapshot_avg(db: Session, class_div: str, student_id: i
     return {
         "snapshot_avg": snapshot_counts,
         "snapshot_size_avg": snapshot_size_avg,
+        "first": first, 
+        "last": last,
         "total": total,           #초 단위
         "interval": interval
     }

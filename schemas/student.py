@@ -11,6 +11,8 @@ class SnapshotAvgResponse(BaseModel):
 class MonitoringResponse(BaseModel):
     snapshot_avg: int
     snapshot_size_avg: float
+    first: datetime
+    last: datetime
     total: int
     interval: int
 
