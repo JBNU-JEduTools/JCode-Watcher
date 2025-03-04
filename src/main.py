@@ -8,8 +8,8 @@ import signal
 from pathlib import Path
 from typing import Union
 from watchdog.observers import Observer
-import logging
 
+from .utils.logger import get_logger
 from .snapshot import SnapshotStorage
 from .api import ApiClient
 from .source_code_path import SourceCodePath
@@ -18,7 +18,7 @@ from .source_code_processor import SourceCodeProcessor
 from .utils.event_queue import EventQueue
 from .config.settings import Config
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 async def cleanup(observer: Observer, api_client: Union[ApiClient, None]) -> None:
     """프로그램 종료 시 정리 작업 수행
