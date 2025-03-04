@@ -20,6 +20,9 @@ spec:
         - name: jcode-vol
           mountPath: /watcher/codes
           readOnly: true
+        - name: watcher-code-snapshot
+          mountPath: /watcher/snapshots
+          readOnly: true
         env:
         - name: WATCHER_LOG_LEVEL
           value: "DEBUG"
@@ -30,4 +33,6 @@ spec:
         nfs:
           server: "#"
           path: "#"
-  
+      - name: watcher-code-snapshot
+        persistentVolumeClaim:
+          claimName: watcher-code-snapshot-pvc
