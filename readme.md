@@ -35,3 +35,8 @@ port
 ```
 minikube kubectl -- port-forward  --address 0.0.0.0 svc/os-1-202012180 8080:8080
 ```
+
+```
+내부통신용 dns
+http://<svcname>.<namespace>.svc.cluster.local
+```

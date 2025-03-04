@@ -20,7 +20,7 @@ spec:
         - name: jcode-vol
           mountPath: /watcher/codes
           readOnly: true
-        - name: watcher-code-snapshot
+        - name: snapshot-volume
           mountPath: /watcher/snapshots
           readOnly: true
         env:
@@ -33,6 +33,6 @@ spec:
         nfs:
           server: "#"
           path: "#"
-      - name: watcher-code-snapshot
+      - name: snapshot-volume
         persistentVolumeClaim:
           claimName: watcher-code-snapshot-pvc
