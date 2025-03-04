@@ -6,7 +6,7 @@ from schemas.config import settings
 
 db_url = settings.DB_URL
 connect_args = {"check_same_thread": settings.CONNECT_ARGS}
-engine = create_engine(db_url, echo=True, connect_args=connect_args)     # echo=True : 모든 sql 문장 출력
+engine = create_engine(db_url, echo=False, connect_args=connect_args)     # echo=True : 모든 sql 문장 출력
 
 def create_db_and_tables():
     SQLModel.metadata.create_all(engine)

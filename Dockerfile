@@ -1,4 +1,3 @@
-# Python 3.9 이미지를 기반으로 설정
 FROM python:3.12-slim
 
 # 작업 디렉토리 설정
@@ -17,4 +16,5 @@ COPY . .
 EXPOSE 3000
 
 # 애플리케이션 실행
-CMD ["uvicorn", "main:app", "--reload", "--host", "0.0.0.0", "--port", "3000"]
+# CMD ["uvicorn", "main:app", "--reload", "--host", "0.0.0.0", "--port", "3000"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "3000"]

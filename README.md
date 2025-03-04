@@ -65,19 +65,8 @@ sqlite3 database.db
 
 > .tables   # 테이블 목록 확인
 
-> SELECT * FROM snapshot;  # 테이블 데이터 확인
+> SELECT * FROM [테이블명];  # 테이블 데이터 확인
 ```
 
-
-### ToDo
-
-- 스냅샷 내용 조회 시 vscode 처럼 왼쪽에 스냅샷 목록 -> 선택 시 내용 조회 & 버튼 클릭 시 차례대로 보여주도록
-    - 스냅샷 내용 조회 시 nginx 설정
-
-- 스크롤 시 정해진 자리로 이동
-
-- docker
-    - docker build -t watcher_back .
-    - docker run -p 3000:3000 -v $(pwd)/db:/app/db --env-file .env --name watcher_back_container watcher_back
 
 
