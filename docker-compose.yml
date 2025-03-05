@@ -9,6 +9,6 @@ services:
       - "3000:3000"
     volumes:
       # 데이터베이스 파일 마운트
-      - ./db:/app/db
+      - ./data:/app/data
     env_file:
       - .env
