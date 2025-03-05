@@ -11,8 +11,6 @@ from urllib.parse import unquote
 
 router = APIRouter(tags=["Snapshot"])
 
-BASE_DIR = Path(settings.BASE_DIR)
-
 @router.post("/api/{class_div}/{hw_name}/{student_id}/{filename}/{timestamp}")
 def register_snapshot(
     class_div: str,
