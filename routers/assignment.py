@@ -16,6 +16,12 @@ def get_assignment_data(class_div: str, hw_name: str, db: Session = Depends(get_
     result = calculate_monitoring_data(db, class_div, hw_name)
     
     if not result:
-        raise HTTPException(status_code=404, detail="No monitoring data found")
+        return AssignmentResponse(
+            percentile_90=None,
+            percentile_50=None,
+            top_7=[],  # 빈 리스트 반환
+            avg_bytes=None,
+            avg_num=None
+        )
     
     return result

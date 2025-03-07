@@ -1,9 +1,9 @@
+from typing import List, Dict, Union, Optional
 from sqlmodel import SQLModel
-from typing import Dict, List
 
 class AssignmentResponse(SQLModel):
-    percentile_90: float
-    percentile_50: float
-    top: List[Dict[str, str | int | float]]
-    avg_bytes: float
-    avg_num: float
+    percentile_90: Optional[float] = None
+    percentile_50: Optional[float] = None
+    top_7: List[Dict[str, Union[str, int, float]]] = []
+    avg_bytes: Optional[float] = None
+    avg_num: Optional[float] = None

@@ -34,7 +34,7 @@ def calculate_monitoring_data(db: Session, class_div: str, hw_name: str):
     
     top_students = sorted(latest_student.items(), key=lambda x: x[1][0], reverse=True)[:7]
     top_7 = [
-        {"student_id": student_id, "timestamp": data[0], "code_size": data[1]}
+        {"student_num": student_id, "timestamp": data[0], "code_size": data[1]}
         for student_id, data in top_students
     ]
     
@@ -52,7 +52,7 @@ def calculate_monitoring_data(db: Session, class_div: str, hw_name: str):
     return {
         "percentile_90": percentile_90,                  # 90% 퍼센타일(상위 10% 경계값)
         "percentile_50": percentile_50,                  # 50% 퍼센타일(데이터 중앙값)
-        "top": top_7,
+        "top_7": top_7,
         "avg_bytes": avg_bytes,
         "avg_num": avg_snapshots_per_student
     }

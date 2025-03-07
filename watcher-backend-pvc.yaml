@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: watcher-backend-pvc
+  namespace: watcher  # watcher 네임스페이스 추가
+spec:
+  accessModes:
+    - ReadWriteMany  # RWX 모드 적용
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: longhorn  # Longhorn 스토리지 클래스 사용

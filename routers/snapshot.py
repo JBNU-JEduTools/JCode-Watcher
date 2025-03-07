@@ -8,19 +8,27 @@ from crud.snapshot import snapshot_register
 from schemas.snapshot import SnapshotCreate
 from schemas.config import settings
 from urllib.parse import unquote
+from datetime import datetime, timezone, timedelta
 
 router = APIRouter(tags=["Snapshot"])
+
+def convert_to_kst(timestamp_str: str) -> datetime:
+    dt_utc = datetime.strptime(timestamp_str, "%Y%m%d_%H%M%S").replace(tzinfo=timezone.utc)
+    return dt_utc + timedelta(hours=9)
 
 @router.post("/api/{class_div}/{hw_name}/{student_id}/{filename}/{timestamp}")
 def register_snapshot(
     class_div: str,
     hw_name: str,
-    student_id: str,
+    student_id: int,
     filename: str,
     timestamp: str,
     file_size: SnapshotCreate = Body(...),
     db: Session=Depends(get_session)
 ):
+    
+    timestamp_kst = convert_to_kst(timestamp)
+    timestamp_kst_str = timestamp_kst.strftime("%Y%m%d_%H%M%S")
     
     # file_depth = unquote(filename).replace('@', '/')   # 모든 @ 문자를 / 로 변환
     
@@ -29,7 +37,7 @@ def register_snapshot(
         "hw_name": hw_name,
         "student_id": student_id,
         "filename": filename,
-        "timestamp": timestamp,
+        "timestamp": timestamp_kst_str,
         "file_size": file_size.bytes
     }
     snapshot = snapshot_register(db=db, snapshot_data=snapshot_data)
