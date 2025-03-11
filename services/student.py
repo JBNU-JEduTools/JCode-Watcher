@@ -1,10 +1,11 @@
 import numpy as np
 from sqlmodel import Session
-from crud.student import get_snapshot_data, get_assignment_snapshots
+from crud.student import get_snapshot_data, get_assignment_snapshots, get_build_log, get_run_log
 from datetime import datetime, timedelta
 from fastapi import HTTPException
 import pytz
 from collections import defaultdict
+from schemas.student import BuildLogResponse, RunLogResponse
 
 def format_timestamp(timestamp: str) -> str:
     return datetime.strptime(timestamp, "%Y%m%d_%H%M%S").strftime("%Y-%m-%d %H:%M:%S")
@@ -59,38 +60,14 @@ def calculate_assignment_snapshot_avg(db: Session, class_div: str, student_id: i
         "total": total,           #초 단위
         "interval": interval
     }
-    
-def fetch_graph_data(db: Session, class_div: str, hw_name: str, student_id: int):
-    results = get_assignment_snapshots(db, class_div, student_id, hw_name)
-    
-    if not results:
-        return None
-    
-    snapshot_trends = {}
-    
-    for snapshot in results:
-        key = snapshot.filename
-        if key not in snapshot_trends:
-            snapshot_trends[key] = []
-            
-        snapshot_trends[key].append({
-            "timestamp": format_timestamp(snapshot.timestamp),
-            "size": snapshot.file_size
-        })
-        
-    for key in snapshot_trends:
-        snapshot_trends[key].sort(key=lambda x: x["timestamp"])
-    
-    return {"snapshot_trends" : snapshot_trends}
 
-def round_to_interval(dt: datetime, interval: int) -> datetime:
+def adjust_to_interval(base_minute: int, current_minute: int, interval: int) -> int:
     """
-    주어진 datetime 객체를 interval(분) 단위로 반올림.
+    base_minute을 기준으로 current_minute이 속하는 interval 구간의 시작 시간을 반환
     """
-    minute = (dt.minute // interval) * interval
-    if dt.minute % interval >= interval / 2:
-        minute += interval  # 반올림 적용
-    return dt.replace(minute=minute, second=0, microsecond=0)
+    diff = current_minute - base_minute
+    group = diff // interval
+    return base_minute + (group * interval)
 
 def graph_data_by_minutes(db: Session, class_div: str, hw_name: str, student_id: int, interval: int):
     """
@@ -118,21 +95,32 @@ def graph_data_by_minutes(db: Session, class_div: str, hw_name: str, student_id:
     if min_time is None:
         return {"trends": []}  # 데이터가 없으면 빈 리스트 반환
 
-    # 시작 시간을 interval 단위로 반올림
-    base_time = round_to_interval(min_time, interval)
-
-    # 데이터를 interval 단위로 그룹화 (평균 계산을 위해 합산과 개수를 따로 저장)
-    size_by_minute = defaultdict(int)  # { "YYYYMMDD_HHMM": total_size }
-    count_by_minute = defaultdict(int) # 각 interval에 포함된 데이터 개수
+    # 시작 시간을 기준으로 설정 (반올림하지 않음)
+    base_minute = min_time.minute
+    
+    # 데이터를 interval 단위로 그룹화
+    size_by_minute = defaultdict(int)
+    count_by_minute = defaultdict(int)
 
     for snapshot in results:
         snapshot_time = datetime.strptime(snapshot.timestamp, "%Y%m%d_%H%M%S")
         snapshot_time = kst.localize(snapshot_time)
-
-        # interval 단위로 반올림하여 key 생성
-        adjusted_time = round_to_interval(snapshot_time, interval)
+        
+        # 현재 시간의 분을 시작 시간 기준으로 interval 구간 시작점으로 조정
+        adjusted_minute = adjust_to_interval(base_minute, snapshot_time.minute, interval)
+        
+        # 시간 조정이 필요한 경우
+        extra_hours = adjusted_minute // 60
+        final_minutes = adjusted_minute % 60
+        
+        adjusted_time = snapshot_time.replace(
+            hour=(snapshot_time.hour + extra_hours) % 24,
+            minute=final_minutes,
+            second=0,
+            microsecond=0
+        )
+        
         minute_key = adjusted_time.strftime("%Y%m%d_%H%M")
-
         size_by_minute[minute_key] += snapshot.file_size
         count_by_minute[minute_key] += 1
 
@@ -153,3 +141,22 @@ def graph_data_by_minutes(db: Session, class_div: str, hw_name: str, student_id:
 
     return {"trends": trends}
 
+def fetch_build_log(db: Session, class_div: str, hw_name: str, student_id: int) -> list[BuildLogResponse]:
+    results = get_build_log(db, class_div, hw_name, student_id)
+    return [BuildLogResponse(
+        source_file=result.source_file,
+        exit_code=result.exit_code,
+        command_line=result.command_line,
+        working_dir=result.working_dir,
+        timestamp=result.timestamp
+    ) for result in results]
+
+def fetch_run_log(db: Session, class_div: str, hw_name: str, student_id: int) -> list[RunLogResponse]:
+    results = get_run_log(db, class_div, hw_name, student_id)
+    return [RunLogResponse(
+        binary_path=result.binary_path,
+        exit_code=result.exit_code,
+        command_line=result.command_line,
+        working_dir=result.working_dir,
+        timestamp=result.timestamp
+    ) for result in results]

@@ -1,5 +1,6 @@
 from sqlmodel import Field, SQLModel
 from typing import Optional
+from datetime import datetime
 
 # 테이블 모델
 class Snapshot(SQLModel, table=True):

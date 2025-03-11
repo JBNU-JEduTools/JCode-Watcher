@@ -23,3 +23,17 @@ class TrendData(BaseModel):
 
 class GraphResponse(BaseModel):
     trends: List[TrendData]
+
+class BuildLogResponse(BaseModel):
+    source_file: str
+    exit_code: int
+    command_line: str
+    working_dir: str
+    timestamp: datetime
+
+class RunLogResponse(BaseModel):
+    binary_path: str
+    exit_code: int
+    command_line: str
+    working_dir: str
+    timestamp: datetime

@@ -1,7 +1,11 @@
 from collections import defaultdict
 import numpy as np
-from crud.assignment import get_monitoring_data
+from crud.assignment import get_monitoring_data, get_build_avg, get_run_avg
 from sqlmodel import Session
+from datetime import datetime
+import pytz
+from fastapi import FastAPI
+from schemas.assignment import BuildAvgResponse, RunAvgResponse
 
 # 퍼센타일, 전체 학생별 평균 bytes&개수, 최근 작업자(타임스탬프, 학번, 사이즈) 
 def calculate_monitoring_data(db: Session, class_div: str, hw_name: str):
@@ -56,3 +60,67 @@ def calculate_monitoring_data(db: Session, class_div: str, hw_name: str):
         "avg_bytes": avg_bytes,
         "avg_num": avg_snapshots_per_student
     }
+
+def parse_timestamp(timestamp: str) -> datetime:
+    try:
+        if '_' in timestamp:  # YYYYMMDD_HHMMSS 형식
+            return datetime.strptime(timestamp, "%Y%m%d_%H%M%S")
+        else:  # ISO 형식
+            return datetime.fromisoformat(timestamp.replace('Z', ''))
+    except ValueError as e:
+        print(f"Timestamp parsing error: {e} for timestamp: {timestamp}")
+        raise
+
+def fetch_total_graph_data(db: Session, class_div: str, hw_name: str, start: datetime, end: datetime):
+    results = get_monitoring_data(db, class_div, hw_name)
+    
+    if not results:
+        return None
+    
+    try:
+        start = start.replace(tzinfo=None)
+        end = end.replace(tzinfo=None)
+        
+        filtered_results = []
+        for snapshot in results:
+            try:
+                snapshot_time = parse_timestamp(snapshot.timestamp)
+                if start <= snapshot_time <= end:
+                    filtered_results.append(snapshot)
+            except ValueError as e:
+                print(f"Error processing snapshot: {e}")
+                continue
+        
+        student_changes = {}
+
+        for snapshot in filtered_results:
+            timestamp_dt = parse_timestamp(snapshot.timestamp)
+
+            if snapshot.student_id not in student_changes:
+                student_changes[snapshot.student_id] = {"first": snapshot.file_size, "last": snapshot.file_size, "first_time": timestamp_dt}
+            else:
+                student_changes[snapshot.student_id]["last"] = snapshot.file_size
+                student_changes[snapshot.student_id]["last_time"] = timestamp_dt
+
+        result = [
+            {
+                "student_num": student_id,
+                "size_change": abs(data["last"] - data["first"])
+            }
+            for student_id, data in student_changes.items()
+        ]
+
+        return {"results": result}
+    except Exception as e:
+        print(f"Error in fetch_graph_data: {e}")
+        return {"results": []}
+    
+# 빌드 평균 횟수 계산
+def calculate_build_avg(db: Session, class_div: str, hw_name: str) -> BuildAvgResponse:
+    results = get_build_avg(db, class_div, hw_name)
+    return BuildAvgResponse(avg_count=results)
+
+# 실행 평균 횟수 계산
+def calculate_run_avg(db: Session, class_div: str, hw_name: str) -> RunAvgResponse:
+    results = get_run_avg(db, class_div, hw_name)
+    return RunAvgResponse(avg_count=results)

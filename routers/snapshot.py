@@ -16,6 +16,7 @@ def convert_to_kst(timestamp_str: str) -> datetime:
     dt_utc = datetime.strptime(timestamp_str, "%Y%m%d_%H%M%S").replace(tzinfo=timezone.utc)
     return dt_utc + timedelta(hours=9)
 
+#스냅샷 등록
 @router.post("/api/{class_div}/{hw_name}/{student_id}/{filename}/{timestamp}")
 def register_snapshot(
     class_div: str,

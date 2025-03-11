@@ -5,6 +5,7 @@ from routers.assignment import router as assignment_router
 from db.connection import create_db_and_tables, insert_data
 from routers.snapshot import router as snapshot_router
 from routers.selection import router as selection_router
+from routers.log import router as log_router
 
 app = FastAPI()
 
@@ -24,6 +25,7 @@ def on_startup():
     # insert_data()
 
 # 라우터 포함
+app.include_router(log_router, tags=["Log"])
 app.include_router(student_router, tags=["Student"])
 app.include_router(assignment_router, tags=["Assignment"])
 app.include_router(snapshot_router, tags=["Snapshot"])
