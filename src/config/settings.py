@@ -16,7 +16,7 @@ MAX_FILE_SIZE = 64 * 1024  # 64KB
 
 # 허용되는 파일 패턴
 SOURCE_PATTERNS = [
-    # 각 depth별 허용 패턴 (hw1-hw10만 허용)
+    # 각 depth별 허용 패턴 (hw1-hw10만 허용, 최대 2depth까지)
     r"/watcher/codes/[^/]+-[^/]+-[^/]+/hw(?:[1-9]|10)/[^/]+\.(c|h|py)$",                     # 0depth
     r"/watcher/codes/[^/]+-[^/]+-[^/]+/hw(?:[1-9]|10)/[^/]+/[^/]+\.(c|h|py)$",              # 1depth
     r"/watcher/codes/[^/]+-[^/]+-[^/]+/hw(?:[1-9]|10)/[^/]+/[^/]+/[^/]+\.(c|h|py)$",        # 2depth
@@ -27,7 +27,7 @@ IGNORE_PATTERNS = [
     r".*/(?:\.?env|ENV)/.+",          # env, .env, ENV, .ENV
     r".*/(?:site|dist)-packages/.+",   # site-packages, dist-packages
     r".*/lib(?:64|s)?/.+",            # lib, lib64, libs
-    r".*/\..+"                        # 숨김 파일/디렉토리
+    r".*/\..+",                        # 숨김 파일/디렉토리
 ]
 
 # 로깅 설정

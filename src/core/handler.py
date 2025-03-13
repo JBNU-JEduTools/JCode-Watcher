@@ -81,13 +81,13 @@ class SourceCodeHandler(RegexMatchingEventHandler):
         logger.debug(f"Testing path: {path}")
         
         # 먼저 무시 패턴과 매칭되는지 확인
-        for pattern in cls.IGNORE_PATTERNS:
+        for pattern in IGNORE_PATTERNS:
             if re.match(pattern, path):
                 logger.debug(f"Path matched ignore pattern: {pattern}")
                 return False
         
         # 허용 패턴과 매칭되는지 확인
-        for pattern in cls.SOURCE_PATTERNS:
+        for pattern in SOURCE_PATTERNS:
             if re.match(pattern, path):
                 logger.debug(f"Path matched source pattern: {pattern}")
                 return True

@@ -7,7 +7,7 @@ class TestSourceCodeHandler:
         ("/watcher/codes/os-1-202012180/hw1/test.c", True),          # 0depth
         ("/watcher/codes/os-1-202012180/hw5/1/test.py", True),       # 1depth
         ("/watcher/codes/os-1-202012180/hw8/1/2/test.h", True),      # 2depth
-        ("/watcher/codes/os-1-202012180/hw10/1/2/3/test.c", True),   # 3depth hw10 테스트
+        ("/watcher/codes/os-1-202012180/hw10/1/2/3/test.c", False),  # 3depth (불가)
         
         # 무효한 경로 테스트
         ("/watcher/codes/os-1-202012180/hw0/test.c", False),         # hw0 (불가)
@@ -19,6 +19,7 @@ class TestSourceCodeHandler:
         ("/watcher/codes/os-1-202012180/hw1/.git/test.py", False),   # 숨김 디렉토리
     ])
     def test_path_patterns(self, test_path, expected):
+        """경로 패턴 테스트"""
         assert SourceCodeHandler.test_path(test_path) == expected
 
     @pytest.mark.parametrize("hw_number", [
