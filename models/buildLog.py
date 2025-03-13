@@ -11,4 +11,5 @@ class BuildLog(SQLModel, table=True):
     binary_path: str
     cmdline: str
     exit_code: int
+    target_path: str
     timestamp: datetime

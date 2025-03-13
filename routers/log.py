@@ -31,7 +31,8 @@ def register_build_log(
         "cwd": log_data.cwd,
         "binary_path": log_data.binary_path,
         "cmdline": log_data.cmdline,
-        "exit_code": log_data.exit_code
+        "exit_code": log_data.exit_code,
+        "target_path": log_data.target_path
     }
     
     build_log = build_register(db=db, build_data=build_data)

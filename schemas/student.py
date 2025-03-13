@@ -29,7 +29,9 @@ class BuildLogResponse(BaseModel):
     cmdline: str
     exit_code: int
     cwd: str
+    target_path: str
     timestamp: datetime
+    file_size: int
 
 class RunLogResponse(BaseModel):
     cmdline: str
@@ -38,3 +40,4 @@ class RunLogResponse(BaseModel):
     target_path: str
     process_type: str
     timestamp: datetime
+    file_size: int

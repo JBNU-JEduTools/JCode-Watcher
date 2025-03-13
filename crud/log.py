@@ -12,7 +12,8 @@ def build_register(db: Session, build_data):
         cwd=build_data["cwd"],
         binary_path=build_data["binary_path"],
         cmdline=build_data["cmdline"],
-        exit_code=build_data["exit_code"]
+        exit_code=build_data["exit_code"],
+        target_path=build_data["target_path"]
     )
     
     db.add(build_log)

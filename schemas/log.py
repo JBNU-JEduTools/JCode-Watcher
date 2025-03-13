@@ -6,6 +6,7 @@ class BuildLogCreate(BaseModel):
     cmdline: str
     exit_code: int
     cwd: str
+    target_path: str
     timestamp: datetime
 
 class RunLogCreate(BaseModel):
