@@ -1,5 +1,5 @@
 import pytest
-from src.core.handler import SourceCodeHandler
+from src.core.watchdog_handler import SourceCodeHandler
 
 class TestSourceCodeHandler:
     @pytest.mark.parametrize("test_path,expected", [

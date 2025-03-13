@@ -1,7 +1,7 @@
 import asyncio
 from watchdog.observers import Observer
 from pathlib import Path
-from src.core.handler import SourceCodeHandler
+from src.core.watchdog_handler import SourceCodeHandler
 from src.core.snapshot import SnapshotManager
 from src.core.api import APIClient
 from src.core.event_processor import EventProcessor
@@ -54,11 +54,6 @@ class FileWatcher:
         self.observer.stop()
         self.observer.join()
         logger.info("파일 감시가 중지되었습니다.")
-    
-    async def run(self):
-        """파일 감시 및 이벤트 처리 실행"""
-        self.start()
-        await self.event_processor.process_events()
 
 async def main():
     # 컴포넌트 초기화
@@ -81,7 +76,10 @@ async def main():
     
     try:
         logger.info(f"파일 감시 시스템이 시작되었습니다. (감시 경로: {WATCH_PATH})")
-        await watcher.run()
+        # 파일 감시 시작
+        watcher.start()
+        # 이벤트 처리 시작
+        await event_processor.process_events()
     except KeyboardInterrupt:
         logger.info("프로그램 종료 요청됨")
         watcher.stop()
