@@ -9,7 +9,7 @@ WATCH_PATH = BASE_DIR / "codes"
 SNAPSHOT_DIR = BASE_DIR / "snapshots"
 
 # API 설정
-API_URL = os.getenv("API_URL", "http://localhost:8000")
+API_URL = os.getenv("WATCHER_API_URL", "http://localhost:8000")
 
 # 파일 처리 설정
 MAX_FILE_SIZE = 64 * 1024  # 64KB

@@ -29,3 +29,4 @@ venv/
 # IDE settings
 .vscode/
 .idea/
+*.tar
