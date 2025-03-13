@@ -36,7 +36,7 @@ class EventProcessor:
         self.snapshot_manager = snapshot_manager
         self._student_handlers: dict[str, StudentEventHandler] = {}
 
-    async def process_events(self):
+    async def route_events(self):
         """메인 이벤트 큐에서 학생별 큐로 이벤트 라우팅"""
         while True:
             event = await self.event_queue.get()
@@ -93,7 +93,7 @@ class EventProcessor:
                     if event_type == "modified":
                         snapshot_path = await self._create_modified_snapshot(file_path)
                     else:  # deleted
-                        snapshot_path = await self._create_deleted_snapshot(file_path)
+                        snapshot_path = await self._create_empty_snapshot(file_path)
                     
                     logger.debug(
                         f"학생 {student_id}의 스냅샷 생성 완료 - "
@@ -103,9 +103,9 @@ class EventProcessor:
                 # 스냅샷이 생성된 경우 API 호출을 실행
                 if snapshot_path:
                     if event_type == "modified":
-                        await self._send_modified_to_api(path_info, snapshot_path)
+                        await self._register_modified_snapshot(path_info, snapshot_path)
                     else:  # deleted
-                        await self._send_deleted_to_api(path_info, snapshot_path)
+                        await self._register_deleted_snapshot(path_info, snapshot_path)
                     
             except Exception as e:
                 logger.error(f"학생 {student_id}의 이벤트 처리 중 오류: {e}")
@@ -119,12 +119,12 @@ class EventProcessor:
             return None
         return await self.snapshot_manager.create_snapshot(file_path)
 
-    async def _create_deleted_snapshot(self, file_path: str) -> str | None:
-        """삭제된 파일의 스냅샷 생성"""
+    async def _create_empty_snapshot(self, file_path: str) -> str | None:
+        """삭제된 파일의 빈 스냅샷 생성"""
         return await self.snapshot_manager.create_empty_snapshot(file_path)
 
-    async def _send_modified_to_api(self, path_info: PathInfo, snapshot_path: str):
-        """수정된 파일의 스냅샷 정보를 API로 전송"""
+    async def _register_modified_snapshot(self, path_info: PathInfo, snapshot_path: str):
+        """수정된 파일의 스냅샷 정보를 API에 등록"""
         try:
             snapshot = Path(snapshot_path)
             await self.api_client.register_snapshot(
@@ -135,12 +135,12 @@ class EventProcessor:
                 timestamp=snapshot.name,
                 file_size=snapshot.stat().st_size
             )
-            logger.debug(f"수정된 파일 API 전송 완료 - 학생: {path_info.student_id}, 스냅샷: {snapshot_path}")
+            logger.debug(f"수정된 파일 스냅샷 등록 완료 - 학생: {path_info.student_id}, 스냅샷: {snapshot_path}")
         except Exception as e:
-            logger.error(f"수정된 파일 API 전송 중 오류: {e}")
+            logger.error(f"수정된 파일 스냅샷 등록 중 오류: {e}")
 
-    async def _send_deleted_to_api(self, path_info: PathInfo, snapshot_path: str):
-        """삭제된 파일의 스냅샷 정보를 API로 전송"""
+    async def _register_deleted_snapshot(self, path_info: PathInfo, snapshot_path: str):
+        """삭제된 파일의 스냅샷 정보를 API에 등록"""
         try:
             snapshot = Path(snapshot_path)
             await self.api_client.register_snapshot(
@@ -151,6 +151,6 @@ class EventProcessor:
                 timestamp=snapshot.name,
                 file_size=0
             )
-            logger.debug(f"삭제된 파일 API 전송 완료 - 학생: {path_info.student_id}, 스냅샷: {snapshot_path}")
+            logger.debug(f"삭제된 파일 스냅샷 등록 완료 - 학생: {path_info.student_id}, 스냅샷: {snapshot_path}")
         except Exception as e:
-            logger.error(f"삭제된 파일 API 전송 중 오류: {e}") 
+            logger.error(f"삭제된 파일 스냅샷 등록 중 오류: {e}") 

@@ -79,7 +79,7 @@ async def main():
         # 파일 감시 시작
         watcher.start()
         # 이벤트 처리 시작
-        await event_processor.process_events()
+        await event_processor.route_events()
     except KeyboardInterrupt:
         logger.info("프로그램 종료 요청됨")
         watcher.stop()
