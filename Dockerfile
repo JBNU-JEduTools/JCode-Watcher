@@ -1,5 +1,5 @@
 # 베이스 이미지 설정
-FROM python:3.9-slim
+FROM python:3.12-slim
 
 # 작업 디렉토리 설정
 WORKDIR /app
@@ -16,4 +16,4 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
 
 # 실행 명령어
-CMD ["python", "-m", "src.main"]
+CMD ["python", "-m", "src.app"]
