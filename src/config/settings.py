@@ -20,25 +20,14 @@ SOURCE_PATTERNS = [
     r"/watcher/codes/[^/]+-[^/]+-[^/]+/hw(?:[1-9]|10)/[^/]+\.(c|h|py)$",                     # 0depth
     r"/watcher/codes/[^/]+-[^/]+-[^/]+/hw(?:[1-9]|10)/[^/]+/[^/]+\.(c|h|py)$",              # 1depth
     r"/watcher/codes/[^/]+-[^/]+-[^/]+/hw(?:[1-9]|10)/[^/]+/[^/]+/[^/]+\.(c|h|py)$",        # 2depth
-    r"/watcher/codes/[^/]+-[^/]+-[^/]+/hw(?:[1-9]|10)/[^/]+/[^/]+/[^/]+/[^/]+\.(c|h|py)$"   # 3depth
 ]
 
-# 무시할 파일 패턴
+# 무시할 파일 패턴 (정규식)
 IGNORE_PATTERNS = [
-    # 4depth 이상 차단
-    r"/watcher/codes/[^/]+-[^/]+-[^/]+/hw(?:[1-9]|10)/[^/]+/[^/]+/[^/]+/[^/]+/[^/]+/.*$",
-    # hw0, hw11 이상의 모든 과제 디렉토리 차단
-    r"/watcher/codes/[^/]+-[^/]+-[^/]+/hw(?:0|[1-9][1-9]|[2-9]\d+)/.*$",
-    # 컴파일된 파일과 임시 파일들
-    r".*\.(pyc|pyo|pyd|git|o|obj|exe|bin)$",
-    # 특수 디렉토리
-    r".*/__pycache__/.*",
-    r".*/\..+",                  # 숨김 파일/디렉토리
-    r".*/build/.*",              # 빌드 디렉토리
-    r".*/tmp/.*",               # 임시 디렉토리
-    r".*/.cache/.*",            # 캐시 디렉토리
-    r".*/Microsoft/.*"          # Microsoft 관련 디렉토리
-    r".*/config/.*"          # Microsoft 관련 디렉토리
+    r".*/(?:\.?env|ENV)/.+",          # env, .env, ENV, .ENV
+    r".*/(?:site|dist)-packages/.+",   # site-packages, dist-packages
+    r".*/lib(?:64|s)?/.+",            # lib, lib64, libs
+    r".*/\..+"                        # 숨김 파일/디렉토리
 ]
 
 # 로깅 설정

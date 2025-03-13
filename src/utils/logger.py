@@ -4,10 +4,38 @@
 """
 import logging
 import sys
+from contextvars import ContextVar
+from typing import Optional
+from pathlib import Path
 from ..config.settings import LOG_LEVEL
 
-# 로그 포맷 설정
-LOG_FORMAT = "%(asctime)s - [%(name)s] - %(levelname)s - %(message)s"
+# Context Variables 정의
+current_class_student = ContextVar('current_class_student', default='')
+
+class FileContextFilter(logging.Filter):
+    """로그 레코드에 파일 컨텍스트 정보를 추가하는 필터"""
+    
+    def filter(self, record):
+        # 컨텍스트 정보 추가 (비어있으면 '---' 사용)
+        record.class_student = current_class_student.get() or '---'
+        return True
+
+def set_file_context(class_student: str = ''):
+    """현재 컨텍스트의 정보 설정"""
+    current_class_student.set(class_student)
+
+def clear_file_context():
+    """컨텍스트 초기화"""
+    current_class_student.set('')
+
+# 로그 포맷 수정
+LOG_FORMAT = (
+    "%(asctime)s - "
+    "[%(name)s] - "
+    "%(levelname)s - "
+    "%(class_student)s - "  # 과목-분반-학번 정보
+    "%(message)s"
+)
 
 def setup_app_logger() -> None:
     """애플리케이션 로거 설정
@@ -28,6 +56,11 @@ def setup_app_logger() -> None:
     # 새 핸들러 추가
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setFormatter(logging.Formatter(LOG_FORMAT))
+    
+    # 컨텍스트 필터 추가
+    context_filter = FileContextFilter()
+    console_handler.addFilter(context_filter)
+    
     root_logger.addHandler(console_handler)
     
     # 3. 애플리케이션 로거 설정
