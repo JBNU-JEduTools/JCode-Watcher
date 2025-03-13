@@ -12,6 +12,7 @@ from src.config.settings import (
 )
 from src.core.path_info import PathInfo
 from src.utils.logger import get_logger
+from src.utils.inotify import log_inotify_status
 
 logger = get_logger(__name__)
 
@@ -48,6 +49,9 @@ class FileWatcher:
         self.observer.daemon = True
         self.observer.start()
         logger.info(f"파일 감시 시작됨: {self.watch_path}")
+        
+        # inotify 상태 로깅
+        log_inotify_status()
     
     def stop(self):
         """파일 시스템 감시 중지"""
