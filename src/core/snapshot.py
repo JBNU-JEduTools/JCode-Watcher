@@ -85,6 +85,24 @@ class SnapshotManager:
             logger.error(f"스냅샷 생성 실패: {e}")
             raise
             
+    async def create_empty_snapshot(self, source_path: str) -> Optional[str]:
+        """0바이트 스냅샷 생성"""
+        path_info = PathInfo.from_source_path(source_path)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        
+        # 최종 스냅샷 경로 생성
+        snapshot_path = path_info.get_snapshot_path(self.snapshot_dir, timestamp)
+        
+        try:
+            snapshot_path.parent.mkdir(parents=True, exist_ok=True)
+            # 0바이트 파일 생성
+            snapshot_path.touch()
+            logger.info(f"0바이트 스냅샷 생성 완료: {snapshot_path}")
+            return str(snapshot_path)
+        except OSError as e:
+            logger.error(f"0바이트 스냅샷 생성 실패: {e}")
+            return None
+
     def _get_snapshot_dir(self, source: Path) -> Path:
         """스냅샷 디렉토리 경로 생성"""
         relative_path = source.relative_to('/watcher/codes')

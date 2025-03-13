@@ -46,7 +46,33 @@ class SourceCodeHandler(RegexMatchingEventHandler):
             }), 
             self.loop
         )
+
+    def on_moved(self, event):
+        """파일 이름 변경 이벤트를 삭제 및 수정 이벤트로 처리"""
+        # 1. 이전 파일에 대한 삭제 이벤트 처리
+        asyncio.run_coroutine_threadsafe(
+            self.event_queue.put({
+                "event_type": "deleted",
+                "path": event.src_path
+            }), 
+            self.loop
+        )
         
+        # 2. 새 파일에 대한 수정 이벤트 처리
+        try:
+            if os.path.getsize(event.dest_path) > MAX_FILE_SIZE:
+                return
+                
+            asyncio.run_coroutine_threadsafe(
+                self.event_queue.put({
+                    "event_type": "modified",
+                    "path": event.dest_path
+                }), 
+                self.loop
+            )
+        except OSError:
+            return
+
     # 정규표현식 디버깅을 위한 테스트 메서드 추가
     @classmethod
     def test_path(cls, path: str) -> bool:
