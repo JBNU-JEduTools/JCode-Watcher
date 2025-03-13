@@ -19,6 +19,7 @@ spec:
         volumeMounts:
         - name: jcode-vol
           mountPath: /watcher/codes
+          subpath: workspace
           readOnly: true
         - name: snapshot-volume
           mountPath: /watcher/snapshots
