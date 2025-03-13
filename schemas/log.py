@@ -2,24 +2,16 @@ from pydantic import BaseModel
 from datetime import datetime
 
 class BuildLogCreate(BaseModel):
-    pod_name: str
-    container_id: str
-    pid: int
-    source_file: str
-    compiler_path: str
-    working_dir: str
-    command_line: str
+    binary_path: str
+    cmdline: str
     exit_code: int
-    error_flags: str
+    cwd: str
     timestamp: datetime
 
 class RunLogCreate(BaseModel):
-    pod_name: str
-    container_id: str
-    pid: int
-    binary_path: str
-    working_dir: str
-    command_line: str
+    cmdline: str
     exit_code: int
-    error_flags: str
+    cwd: str
+    target_path: str
+    process_type: str
     timestamp: datetime

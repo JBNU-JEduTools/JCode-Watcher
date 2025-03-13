@@ -14,7 +14,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=True,  # 쿠키 허용
-    allow_methods=["*"],  # 모든 http 메서드 허용
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],  # 모든 요청 헤더 허용
 )
 

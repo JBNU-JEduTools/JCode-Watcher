@@ -28,15 +28,10 @@ def register_build_log(
         "hw_name": hw_name,
         "student_id": student_id,
         "timestamp": timestamp_kst,
-        "exit_code": log_data.exit_code, 
-        "command_line": log_data.command_line,
-        "pod_name": log_data.pod_name,
-        "container_id": log_data.container_id,
-        "pid": log_data.pid,
-        "source_file": log_data.source_file,
-        "compiler_path": log_data.compiler_path,
-        "working_dir": log_data.working_dir,
-        "error_flags": log_data.error_flags
+        "cwd": log_data.cwd,
+        "binary_path": log_data.binary_path,
+        "cmdline": log_data.cmdline,
+        "exit_code": log_data.exit_code
     }
     
     build_log = build_register(db=db, build_data=build_data)
@@ -59,14 +54,11 @@ def register_run_log(
         "hw_name": hw_name,
         "student_id": student_id,
         "timestamp": timestamp_kst,
+        "cmdline": log_data.cmdline,
         "exit_code": log_data.exit_code,
-        "command_line": log_data.command_line,
-        "pod_name": log_data.pod_name,
-        "container_id": log_data.container_id,
-        "pid": log_data.pid,
-        "binary_path": log_data.binary_path,
-        "working_dir": log_data.working_dir,
-        "error_flags": log_data.error_flags
+        "cwd": log_data.cwd,
+        "target_path": log_data.target_path,
+        "process_type": log_data.process_type
     }
     
     run_log = run_register(db=db, run_data=run_data)

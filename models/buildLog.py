@@ -7,13 +7,8 @@ class BuildLog(SQLModel, table=True):
     class_div: str
     hw_name: str
     student_id: int
-    pod_name: str
-    container_id: str
-    pid: int
-    source_file: str
-    compiler_path: str
-    working_dir: str
-    command_line: str
+    cwd: str
+    binary_path: str
+    cmdline: str
     exit_code: int
-    error_flags: str
     timestamp: datetime

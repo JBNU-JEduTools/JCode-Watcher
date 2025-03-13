@@ -144,19 +144,20 @@ def graph_data_by_minutes(db: Session, class_div: str, hw_name: str, student_id:
 def fetch_build_log(db: Session, class_div: str, hw_name: str, student_id: int) -> list[BuildLogResponse]:
     results = get_build_log(db, class_div, hw_name, student_id)
     return [BuildLogResponse(
-        source_file=result.source_file,
         exit_code=result.exit_code,
-        command_line=result.command_line,
-        working_dir=result.working_dir,
+        cmdline=result.cmdline,
+        cwd=result.cwd,
+        binary_path=result.binary_path,
         timestamp=result.timestamp
     ) for result in results]
 
 def fetch_run_log(db: Session, class_div: str, hw_name: str, student_id: int) -> list[RunLogResponse]:
     results = get_run_log(db, class_div, hw_name, student_id)
     return [RunLogResponse(
-        binary_path=result.binary_path,
+        cmdline=result.cmdline,
         exit_code=result.exit_code,
-        command_line=result.command_line,
-        working_dir=result.working_dir,
+        cwd=result.cwd,
+        target_path=result.target_path,
+        process_type=result.process_type,
         timestamp=result.timestamp
     ) for result in results]

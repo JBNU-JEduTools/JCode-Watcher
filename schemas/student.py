@@ -25,15 +25,16 @@ class GraphResponse(BaseModel):
     trends: List[TrendData]
 
 class BuildLogResponse(BaseModel):
-    source_file: str
+    binary_path: str
+    cmdline: str
     exit_code: int
-    command_line: str
-    working_dir: str
+    cwd: str
     timestamp: datetime
 
 class RunLogResponse(BaseModel):
-    binary_path: str
+    cmdline: str
     exit_code: int
-    command_line: str
-    working_dir: str
+    cwd: str
+    target_path: str
+    process_type: str
     timestamp: datetime

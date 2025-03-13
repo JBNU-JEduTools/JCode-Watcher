@@ -7,12 +7,9 @@ class RunLog(SQLModel, table=True):
     class_div: str
     hw_name: str
     student_id: int
-    pod_name: str
-    container_id: str
-    pid: int
-    binary_path: str
-    working_dir: str
-    command_line: str
+    cmdline: str
     exit_code: int
-    error_flags: str
+    cwd: str
+    target_path: str
+    process_type: str
     timestamp: datetime
