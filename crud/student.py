@@ -1,4 +1,4 @@
-from sqlmodel import Session, select
+from sqlmodel import Session, select, func
 from models.snapshot import Snapshot
 from fastapi import HTTPException
 import numpy as np
@@ -48,13 +48,28 @@ def get_run_log(db: Session, class_div: str, hw_name: str, student_id: int):
 def get_closest_snapshot(db: Session, class_div: str, hw_name: str, student_id: int, log_timestamp: datetime):
     log_timestamp_str = log_timestamp.strftime("%Y%m%d_%H%M%S")
 
-    statement = select(Snapshot.file_size).where(
-        Snapshot.class_div == class_div,
-        Snapshot.hw_name == hw_name,
-        Snapshot.student_id == student_id,
-        Snapshot.timestamp <= log_timestamp_str
-    ).order_by(Snapshot.timestamp.desc()).limit(1)
+    # 서브쿼리에서 파일별 최대 타임스탬프와 함께 모든 필요한 정보를 가져옴
+    subquery = (
+        select(
+            Snapshot.filename,
+            Snapshot.file_size,
+            func.max(Snapshot.timestamp).label('max_timestamp')
+        ).where(
+            Snapshot.class_div == class_div,
+            Snapshot.hw_name == hw_name,
+            Snapshot.student_id == student_id,
+            Snapshot.timestamp <= log_timestamp_str
+        ).group_by(Snapshot.filename)
+    )
 
-    result = db.exec(statement).first()
-    return result if result is not None else 0
+    results = db.exec(subquery).all()
+
+    for result in results:
+        print(f"파일: {result.filename}, 크기: {result.file_size}")
+    
+    total_code_size = sum(result.file_size for result in results) if results else 0
+    print(f"총 합계: {total_code_size}")
+    print("=================================")
+    
+    return total_code_size
 

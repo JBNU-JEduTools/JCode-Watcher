@@ -50,15 +50,16 @@ def calculate_assignment_snapshot_avg(db: Session, class_div: str, student_id: i
         interval = 0
     
     snapshot_counts = len(results)
+    # 스냅샷 평균 크기 - 전체 스냅샷 파일 사이즈 총합 / 스냅샷 총 개수
     snapshot_size_avg = round(np.mean([snapshot.file_size for snapshot in results]), 2) if results else 0
 
     return {
-        "snapshot_avg": snapshot_counts,
-        "snapshot_size_avg": snapshot_size_avg,
-        "first": first, 
-        "last": last,
-        "total": total,           #초 단위
-        "interval": interval
+        "snapshot_avg": snapshot_counts,    # 스냅샷 총 개수
+        "snapshot_size_avg": snapshot_size_avg, # 스냅샷 평균 크기
+        "first": first,  # 첫 스냅샷 시간
+        "last": last,    # 마지막 스냅샷 시간
+        "total": total,           # 총 작업 시간 (초 단위)
+        "interval": interval    # 마지막 스냅샷과 두 번째 스냅샷의 시간 차이 (초 단위)
     }
 
 def adjust_to_interval(base_minute: int, current_minute: int, interval: int) -> int:
@@ -98,11 +99,13 @@ def graph_data_by_minutes(db: Session, class_div: str, hw_name: str, student_id:
     # 시작 시간을 기준으로 설정 (반올림하지 않음)
     base_minute = min_time.minute
     
-    # 데이터를 interval 단위로 그룹화
-    size_by_minute = defaultdict(int)
-    count_by_minute = defaultdict(int)
+     # 데이터를 interval 단위로 그룹화
+    total_size_by_minute = {}
+    latest_sizes_by_filename = {}  # {filename: latest_file_size} 저장용
 
-    for snapshot in results:
+    sorted_snapshots = sorted(results, key=lambda s: s.timestamp)
+
+    for snapshot in sorted_snapshots:
         snapshot_time = datetime.strptime(snapshot.timestamp, "%Y%m%d_%H%M%S")
         snapshot_time = kst.localize(snapshot_time)
         
@@ -121,23 +124,25 @@ def graph_data_by_minutes(db: Session, class_div: str, hw_name: str, student_id:
         )
         
         minute_key = adjusted_time.strftime("%Y%m%d_%H%M")
-        size_by_minute[minute_key] += snapshot.file_size
-        count_by_minute[minute_key] += 1
+        
+        #현재 파일의 최신 file_size
+        latest_sizes_by_filename[snapshot.filename] = snapshot.file_size
+
+        # 현재까지의 최신 파일별 file_size 합산
+        total_code_size = sum(latest_sizes_by_filename.values())
+        total_size_by_minute[minute_key] = total_code_size
 
     # 코드 변화량 및 평균 코드량 계산
-    sorted_minutes = sorted(size_by_minute.keys())  # timestamp 오름차순 정렬
+    sorted_minutes = sorted(total_size_by_minute.keys())  # timestamp 오름차순 정렬
     trends = []
     
     prev_size = 0
     for timestamp in sorted_minutes:
-        total_size = size_by_minute[timestamp]
-        count = count_by_minute[timestamp]
+        total_size = total_size_by_minute[timestamp]
+        size_change = round(total_size - prev_size, 2)
 
-        avg_size = round(total_size / count, 2) if count > 0 else 0.00
-        size_change = round(avg_size - prev_size, 2)
-
-        trends.append({"timestamp": timestamp, "total_size": avg_size, "size_change": size_change})
-        prev_size = avg_size
+        trends.append({"timestamp": timestamp, "total_size": total_size, "size_change": size_change})
+        prev_size = total_size
 
     return {"trends": trends}
 

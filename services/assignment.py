@@ -29,7 +29,7 @@ def calculate_monitoring_data(db: Session, class_div: str, hw_name: str):
         student_code_sizes[student_id].append(file_size)
         snapshot_num[student_id] += 1
         
-        # 최신 제출만 저장 (더 최신 타임스탬프가 있으면 업데이트)
+        # 최신 스냅샷만 저장 (더 최신 타임스탬프가 있으면 업데이트)
         if student_id not in latest_student or timestamp > latest_student[student_id][0]:
             latest_student[student_id] = (timestamp, file_size)
         
@@ -44,13 +44,12 @@ def calculate_monitoring_data(db: Session, class_div: str, hw_name: str):
     
     # 각 학생별 평균 bytes 계산
     avg_bytes_per_student = {
-        student_id: sum(sizes) / len(sizes)
+        student_id: round(sum(sizes) / len(sizes), 2)
         for student_id, sizes in student_code_sizes.items()
     }
-    
-    avg_bytes = round(sum(avg_bytes_per_student.values()) / len(avg_bytes_per_student), 2) if avg_bytes_per_student else 0
+    avg_bytes = round(sum(avg_bytes_per_student.values()) / len(avg_bytes_per_student), 2) if avg_bytes_per_student else 0  # 학생별 평균 코드 크기값의 총합 / 학생 수
 
-    # 전체 평균 스냅샷 개수 계산
+    # 전체 평균 스냅샷 개수 계산 (전체 스냅샷 개수 / 학생 수)
     avg_snapshots_per_student = round(sum(snapshot_num.values()) / len(snapshot_num), 2) if snapshot_num else 0
     
     return {

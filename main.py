@@ -6,6 +6,8 @@ from db.connection import create_db_and_tables, insert_data
 from routers.snapshot import router as snapshot_router
 from routers.selection import router as selection_router
 from routers.log import router as log_router
+from routers.metric import router as metric_router
+from middleware import PrometheusMiddleware
 
 app = FastAPI()
 
@@ -17,6 +19,8 @@ app.add_middleware(
     allow_methods=["GET", "POST"],
     allow_headers=["*"],  # 모든 요청 헤더 허용
 )
+
+app.add_middleware(PrometheusMiddleware)
 
 # 앱 시작 시 DB 테이블 생성
 @app.on_event("startup")
@@ -30,3 +34,4 @@ app.include_router(student_router, tags=["Student"])
 app.include_router(assignment_router, tags=["Assignment"])
 app.include_router(snapshot_router, tags=["Snapshot"])
 app.include_router(selection_router, tags=["Selection"])
+app.include_router(metric_router, tags=["Metric"])

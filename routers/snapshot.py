@@ -27,8 +27,9 @@ def register_snapshot(
     file_size: SnapshotCreate = Body(...),
     db: Session=Depends(get_session)
 ):
+    only_timestamp = timestamp.split('.')[0]
     
-    timestamp_kst = convert_to_kst(timestamp)
+    timestamp_kst = convert_to_kst(only_timestamp)
     timestamp_kst_str = timestamp_kst.strftime("%Y%m%d_%H%M%S")
     
     # file_depth = unquote(filename).replace('@', '/')   # 모든 @ 문자를 / 로 변환
