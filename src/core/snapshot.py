@@ -17,18 +17,19 @@ class SnapshotManager:
     def __init__(self, snapshot_dir: str):
         self.snapshot_dir = Path(snapshot_dir)
         self.snapshot_dir.mkdir(parents=True, exist_ok=True)
+        logger.info(f"스냅샷 관리자 초기화 - 경로: {snapshot_dir}")
     
     async def has_changed(self, file_path: str) -> bool:
         """파일 변경 여부 확인"""
         try:
             source = Path(file_path)
             if not source.exists():
-                logger.debug(f"파일이 존재하지 않음: {file_path}")
+                logger.debug(f"파일 없음 - 경로: {file_path}")
                 return False
             
             latest_snapshot = self._get_latest_snapshot(source)
             if not latest_snapshot:
-                logger.debug(f"이전 스냅샷이 없음: {file_path}")
+                logger.debug(f"이전 스냅샷 없음 - 경로: {file_path}")
                 return True
             
             # 1. 먼저 파일 크기 비교 (빠른 체크)
@@ -37,13 +38,13 @@ class SnapshotManager:
             
             if source_size != snapshot_size:
                 logger.debug(
-                    f"파일 크기가 다름 - 원본: {source_size}bytes, "
-                    f"스냅샷: {snapshot_size}bytes ({file_path})"
+                    f"크기 불일치 - 원본: {source_size}B, "
+                    f"스냅샷: {snapshot_size}B, 경로: {file_path}"
                 )
                 return True
             
             # 2. 파일 크기가 같다면 내용 비교
-            logger.debug(f"파일 내용 비교 시작: {file_path}")
+            logger.debug(f"내용 비교 시작 - 경로: {file_path}")
             async with aiofiles.open(source, 'rb') as f1, \
                       aiofiles.open(latest_snapshot, 'rb') as f2:
                 chunk_count = 0
@@ -54,18 +55,18 @@ class SnapshotManager:
                     
                     if chunk1 != chunk2:
                         logger.debug(
-                            f"파일 내용이 다름 - 청크 #{chunk_count} "
-                            f"({self._CHUNK_SIZE}bytes 단위): {file_path}"
+                            f"내용 불일치 - 청크: {chunk_count}, "
+                            f"크기: {self._CHUNK_SIZE}B, 경로: {file_path}"
                         )
                         return True
                     if not chunk1:  # EOF
                         break
                     
-            logger.debug(f"파일이 동일함 (총 {chunk_count}개 청크 비교): {file_path}")
+            logger.debug(f"파일 동일 - 청크수: {chunk_count}, 경로: {file_path}")
             return False
             
         except OSError as e:
-            logger.error(f"파일 비교 중 오류 발생: {e} ({file_path})")
+            logger.error(f"비교 실패 - 경로: {file_path}, 오류: {str(e)}")
             return False
     
     async def create_snapshot(self, source_path: str) -> str:
@@ -79,14 +80,14 @@ class SnapshotManager:
         try:
             snapshot_path.parent.mkdir(parents=True, exist_ok=True)
             await asyncio.to_thread(shutil.copy2, path_info.source_path, snapshot_path)
-            logger.info(f"스냅샷 생성 완료: {snapshot_path}")
+            logger.info(f"스냅샷 생성 완료 - 경로: {snapshot_path}")
             return str(snapshot_path)
         except OSError as e:
-            logger.error(f"스냅샷 생성 실패: {e}")
+            logger.error(f"스냅샷 생성 실패 - 오류: {str(e)}")
             raise
             
     async def create_empty_snapshot(self, source_path: str) -> Optional[str]:
-        """0바이트 스냅샷 생성"""
+        """빈 스냅샷 생성"""
         path_info = PathInfo.from_source_path(source_path)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         
@@ -97,10 +98,10 @@ class SnapshotManager:
             snapshot_path.parent.mkdir(parents=True, exist_ok=True)
             # 0바이트 파일 생성
             snapshot_path.touch()
-            logger.info(f"0바이트 스냅샷 생성 완료: {snapshot_path}")
+            logger.info(f"빈 스냅샷 생성 완료 - 경로: {snapshot_path}")
             return str(snapshot_path)
         except OSError as e:
-            logger.error(f"0바이트 스냅샷 생성 실패: {e}")
+            logger.error(f"빈 스냅샷 생성 실패 - 오류: {str(e)}")
             return None
 
     def _get_snapshot_dir(self, source: Path) -> Path:
@@ -113,7 +114,7 @@ class SnapshotManager:
             class_name = '-'.join(path_parts[0].split('-')[:2])  # os-1
             student_id = path_parts[0].split('-')[2]  # 202012180
         except IndexError as e:
-            raise ValueError(f"잘못된 경로 형식: {relative_path}") from e
+            raise ValueError(f"잘못된 경로 형식 - 경로: {relative_path}") from e
         
         return self.snapshot_dir / class_name / path_parts[1] / student_id / '@'.join(path_parts[2:])
 
@@ -123,23 +124,26 @@ class SnapshotManager:
             path_info = PathInfo.from_source_path(source)
             snapshot_dir = path_info.get_snapshot_dir(self.snapshot_dir)
             
-            logger.debug(f"스냅샷 디렉토리 검색: {snapshot_dir}")
+            logger.debug(f"스냅샷 디렉토리 검색 - 경로: {snapshot_dir}")
             
             if not snapshot_dir.exists():
-                logger.debug(f"스냅샷 디렉토리가 존재하지 않음: {snapshot_dir}")
+                logger.debug(f"스냅샷 디렉토리 없음 - 경로: {snapshot_dir}")
                 return None
             
             # source.suffix는 이미 점(.)을 포함하고 있으므로 그대로 사용
             snapshots = list(snapshot_dir.glob(f"*{source.suffix}"))
             
             if not snapshots:
-                logger.debug(f"스냅샷 파일을 찾을 수 없음 (패턴: *{source.suffix}): {snapshot_dir}")
+                logger.debug(f"스냅샷 없음 - 패턴: *{source.suffix}, 경로: {snapshot_dir}")
                 return None
             
             latest = max(snapshots, key=lambda p: p.stat().st_mtime)
-            logger.debug(f"최신 스냅샷 찾음: {latest} (수정시간: {datetime.fromtimestamp(latest.stat().st_mtime)})")
+            logger.debug(
+                f"최신 스냅샷 발견 - 경로: {latest}, "
+                f"수정시각: {datetime.fromtimestamp(latest.stat().st_mtime)}"
+            )
             return latest
             
         except Exception as e:
-            logger.error(f"최신 스냅샷 검색 중 오류 발생: {e}")
+            logger.error(f"최신 스냅샷 검색 실패 - 오류: {str(e)}")
             return None

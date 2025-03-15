@@ -5,6 +5,7 @@ from src.core.snapshot import SnapshotManager
 from src.core.path_info import PathInfo
 from src.utils.logger import get_logger, set_file_context, clear_file_context
 from dataclasses import dataclass
+from src.core.watchdog_handler import WatcherEvent
 
 logger = get_logger(__name__)
 
@@ -41,12 +42,11 @@ class EventProcessor:
         while True:
             event = await self.event_queue.get()
             try:
-                path_info = PathInfo.from_source_path(event["path"])
-                student_id = path_info.student_id
+                student_id = event.path_info.student_id
                 
                 # 라우팅 시점의 컨텍스트 설정
                 set_file_context(
-                    class_student=f"{path_info.class_div}-{path_info.student_id}"
+                    class_student=f"{event.path_info.class_div}-{event.path_info.student_id}"
                 )
                 
                 if student_id not in self._student_handlers:
@@ -55,12 +55,11 @@ class EventProcessor:
                 
                 await self._student_handlers[student_id].queue.put(event)
                 logger.debug(
-                    f"학생 {student_id}의 큐에 이벤트 추가 - "
-                    f"유형: {event['event_type']}, "
-                    f"경로: {event['path']}"
+                    f"Event routed - type: {event.event_type}, "
+                    f"path: {event.source_path}"
                 )
             except Exception as e:
-                logger.error(f"이벤트 라우팅 중 오류 발생: {e}")
+                logger.error(f"Event routing failed - error: {str(e)}")
             finally:
                 self.event_queue.task_done()
                 clear_file_context()
@@ -72,43 +71,36 @@ class EventProcessor:
         while True:
             event = await handler.queue.get()
             try:
-                event_type = event["event_type"]
-                file_path = event["path"]
-                path_info = PathInfo.from_source_path(file_path)
-                
                 # 이벤트 처리 태스크의 컨텍스트 설정
                 set_file_context(
-                    class_student=f"{path_info.class_div}-{path_info.student_id}"
+                    class_student=f"{event.path_info.class_div}-{event.path_info.student_id}"
                 )
                 
                 # 스냅샷 생성 부분만 락으로 보호
                 snapshot_path = None
                 async with handler.lock:
                     logger.debug(
-                        f"학생 {student_id}의 스냅샷 생성 시작 - "
-                        f"유형: {event_type}, "
-                        f"경로: {file_path}"
+                        f"Snapshot creation started - type: {event.event_type}, "
+                        f"path: {event.source_path}"
                     )
                     
-                    if event_type == "modified":
-                        snapshot_path = await self._create_modified_snapshot(file_path)
+                    if event.event_type == "modified":
+                        snapshot_path = await self._create_modified_snapshot(event.source_path)
                     else:  # deleted
-                        snapshot_path = await self._create_empty_snapshot(file_path)
+                        snapshot_path = await self._create_empty_snapshot(event.source_path)
                     
-                    logger.debug(
-                        f"학생 {student_id}의 스냅샷 생성 완료 - "
-                        f"스냅샷: {snapshot_path}"
-                    )
+                    if snapshot_path:
+                        logger.debug(f"Snapshot created - path: {snapshot_path}")
                 
                 # 스냅샷이 생성된 경우 API 호출을 실행
                 if snapshot_path:
-                    if event_type == "modified":
-                        await self._register_modified_snapshot(path_info, snapshot_path)
+                    if event.event_type == "modified":
+                        await self._register_modified_snapshot(event.path_info, snapshot_path)
                     else:  # deleted
-                        await self._register_deleted_snapshot(path_info, snapshot_path)
+                        await self._register_deleted_snapshot(event.path_info, snapshot_path)
                     
             except Exception as e:
-                logger.error(f"학생 {student_id}의 이벤트 처리 중 오류: {e}")
+                logger.error(f"Event processing failed - error: {str(e)}")
             finally:
                 handler.queue.task_done()
                 clear_file_context()
@@ -127,17 +119,24 @@ class EventProcessor:
         """수정된 파일의 스냅샷 정보를 API에 등록"""
         try:
             snapshot = Path(snapshot_path)
+            file_size = snapshot.stat().st_size
             await self.api_client.register_snapshot(
                 class_div=path_info.class_div,
                 hw_name=path_info.hw_name,
                 student_id=path_info.student_id,
                 filename=path_info.filename,
                 timestamp=snapshot.name,
-                file_size=snapshot.stat().st_size
+                file_size=file_size
             )
-            logger.debug(f"수정된 파일 스냅샷 등록 완료 - 학생: {path_info.student_id}, 스냅샷: {snapshot_path}")
+            logger.debug(
+                f"API registration completed - "
+                f"file: {path_info.filename}, size: {file_size}"
+            )
         except Exception as e:
-            logger.error(f"수정된 파일 스냅샷 등록 중 오류: {e}")
+            logger.error(
+                f"API registration failed - "
+                f"file: {path_info.filename}, error: {str(e)}"
+            )
 
     async def _register_deleted_snapshot(self, path_info: PathInfo, snapshot_path: str):
         """삭제된 파일의 스냅샷 정보를 API에 등록"""
@@ -151,6 +150,12 @@ class EventProcessor:
                 timestamp=snapshot.name,
                 file_size=0
             )
-            logger.debug(f"삭제된 파일 스냅샷 등록 완료 - 학생: {path_info.student_id}, 스냅샷: {snapshot_path}")
+            logger.debug(
+                f"API registration completed - "
+                f"file: {path_info.filename}, size: 0"
+            )
         except Exception as e:
-            logger.error(f"삭제된 파일 스냅샷 등록 중 오류: {e}") 
+            logger.error(
+                f"API registration failed - "
+                f"file: {path_info.filename}, error: {str(e)}"
+            ) 

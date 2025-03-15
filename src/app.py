@@ -38,8 +38,8 @@ class FileWatcher:
     def start(self):
         """파일 시스템 감시 시작"""
         if not self.watch_path.exists():
-            logger.error(f"감시할 경로가 존재하지 않습니다: {self.watch_path}")
-            raise FileNotFoundError(f"경로를 찾을 수 없습니다: {self.watch_path}")
+            logger.error(f"감시 경로 없음 - 경로: {self.watch_path}")
+            raise FileNotFoundError(f"경로 없음: {self.watch_path}")
 
         self.observer.schedule(
             self.handler, 
@@ -48,7 +48,7 @@ class FileWatcher:
         )
         self.observer.daemon = True
         self.observer.start()
-        logger.info(f"파일 감시 시작됨: {self.watch_path}")
+        logger.info(f"감시 시작 - 경로: {self.watch_path}")
         
         # inotify 상태 로깅
         log_inotify_status()
@@ -57,7 +57,7 @@ class FileWatcher:
         """파일 시스템 감시 중지"""
         self.observer.stop()
         self.observer.join()
-        logger.info("파일 감시가 중지되었습니다.")
+        logger.info("감시 중지")
 
 async def main():
     # 컴포넌트 초기화
@@ -79,22 +79,23 @@ async def main():
     )
     
     try:
-        logger.info(f"파일 감시 시스템이 시작되었습니다. (감시 경로: {WATCH_PATH})")
+        logger.info(f"시스템 시작 - 감시 경로: {WATCH_PATH}")
         # 파일 감시 시작
         watcher.start()
+        
         # 이벤트 처리 시작
         await event_processor.route_events()
     except KeyboardInterrupt:
-        logger.info("프로그램 종료 요청됨")
+        logger.info("종료 요청")
         watcher.stop()
     except FileNotFoundError:
-        logger.error(f"감시 디렉토리를 찾을 수 없습니다: {WATCH_PATH}")
+        logger.error(f"감시 디렉토리 없음 - 경로: {WATCH_PATH}")
         raise
     except Exception as e:
-        logger.error(f"예상치 못한 오류 발생: {e}")
+        logger.error(f"예상치 못한 오류 - 내용: {str(e)}")
         raise
     finally:
-        logger.info("파일 감시 시스템이 종료되었습니다.")
+        logger.info("시스템 종료")
 
 if __name__ == "__main__":
     asyncio.run(main()) 
