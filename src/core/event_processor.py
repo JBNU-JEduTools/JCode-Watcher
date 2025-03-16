@@ -150,10 +150,6 @@ class EventProcessor:
                 timestamp=snapshot.name,
                 file_size=0
             )
-            logger.debug(
-                f"API registration completed - "
-                f"file: {path_info.filename}, size: 0"
-            )
         except Exception as e:
             logger.error(
                 f"API registration failed - "

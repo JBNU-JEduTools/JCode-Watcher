@@ -74,12 +74,18 @@ class SnapshotManager:
         path_info = PathInfo.from_source_path(source_path)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         
-        # 최종 스냅샷 경로 생성
-        snapshot_path = path_info.get_snapshot_path(self.snapshot_dir, timestamp)
+        # hw1 이후의 중첩 경로를 @로 결합하여 저장하도록 수정
+        nested_path = path_info.get_nested_path()  # hw1 이후의 경로를 @로 결합
+        snapshot_path = (self.snapshot_dir / 
+                        path_info.class_div / 
+                        path_info.hw_name /
+                        path_info.student_id /
+                        nested_path /
+                        f"{timestamp}{Path(source_path).suffix}")
         
         try:
             snapshot_path.parent.mkdir(parents=True, exist_ok=True)
-            await asyncio.to_thread(shutil.copy2, path_info.source_path, snapshot_path)
+            await asyncio.to_thread(shutil.copy2, source_path, snapshot_path)
             logger.info(f"스냅샷 생성 완료 - 경로: {snapshot_path}")
             return str(snapshot_path)
         except OSError as e:

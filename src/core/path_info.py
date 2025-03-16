@@ -64,8 +64,30 @@ class PathInfo:
                 self.class_div / 
                 self.hw_name / 
                 self.student_id /
-                self.source_path.name)
+                self.get_nested_path())
 
-    def get_snapshot_path(self, snapshot_base: str | Path, timestamp: str) -> Path:
+    def get_snapshot_path(self, snapshot_base: Path, timestamp: str) -> Path:
         """스냅샷 파일 경로 생성"""
-        return self.get_snapshot_dir(snapshot_base) / f"{timestamp}{self.source_path.suffix}"
+        return (snapshot_base / 
+                self.class_div / 
+                self.hw_name / 
+                self.student_id / 
+                self.get_nested_path() /
+                f"{timestamp}{self.source_path.suffix}")
+
+    def get_nested_path(self) -> str:
+        """과제 디렉토리 이후의 경로를 @로 결합하여 반환"""
+        # hw1 이후의 모든 경로 부분을 추출
+        path = Path(self.source_path)
+        hw_index = -1
+        for i, part in enumerate(path.parts):
+            if part == self.hw_name:
+                hw_index = i
+                break
+        
+        if hw_index == -1:
+            raise ValueError(f"과제 디렉토리를 찾을 수 없음: {self.source_path}")
+        
+        # hw1 다음부터의 모든 경로 부분을 @로 결합
+        nested_parts = path.parts[hw_index + 1:]
+        return '@'.join(nested_parts)
