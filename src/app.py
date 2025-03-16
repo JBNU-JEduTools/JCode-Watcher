@@ -5,7 +5,7 @@ from src.core.watchdog_handler import WatchdogHandler
 from src.core.snapshot import SnapshotManager
 from src.core.api import APIClient
 from src.core.event_processor import EventProcessor
-from src.core.metrics import MetricsManager
+from src.metrics.prometheus import MetricsManager
 from src.config.settings import (
     WATCH_PATH,
     SNAPSHOT_DIR,
@@ -25,8 +25,7 @@ class Application:
         watch_path: Path,
         snapshot_dir: Path,
         api_url: str,
-        observer: Observer = None,
-        metrics_port: int = 3000
+        observer: Observer = None
     ):
         self.watch_path = watch_path
         self.observer = observer or Observer()
@@ -35,7 +34,7 @@ class Application:
         self.event_queue = asyncio.Queue()
         self.api_client = APIClient(api_url)
         self.snapshot_manager = SnapshotManager(str(snapshot_dir))
-        self.metrics_manager = MetricsManager(port=metrics_port)
+        self.metrics_manager = MetricsManager()
         
         # 이벤트 프로세서 초기화
         self.event_processor = EventProcessor(

@@ -1,5 +1,6 @@
 from prometheus_client import start_http_server
 from src.utils.logger import get_logger
+from src.config.settings import METRICS_PORT
 import threading
 
 logger = get_logger(__name__)
@@ -7,8 +8,8 @@ logger = get_logger(__name__)
 class MetricsManager:
     """프로메테우스 메트릭을 관리하는 클래스"""
     
-    def __init__(self, port: int = 3000):
-        self.port = port
+    def __init__(self):
+        self.port = METRICS_PORT
         
         # TODO: 추후 메트릭 구현
         # self.event_counter = Counter(

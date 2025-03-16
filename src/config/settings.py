@@ -31,4 +31,7 @@ IGNORE_PATTERNS = [
 ]
 
 # 로깅 설정
-LOG_LEVEL = os.getenv('WATCHER_LOG_LEVEL', 'INFO') 
+LOG_LEVEL = os.getenv('WATCHER_LOG_LEVEL', 'INFO')
+
+# 메트릭 설정
+METRICS_PORT = 9090 
