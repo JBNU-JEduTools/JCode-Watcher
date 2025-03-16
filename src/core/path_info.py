@@ -58,18 +58,14 @@ class PathInfo:
         except (ValueError, IndexError) as e:
             raise ValueError(f"잘못된 경로 형식: {source_path}") from e
             
-    def get_snapshot_path(self, snapshot_base: str | Path, timestamp: str) -> Path:
-        """스냅샷 파일 경로 생성"""
-        return (Path(snapshot_base) / 
-                self.class_div / 
-                self.hw_name / 
-                self.student_id / 
-                f"{timestamp}{self.source_path.suffix}")
-                
     def get_snapshot_dir(self, snapshot_base: str | Path) -> Path:
         """스냅샷 디렉토리 경로 생성"""
-        # filename을 제외한 디렉토리 경로만 반환
         return (Path(snapshot_base) / 
                 self.class_div / 
                 self.hw_name / 
-                self.student_id)
+                self.student_id /
+                self.source_path.name)
+
+    def get_snapshot_path(self, snapshot_base: str | Path, timestamp: str) -> Path:
+        """스냅샷 파일 경로 생성"""
+        return self.get_snapshot_dir(snapshot_base) / f"{timestamp}{self.source_path.suffix}"
