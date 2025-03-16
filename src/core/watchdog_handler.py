@@ -42,7 +42,7 @@ class WatcherEvent:
             path_info=path_info
         )
 
-class SourceCodeHandler(RegexMatchingEventHandler):
+class WatchdogHandler(RegexMatchingEventHandler):
     def __init__(self, event_queue: asyncio.Queue, loop: asyncio.AbstractEventLoop):
         super().__init__(
             regexes=SOURCE_PATTERNS,
