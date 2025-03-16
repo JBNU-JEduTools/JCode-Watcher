@@ -5,6 +5,7 @@ from src.core.watchdog_handler import WatchdogHandler
 from src.core.snapshot import SnapshotManager
 from src.core.api import APIClient
 from src.core.event_processor import EventProcessor
+from src.core.metrics import MetricsManager
 from src.config.settings import (
     WATCH_PATH,
     SNAPSHOT_DIR,
@@ -24,7 +25,8 @@ class Application:
         watch_path: Path,
         snapshot_dir: Path,
         api_url: str,
-        observer: Observer = None
+        observer: Observer = None,
+        metrics_port: int = 3000
     ):
         self.watch_path = watch_path
         self.observer = observer or Observer()
@@ -33,6 +35,7 @@ class Application:
         self.event_queue = asyncio.Queue()
         self.api_client = APIClient(api_url)
         self.snapshot_manager = SnapshotManager(str(snapshot_dir))
+        self.metrics_manager = MetricsManager(port=metrics_port)
         
         # 이벤트 프로세서 초기화
         self.event_processor = EventProcessor(
@@ -44,7 +47,8 @@ class Application:
         # 이벤트 핸들러 초기화
         self.handler = WatchdogHandler(
             self.event_queue,
-            asyncio.get_event_loop()
+            asyncio.get_event_loop(),
+            base_path=str(self.watch_path)
         )
 
     def start_watching(self):
@@ -75,6 +79,7 @@ class Application:
         """애플리케이션 실행"""
         try:
             logger.info(f"시스템 시작 - 감시 경로: {self.watch_path}")
+            self.metrics_manager.start_server()
             self.start_watching()
             await self.event_processor.route_events()
             
@@ -90,12 +95,13 @@ class Application:
         finally:
             logger.info("시스템 종료")
 
+
 async def main():
     app = Application(
         watch_path=WATCH_PATH,
         snapshot_dir=SNAPSHOT_DIR,
         api_url=API_URL
-    )
+    )    
     await app.run()
 
 if __name__ == "__main__":

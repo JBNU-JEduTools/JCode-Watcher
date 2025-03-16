@@ -9,7 +9,10 @@ services:
       # 스냅샷 저장소 마운트
       - ./snapshots:/watcher/snapshots
       - ./src/:/app/src/
+    ports:
+      - 3000:3000
     environment:
       - WATCHER_LOG_LEVEL=DEBUG
       # API 서버 설정
       - WATCHER_API_URL=http://172.17.0.1:3000
+
