@@ -64,18 +64,22 @@ class PathInfo:
                 self.class_div / 
                 self.hw_name / 
                 self.student_id /
-                self.get_nested_path())
+                self._get_nested_path())
 
     def get_snapshot_path(self, snapshot_base: Path, timestamp: str) -> Path:
-        """스냅샷 파일 경로 생성"""
-        return (snapshot_base / 
-                self.class_div / 
-                self.hw_name / 
-                self.student_id / 
-                self.get_nested_path() /
-                f"{timestamp}{self.source_path.suffix}")
+        """
+        스냅샷 파일 경로 생성
+        
+        Args:
+            snapshot_base: 스냅샷 기본 디렉토리
+            timestamp: 타임스탬프 (예: 20240316_123456)
+            
+        Returns:
+            Path: 스냅샷 파일 경로
+        """
+        return self.get_snapshot_dir(snapshot_base) / f"{timestamp}{self.source_path.suffix}"
 
-    def get_nested_path(self) -> str:
+    def _get_nested_path(self) -> str:
         """과제 디렉토리 이후의 경로를 @로 결합하여 반환"""
         # hw1 이후의 모든 경로 부분을 추출
         path = Path(self.source_path)

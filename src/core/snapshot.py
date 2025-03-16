@@ -27,9 +27,15 @@ class SnapshotManager:
                 logger.debug(f"파일 없음 - 경로: {file_path}")
                 return False
             
+            path_info = PathInfo.from_source_path(file_path)
+            nested_path = path_info._get_nested_path()
             latest_snapshot = self._get_latest_snapshot(source)
+            
             if not latest_snapshot:
-                logger.debug(f"이전 스냅샷 없음 - 경로: {file_path}")
+                logger.debug(
+                    f"이전 스냅샷 없음 - 원본: {file_path}, "
+                    f"스냅샷 경로: {nested_path}"
+                )
                 return True
             
             # 1. 먼저 파일 크기 비교 (빠른 체크)
@@ -39,12 +45,13 @@ class SnapshotManager:
             if source_size != snapshot_size:
                 logger.debug(
                     f"크기 불일치 - 원본: {source_size}B, "
-                    f"스냅샷: {snapshot_size}B, 경로: {file_path}"
+                    f"스냅샷: {snapshot_size}B, "
+                    f"경로: {nested_path}"
                 )
                 return True
             
             # 2. 파일 크기가 같다면 내용 비교
-            logger.debug(f"내용 비교 시작 - 경로: {file_path}")
+            logger.debug(f"내용 비교 시작 - 경로: {nested_path}")
             async with aiofiles.open(source, 'rb') as f1, \
                       aiofiles.open(latest_snapshot, 'rb') as f2:
                 chunk_count = 0
@@ -56,13 +63,13 @@ class SnapshotManager:
                     if chunk1 != chunk2:
                         logger.debug(
                             f"내용 불일치 - 청크: {chunk_count}, "
-                            f"크기: {self._CHUNK_SIZE}B, 경로: {file_path}"
+                            f"크기: {self._CHUNK_SIZE}B, 경로: {nested_path}"
                         )
                         return True
                     if not chunk1:  # EOF
                         break
                     
-            logger.debug(f"파일 동일 - 청크수: {chunk_count}, 경로: {file_path}")
+            logger.debug(f"파일 동일 - 청크수: {chunk_count}, 경로: {nested_path}")
             return False
             
         except OSError as e:
