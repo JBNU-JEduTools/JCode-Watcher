@@ -29,21 +29,24 @@ class WatcherEvent:
     path_info: PathInfo
     
     @classmethod
-    def from_watchdog_event(cls, event: FileSystemEvent) -> 'WatcherEvent':
+    def from_watchdog_event(cls, event: FileSystemEvent, base_path: str = '/watcher/codes') -> 'WatcherEvent':
         """watchdog 이벤트로부터 WatcherEvent 생성"""
         source_path = event.src_path
-        path_info = PathInfo.from_source_path(source_path)
+        path_info = PathInfo.from_source_path(source_path, base_path=base_path)
+        
+        # moved 이벤트가 아닌 경우 dest_path를 None으로 설정
+        dest_path = getattr(event, 'dest_path', '') if event.event_type == 'moved' else None
         
         return cls(
             event_type=event.event_type,
             source_path=source_path,
-            dest_path=getattr(event, 'dest_path', None),  # moved 이벤트의 경우에만 존재
+            dest_path=dest_path,
             timestamp=datetime.now(),
             path_info=path_info
         )
 
 class WatchdogHandler(RegexMatchingEventHandler):
-    def __init__(self, event_queue: asyncio.Queue, loop: asyncio.AbstractEventLoop):
+    def __init__(self, event_queue: asyncio.Queue, loop: asyncio.AbstractEventLoop, base_path: str = '/watcher/codes'):
         super().__init__(
             regexes=SOURCE_PATTERNS,
             ignore_regexes=IGNORE_PATTERNS,
@@ -52,6 +55,7 @@ class WatchdogHandler(RegexMatchingEventHandler):
         )
         self.event_queue = event_queue
         self.loop = loop
+        self.base_path = base_path
 
     def on_modified(self, event):
         try:
@@ -59,7 +63,7 @@ class WatchdogHandler(RegexMatchingEventHandler):
                 logger.info(f"파일 크기 초과 - 경로: {event.src_path}, 크기: {os.path.getsize(event.src_path)}B")
                 return
             
-            watcher_event = WatcherEvent.from_watchdog_event(event)
+            watcher_event = WatcherEvent.from_watchdog_event(event, base_path=self.base_path)
             self.loop.call_soon_threadsafe(
                 self.event_queue.put_nowait, watcher_event
             )
@@ -67,7 +71,7 @@ class WatchdogHandler(RegexMatchingEventHandler):
             return
 
     def on_deleted(self, event):
-        watcher_event = WatcherEvent.from_watchdog_event(event)
+        watcher_event = WatcherEvent.from_watchdog_event(event, base_path=self.base_path)
         self.loop.call_soon_threadsafe(
             self.event_queue.put_nowait, watcher_event
         )
@@ -75,7 +79,9 @@ class WatchdogHandler(RegexMatchingEventHandler):
     def on_moved(self, event):
         """파일 이름 변경 이벤트를 삭제 및 수정 이벤트로 처리"""
         # 1. 이전 파일에 대한 삭제 이벤트 처리
-        delete_event = WatcherEvent.from_watchdog_event(event)
+        delete_event = FileSystemEvent(event.src_path)
+        delete_event.event_type = "deleted"
+        delete_event = WatcherEvent.from_watchdog_event(delete_event, base_path=self.base_path)
         self.loop.call_soon_threadsafe(
             self.event_queue.put_nowait, delete_event
         )
@@ -87,10 +93,9 @@ class WatchdogHandler(RegexMatchingEventHandler):
                 return
                 
             # dest_path를 source_path로 사용하여 새로운 이벤트 생성
-            dest_event = FileSystemEvent(event.dest_path)
-            dest_event.event_type = "modified"
-            dest_event.src_path = event.dest_path  # src_path를 dest_path로 설정
-            modify_event = WatcherEvent.from_watchdog_event(dest_event)
+            modify_event = FileSystemEvent(event.dest_path)
+            modify_event.event_type = "modified"
+            modify_event = WatcherEvent.from_watchdog_event(modify_event, base_path=self.base_path)
             
             self.loop.call_soon_threadsafe(
                 self.event_queue.put_nowait, modify_event

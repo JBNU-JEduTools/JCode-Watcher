@@ -19,7 +19,7 @@ class SnapshotManager:
         self.snapshot_dir.mkdir(parents=True, exist_ok=True)
         logger.info(f"스냅샷 관리자 초기화 - 경로: {snapshot_dir}")
     
-    async def has_changed(self, file_path: str) -> bool:
+    async def has_changed(self, file_path: str, base_path: str = '/watcher/codes') -> bool:
         """파일 변경 여부 확인"""
         try:
             source = Path(file_path)
@@ -27,9 +27,9 @@ class SnapshotManager:
                 logger.debug(f"파일 없음 - 경로: {file_path}")
                 return False
             
-            path_info = PathInfo.from_source_path(file_path)
+            path_info = PathInfo.from_source_path(file_path, base_path=base_path)
             nested_path = path_info._get_nested_path()
-            latest_snapshot = self._get_latest_snapshot(source)
+            latest_snapshot = self._get_latest_snapshot(source, base_path=base_path)
             
             if not latest_snapshot:
                 logger.debug(
@@ -76,13 +76,13 @@ class SnapshotManager:
             logger.error(f"비교 실패 - 경로: {file_path}, 오류: {str(e)}")
             return False
     
-    async def create_snapshot(self, source_path: str) -> str:
+    async def create_snapshot(self, source_path: str, base_path: str = '/watcher/codes') -> str:
         """스냅샷 생성"""
-        path_info = PathInfo.from_source_path(source_path)
+        path_info = PathInfo.from_source_path(source_path, base_path=base_path)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         
         # hw1 이후의 중첩 경로를 @로 결합하여 저장하도록 수정
-        nested_path = path_info.get_nested_path()  # hw1 이후의 경로를 @로 결합
+        nested_path = path_info._get_nested_path()
         snapshot_path = (self.snapshot_dir / 
                         path_info.class_div / 
                         path_info.hw_name /
@@ -99,9 +99,9 @@ class SnapshotManager:
             logger.error(f"스냅샷 생성 실패 - 오류: {str(e)}")
             raise
             
-    async def create_empty_snapshot(self, source_path: str) -> Optional[str]:
+    async def create_empty_snapshot(self, source_path: str, base_path: str = '/watcher/codes') -> Optional[str]:
         """빈 스냅샷 생성"""
-        path_info = PathInfo.from_source_path(source_path)
+        path_info = PathInfo.from_source_path(source_path, base_path=base_path)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         
         # 최종 스냅샷 경로 생성
@@ -117,24 +117,15 @@ class SnapshotManager:
             logger.error(f"빈 스냅샷 생성 실패 - 오류: {str(e)}")
             return None
 
-    def _get_snapshot_dir(self, source: Path) -> Path:
+    def _get_snapshot_dir(self, source: Path, base_path: str = '/watcher/codes') -> Path:
         """스냅샷 디렉토리 경로 생성"""
-        relative_path = source.relative_to('/watcher/codes')
-        path_parts = relative_path.parts
-        
-        # 과목-분반과 학번 분리 (os-1-202012180 형식)
-        try:
-            class_name = '-'.join(path_parts[0].split('-')[:2])  # os-1
-            student_id = path_parts[0].split('-')[2]  # 202012180
-        except IndexError as e:
-            raise ValueError(f"잘못된 경로 형식 - 경로: {relative_path}") from e
-        
-        return self.snapshot_dir / class_name / path_parts[1] / student_id / '@'.join(path_parts[2:])
+        path_info = PathInfo.from_source_path(str(source), base_path=base_path)
+        return path_info.get_snapshot_dir(self.snapshot_dir)
 
-    def _get_latest_snapshot(self, source: Path) -> Optional[Path]:
+    def _get_latest_snapshot(self, source: Path, base_path: str = '/watcher/codes') -> Optional[Path]:
         """가장 최근 스냅샷 경로 반환"""
         try:
-            path_info = PathInfo.from_source_path(source)
+            path_info = PathInfo.from_source_path(str(source), base_path=base_path)
             snapshot_dir = path_info.get_snapshot_dir(self.snapshot_dir)
             
             logger.debug(f"스냅샷 디렉토리 검색 - 경로: {snapshot_dir}")
