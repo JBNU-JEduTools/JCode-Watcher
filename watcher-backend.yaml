@@ -35,11 +35,34 @@ kind: Service
 metadata:
   name: watcher-backend-service
   namespace: watcher  # watcher 네임스페이스 추가
+  labels:
+    app: watcher-backend
 spec:
   type: ClusterIP  # 내부 네트워크에서만 접근 가능
   selector:
     app: watcher-backend
   ports:
-    - protocol: TCP
+    - name: watcher-backend-port
+      protocol: TCP
       port: 3000
       targetPort: 3000
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: watcher-backend-monitor
+  namespace: watcher
+  labels:
+    app: watcher-backend
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: watcher-backend
+  namespaceSelector:
+    matchNames:
+      - watcher
+  endpoints:
+    - port: watcher-backend-port
+      path: /metrics
+      interval: 30s

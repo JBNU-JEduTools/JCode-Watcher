@@ -1,10 +1,5 @@
 # Watcher - backend
 
-## Tools
-- FastAPI
-- SQLite
-
-
 ## 파일 구조
  FastAPI 공식 문서 파일 구조 예시
 
@@ -58,15 +53,6 @@ uvicorn main:app --reload --port 3000 --host 0.0.0.0
 
 - /docs 에서 api 문서 확인 가능 - swagger
 
-## DB 확인
 
-```
-sqlite3 database.db
-
-> .tables   # 테이블 목록 확인
-
-> SELECT * FROM [테이블명];  # 테이블 데이터 확인
-```
-
-
-
+## Tools
+- FastAPI
