@@ -26,7 +26,6 @@ spec:
           readOnly: true
         - name: snapshot-volume
           mountPath: /watcher/snapshots
-          readOnly: true
         env:
         - name: WATCHER_LOG_LEVEL
           value: "DEBUG"
@@ -57,3 +56,23 @@ spec:
     targetPort: 9090
     protocol: TCP
   type: ClusterIP
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: watcher-code-monitor
+  namespace: watcher
+  labels:
+    app: watcher-code
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: watcher-code
+  namespaceSelector:
+    matchNames:
+      - watcher
+  endpoints:
+    - port: http-metrics
+      path: /metrics
+      interval: 30s
