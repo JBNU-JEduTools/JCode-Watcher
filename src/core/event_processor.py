@@ -49,15 +49,18 @@ class EventProcessor:
                     class_student=f"{event.path_info.class_div}-{event.path_info.student_id}"
                 )
                 
+                # 이벤트 감지 로그 추가 (상세 정보 포함)
+                logger.info(
+                    f"이벤트 감지됨 - 타입: {event.event_type}, "
+                    f"경로: {event.source_path}, "
+                )
+                
                 if student_id not in self._student_handlers:
                     self._student_handlers[student_id] = StudentEventHandler.create()
                     asyncio.create_task(self._process_student_events(student_id))
                 
                 await self._student_handlers[student_id].queue.put(event)
-                logger.debug(
-                    f"Event routed - type: {event.event_type}, "
-                    f"path: {event.source_path}"
-                )
+
             except Exception as e:
                 logger.error(f"Event routing failed - error: {str(e)}")
             finally:
@@ -129,13 +132,13 @@ class EventProcessor:
                 file_size=file_size
             )
             logger.debug(
-                f"API registration completed - "
-                f"file: {path_info.filename}, size: {file_size}"
+                f"API 등록 완료 - "
+                f"파일: {path_info.filename}, 크기: {file_size}"
             )
         except Exception as e:
             logger.error(
-                f"API registration failed - "
-                f"file: {path_info.filename}, error: {str(e)}"
+                f"API 등록 실패 - "
+                f"파일: {path_info.filename}, 오류: {str(e)}"
             )
 
     async def _register_deleted_snapshot(self, path_info: PathInfo, snapshot_path: str):
@@ -152,6 +155,6 @@ class EventProcessor:
             )
         except Exception as e:
             logger.error(
-                f"API registration failed - "
-                f"file: {path_info.filename}, error: {str(e)}"
+                f"API 등록 실패 - "
+                f"파일: {path_info.filename}, 오류: {str(e)}"
             ) 

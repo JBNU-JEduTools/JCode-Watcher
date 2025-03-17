@@ -12,7 +12,7 @@ services:
     ports:
       - 9090:9090
     environment:
-      - WATCHER_LOG_LEVEL=DEBUG
+      - WATCHER_LOG_LEVEL=INFO
       # API 서버 설정
       - WATCHER_API_URL=http://172.17.0.1:3000
 

@@ -60,7 +60,7 @@ class WatchdogHandler(RegexMatchingEventHandler):
     def on_modified(self, event):
         try:
             if os.path.getsize(event.src_path) > MAX_FILE_SIZE:
-                logger.info(f"파일 크기 초과 - 경로: {event.src_path}, 크기: {os.path.getsize(event.src_path)}B")
+                logger.warning(f"파일 크기 초과 - 경로: {event.src_path}, 크기: {os.path.getsize(event.src_path)}B")
                 return
             
             watcher_event = WatcherEvent.from_watchdog_event(event, base_path=self.base_path)
@@ -89,7 +89,7 @@ class WatchdogHandler(RegexMatchingEventHandler):
         # 2. 새 파일에 대한 수정 이벤트 처리
         try:
             if os.path.getsize(event.dest_path) > MAX_FILE_SIZE:
-                logger.info(f"파일 크기 초과 - 경로: {event.dest_path}, 크기: {os.path.getsize(event.dest_path)}B")
+                logger.warning(f"파일 크기 초과 - 경로: {event.dest_path}, 크기: {os.path.getsize(event.dest_path)}B")
                 return
                 
             # dest_path를 source_path로 사용하여 새로운 이벤트 생성
