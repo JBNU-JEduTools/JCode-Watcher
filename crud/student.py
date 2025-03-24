@@ -64,12 +64,12 @@ def get_closest_snapshot(db: Session, class_div: str, hw_name: str, student_id: 
 
     results = db.exec(subquery).all()
 
-    for result in results:
-        print(f"파일: {result.filename}, 크기: {result.file_size}")
+    # for result in results:
+    #     print(f"파일: {result.filename}, 크기: {result.file_size}")
     
     total_code_size = sum(result.file_size for result in results) if results else 0
-    print(f"총 합계: {total_code_size}")
-    print("=================================")
+    # print(f"총 합계: {total_code_size}")
+    # print("=================================")
     
     return total_code_size
 

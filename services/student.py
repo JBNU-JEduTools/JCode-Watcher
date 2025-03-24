@@ -109,19 +109,14 @@ def graph_data_by_minutes(db: Session, class_div: str, hw_name: str, student_id:
         snapshot_time = datetime.strptime(snapshot.timestamp, "%Y%m%d_%H%M%S")
         snapshot_time = kst.localize(snapshot_time)
         
-        # 현재 시간의 분을 시작 시간 기준으로 interval 구간 시작점으로 조정
-        adjusted_minute = adjust_to_interval(base_minute, snapshot_time.minute, interval)
-        
-        # 시간 조정이 필요한 경우
-        extra_hours = adjusted_minute // 60
-        final_minutes = adjusted_minute % 60
-        
-        adjusted_time = snapshot_time.replace(
-            hour=(snapshot_time.hour + extra_hours) % 24,
-            minute=final_minutes,
-            second=0,
-            microsecond=0
-        )
+        # min_time으로부터 경과한 분
+        elapsed_minutes = int((snapshot_time - min_time).total_seconds() // 60)
+
+        # interval 단위로 구간 조정
+        bucketed_minutes = (elapsed_minutes // interval) * interval
+
+        # 조정된 시간 계산 (일자 포함)
+        adjusted_time = min_time + timedelta(minutes=bucketed_minutes)
         
         minute_key = adjusted_time.strftime("%Y%m%d_%H%M")
         
