@@ -93,6 +93,22 @@ class WatchdogHandler(RegexMatchingEventHandler):
             )
             
             # 2. 새 파일에 대한 수정 이벤트 처리
+            # dest_path 유효성 검증
+            if not hasattr(event, 'dest_path') or not event.dest_path or not os.path.exists(event.dest_path):
+                logger.warning(f"이동된 파일 경로가 유효하지 않음: {getattr(event, 'dest_path', '경로 없음')}")
+                return
+            
+            # SOURCE_PATTERNS에 맞는 파일인지 확인
+            is_valid_pattern = False
+            for pattern in SOURCE_PATTERNS:
+                if re.search(pattern, event.dest_path):
+                    is_valid_pattern = True
+                    break
+                    
+            if not is_valid_pattern:
+                logger.warning(f"이동된 파일이 소스 패턴과 일치하지 않음: {event.dest_path}")
+                return
+                
             if os.path.getsize(event.dest_path) > MAX_FILE_SIZE:
                 logger.warning(f"파일 크기 초과 - 경로: {event.dest_path}, 크기: {os.path.getsize(event.dest_path)}B")
                 return
