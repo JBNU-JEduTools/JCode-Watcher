@@ -43,4 +43,5 @@ def register_snapshot(
         "file_size": file_size.bytes
     }
     snapshot = snapshot_register(db=db, snapshot_data=snapshot_data)
-    return {"message": "Snapshot registered successfully", "snapshot": snapshot}
+    # print(snapshot)
+    return {"message": "Snapshot registered successfully"}

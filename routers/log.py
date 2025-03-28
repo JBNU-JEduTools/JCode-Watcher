@@ -36,7 +36,8 @@ def register_build_log(
     }
     
     build_log = build_register(db=db, build_data=build_data)
-    return {"message": "Build log registered successfully", "build_log": build_log}
+    # print(build_log)
+    return {"message": "Build log registered successfully"}
     
 #실행 로그 등록
 @router.post("/api/{class_div}/{hw_name}/{student_id}/logs/run")
@@ -63,4 +64,5 @@ def register_run_log(
     }
     
     run_log = run_register(db=db, run_data=run_data)
-    return {"message": "Run log registered successfully", "run_log": run_log}
+    # print(run_log)
+    return {"message": "Run log registered successfully"}
