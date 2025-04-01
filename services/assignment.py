@@ -90,21 +90,36 @@ def fetch_total_graph_data(db: Session, class_div: str, hw_name: str, start: dat
                 print(f"Error processing snapshot: {e}")
                 continue
         
+        # 시간순으로 정렬
+        filtered_results.sort(key=lambda x: parse_timestamp(x.timestamp))
+        
         student_changes = {}
 
         for snapshot in filtered_results:
             timestamp_dt = parse_timestamp(snapshot.timestamp)
+            student_id = snapshot.student_id
+            filename = snapshot.filename
 
-            if snapshot.student_id not in student_changes:
-                student_changes[snapshot.student_id] = {"first": snapshot.file_size, "last": snapshot.file_size, "first_time": timestamp_dt}
+            if student_id not in student_changes:
+                student_changes[student_id] = {
+                    "files": {},
+                    "total_changes": 0
+                }
+            
+            # 파일별 이전 크기와 현재 크기 비교
+            if filename not in student_changes[student_id]["files"]:
+                student_changes[student_id]["files"][filename] = snapshot.file_size
             else:
-                student_changes[snapshot.student_id]["last"] = snapshot.file_size
-                student_changes[snapshot.student_id]["last_time"] = timestamp_dt
+                # 파일 크기 변화량의 절대값을 총 변화량에 더함
+                size_diff = abs(snapshot.file_size - student_changes[student_id]["files"][filename])
+                student_changes[student_id]["total_changes"] += size_diff
+                # 현재 파일 크기를 저장
+                student_changes[student_id]["files"][filename] = snapshot.file_size
 
         result = [
             {
                 "student_num": student_id,
-                "size_change": abs(data["last"] - data["first"])
+                "size_change": data["total_changes"]
             }
             for student_id, data in student_changes.items()
         ]
