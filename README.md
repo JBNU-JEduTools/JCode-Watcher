@@ -56,3 +56,27 @@ uvicorn main:app --reload --port 3000 --host 0.0.0.0
 
 ## Tools
 - FastAPI
+
+
+## DB
+
+- 데이터 삽입
+```
+INSERT INTO Snapshot (class_div, hw_name, student_id, filename, timestamp, file_size)
+VALUES
+('OS-5', 'hw1', 202212112, 'test.c', '20250316_090102', 1);
+```
+
+- 데이터 수정
+```
+UPDATE users
+SET email = 'newemail@example.com'
+WHERE user_id = 123;
+```
+users 테이블에서 user_id가 123인 사용자의 email 값을 바꿉니다.
+
+
+- 데이터 삭제
+```
+DELETE FROM snapshot WHERE id = 1137
+```
