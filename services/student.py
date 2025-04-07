@@ -1,6 +1,6 @@
 import numpy as np
 from sqlmodel import Session
-from crud.student import get_snapshot_data, get_assignment_snapshots, get_build_log, get_run_log, get_closest_snapshot
+from crud.student import get_snapshot_data, get_assignment_snapshots, get_build_log, get_run_log, get_closest_snapshot, get_closest_snapshots_batch
 from datetime import datetime, timedelta
 from fastapi import HTTPException
 import pytz
@@ -143,10 +143,13 @@ def graph_data_by_minutes(db: Session, class_div: str, hw_name: str, student_id:
 
 def fetch_build_log(db: Session, class_div: str, hw_name: str, student_id: int) -> list[BuildLogResponse]:
     results = get_build_log(db, class_div, hw_name, student_id)
-
+    
+    # 모든 타임스탬프를 한 번에 처리
+    timestamps = [result.timestamp for result in results]
+    file_sizes = get_closest_snapshots_batch(db, class_div, hw_name, student_id, timestamps)
+    
     responses = []
-    for result in results:
-        file_size = get_closest_snapshot(db, class_div, hw_name, student_id, result.timestamp)
+    for i, result in enumerate(results):
         responses.append(BuildLogResponse(
             exit_code=result.exit_code,
             cmdline=result.cmdline,
@@ -154,16 +157,19 @@ def fetch_build_log(db: Session, class_div: str, hw_name: str, student_id: int) 
             binary_path=result.binary_path,
             target_path=result.target_path,
             timestamp=result.timestamp,
-            file_size=file_size))
+            file_size=file_sizes[i]))
         
     return responses
 
 def fetch_run_log(db: Session, class_div: str, hw_name: str, student_id: int) -> list[RunLogResponse]:
     results = get_run_log(db, class_div, hw_name, student_id)
+
+    # 모든 타임스탬프를 한 번에 처리
+    timestamps = [result.timestamp for result in results]
+    file_sizes = get_closest_snapshots_batch(db, class_div, hw_name, student_id, timestamps)
     
     responses = []
-    for result in results:
-        file_size = get_closest_snapshot(db, class_div, hw_name, student_id, result.timestamp)
+    for i, result in enumerate(results):
         responses.append(RunLogResponse(
             cmdline=result.cmdline,
             exit_code=result.exit_code,
@@ -171,6 +177,6 @@ def fetch_run_log(db: Session, class_div: str, hw_name: str, student_id: int) ->
             target_path=result.target_path,
             process_type=result.process_type,
             timestamp=result.timestamp,
-            file_size=file_size))
+            file_size=file_sizes[i]))
         
     return responses

@@ -3,12 +3,25 @@ from models.snapshot import Snapshot
 from typing import List, Optional
 from models.buildLog import BuildLog
 from models.runLog import RunLog
+from datetime import datetime
 
 def get_monitoring_data(db: Session, class_div: str, hw_name: str):
     statement = (
         select(Snapshot)
         .where(Snapshot.class_div == class_div)
         .where(Snapshot.hw_name == hw_name)
+    )
+    results = db.exec(statement).all()
+    return results
+
+def get_graph_data(db: Session, class_div: str, hw_name: str, start: datetime, end: datetime):
+    statement = (
+        select(Snapshot)
+        .where(Snapshot.class_div == class_div)
+        .where(Snapshot.hw_name == hw_name)
+        .where(Snapshot.timestamp >= start)
+        .where(Snapshot.timestamp <= end)
+        .order_by(Snapshot.timestamp)
     )
     results = db.exec(statement).all()
     return results

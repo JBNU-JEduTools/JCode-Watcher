@@ -1,6 +1,6 @@
 from collections import defaultdict
 import numpy as np
-from crud.assignment import get_monitoring_data, get_build_avg, get_run_avg
+from crud.assignment import get_monitoring_data, get_build_avg, get_run_avg, get_graph_data
 from sqlmodel import Session
 from datetime import datetime
 import pytz
@@ -71,32 +71,19 @@ def parse_timestamp(timestamp: str) -> datetime:
         raise
 
 def fetch_total_graph_data(db: Session, class_div: str, hw_name: str, start: datetime, end: datetime):
-    results = get_monitoring_data(db, class_div, hw_name)
+    # 타임스탬프 형식 변환
+    start_str = start.strftime("%Y%m%d_%H%M%S")
+    end_str = end.strftime("%Y%m%d_%H%M%S")
     
+    results = get_graph_data(db, class_div, hw_name, start_str, end_str)
+
     if not results:
         return None
     
-    try:
-        start = start.replace(tzinfo=None)
-        end = end.replace(tzinfo=None)
-        
-        filtered_results = []
-        for snapshot in results:
-            try:
-                snapshot_time = parse_timestamp(snapshot.timestamp)
-                if start <= snapshot_time <= end:
-                    filtered_results.append(snapshot)
-            except ValueError as e:
-                print(f"Error processing snapshot: {e}")
-                continue
-        
-        # 시간순으로 정렬
-        filtered_results.sort(key=lambda x: parse_timestamp(x.timestamp))
-        
+    try:        
         student_changes = {}
 
-        for snapshot in filtered_results:
-            timestamp_dt = parse_timestamp(snapshot.timestamp)
+        for snapshot in results:
             student_id = snapshot.student_id
             filename = snapshot.filename
 

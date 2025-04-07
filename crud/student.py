@@ -73,3 +73,32 @@ def get_closest_snapshot(db: Session, class_div: str, hw_name: str, student_id: 
     
     return total_code_size
 
+def get_closest_snapshots_batch(db: Session, class_div: str, hw_name: str, student_id: int, log_timestamps: list[datetime]):
+    # 모든 타임스탬프를 문자열로 변환
+    log_timestamp_strs = [ts.strftime("%Y%m%d_%H%M%S") for ts in log_timestamps]
+    
+    # 결과를 저장할 딕셔너리
+    file_sizes_by_timestamp = {}
+    
+    # 각 타임스탬프에 대해 한 번의 쿼리로 처리
+    for timestamp_str in log_timestamp_strs:
+        subquery = (
+            select(
+                Snapshot.filename,
+                Snapshot.file_size,
+                func.max(Snapshot.timestamp).label('max_timestamp')
+            ).where(
+                Snapshot.class_div == class_div,
+                Snapshot.hw_name == hw_name,
+                Snapshot.student_id == student_id,
+                Snapshot.timestamp <= timestamp_str
+            ).group_by(Snapshot.filename)
+        )
+        
+        results = db.exec(subquery).all()
+        total_code_size = sum(result.file_size for result in results) if results else 0
+        file_sizes_by_timestamp[timestamp_str] = total_code_size
+    
+    # 원래 타임스탬프 순서대로 결과 반환
+    return [file_sizes_by_timestamp[ts.strftime("%Y%m%d_%H%M%S")] for ts in log_timestamps]
+
