@@ -6,6 +6,7 @@ from fastapi import HTTPException
 import pytz
 from collections import defaultdict
 from schemas.student import BuildLogResponse, RunLogResponse
+from utils.cache import cached
 
 def format_timestamp(timestamp: str) -> str:
     return datetime.strptime(timestamp, "%Y%m%d_%H%M%S").strftime("%Y-%m-%d %H:%M:%S")
@@ -141,6 +142,7 @@ def graph_data_by_minutes(db: Session, class_div: str, hw_name: str, student_id:
 
     return {"trends": trends}
 
+@cached(ttl=600)
 def fetch_build_log(db: Session, class_div: str, hw_name: str, student_id: int) -> list[BuildLogResponse]:
     results = get_build_log(db, class_div, hw_name, student_id)
     
@@ -148,19 +150,21 @@ def fetch_build_log(db: Session, class_div: str, hw_name: str, student_id: int) 
     timestamps = [result.timestamp for result in results]
     file_sizes = get_closest_snapshots_batch(db, class_div, hw_name, student_id, timestamps)
     
-    responses = []
-    for i, result in enumerate(results):
-        responses.append(BuildLogResponse(
+    # 결과 생성 - 리스트 컴프리헨션 사용
+    return [
+        BuildLogResponse(
             exit_code=result.exit_code,
             cmdline=result.cmdline,
             cwd=result.cwd,
             binary_path=result.binary_path,
             target_path=result.target_path,
             timestamp=result.timestamp,
-            file_size=file_sizes[i]))
-        
-    return responses
+            file_size=file_sizes[i]
+        )
+        for i, result in enumerate(results)
+    ]
 
+@cached(ttl=600)
 def fetch_run_log(db: Session, class_div: str, hw_name: str, student_id: int) -> list[RunLogResponse]:
     results = get_run_log(db, class_div, hw_name, student_id)
 
@@ -168,15 +172,16 @@ def fetch_run_log(db: Session, class_div: str, hw_name: str, student_id: int) ->
     timestamps = [result.timestamp for result in results]
     file_sizes = get_closest_snapshots_batch(db, class_div, hw_name, student_id, timestamps)
     
-    responses = []
-    for i, result in enumerate(results):
-        responses.append(RunLogResponse(
+    # 결과 생성 - 리스트 컴프리헨션 사용
+    return [
+        RunLogResponse(
             cmdline=result.cmdline,
             exit_code=result.exit_code,
             cwd=result.cwd,
             target_path=result.target_path,
             process_type=result.process_type,
             timestamp=result.timestamp,
-            file_size=file_sizes[i]))
-        
-    return responses
+            file_size=file_sizes[i]
+        )
+        for i, result in enumerate(results)
+    ]

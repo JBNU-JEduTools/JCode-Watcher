@@ -28,19 +28,41 @@ def get_assignment_snapshots(db: Session, class_div: str, student_id: int, hw_na
     return results
 
 def get_build_log(db: Session, class_div: str, hw_name: str, student_id: int):
-    statement = select(BuildLog).where(
-        BuildLog.class_div == class_div,
-        BuildLog.hw_name == hw_name,
-        BuildLog.student_id == student_id
+    # 필요한 컬럼만 선택하여 데이터 전송량 감소
+    statement = (
+        select(
+            BuildLog.id,
+            BuildLog.exit_code,
+            BuildLog.cmdline,
+            BuildLog.cwd,
+            BuildLog.binary_path,
+            BuildLog.target_path,
+            BuildLog.timestamp
+        ).where(
+            BuildLog.class_div == class_div,
+            BuildLog.hw_name == hw_name,
+            BuildLog.student_id == student_id
+        ).order_by(BuildLog.timestamp.desc())
     )
     results = db.exec(statement).all()
     return results
 
 def get_run_log(db: Session, class_div: str, hw_name: str, student_id: int):
-    statement = select(RunLog).where(
-        RunLog.class_div == class_div,
-        RunLog.hw_name == hw_name,
-        RunLog.student_id == student_id
+    # 필요한 컬럼만 선택하여 데이터 전송량 감소
+    statement = (
+        select(
+            RunLog.id,
+            RunLog.cmdline,
+            RunLog.exit_code,
+            RunLog.cwd,
+            RunLog.target_path,
+            RunLog.process_type,
+            RunLog.timestamp
+        ).where(
+            RunLog.class_div == class_div,
+            RunLog.hw_name == hw_name,
+            RunLog.student_id == student_id
+        ).order_by(RunLog.timestamp.desc())
     )
     results = db.exec(statement).all()
     return results
@@ -80,9 +102,10 @@ def get_closest_snapshots_batch(db: Session, class_div: str, hw_name: str, stude
     # 결과를 저장할 딕셔너리
     file_sizes_by_timestamp = {}
     
-    # 각 타임스탬프에 대해 한 번의 쿼리로 처리
+    # 각 타임스탬프에 대해 개별적으로 처리
     for timestamp_str in log_timestamp_strs:
-        subquery = (
+        # 해당 타임스탬프 이전의 모든 스냅샷을 가져옴
+        statement = (
             select(
                 Snapshot.filename,
                 Snapshot.file_size,
@@ -95,7 +118,9 @@ def get_closest_snapshots_batch(db: Session, class_div: str, hw_name: str, stude
             ).group_by(Snapshot.filename)
         )
         
-        results = db.exec(subquery).all()
+        results = db.exec(statement).all()
+        
+        # 총 파일 크기 계산
         total_code_size = sum(result.file_size for result in results) if results else 0
         file_sizes_by_timestamp[timestamp_str] = total_code_size
     

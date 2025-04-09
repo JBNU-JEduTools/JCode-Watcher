@@ -5,8 +5,19 @@ from models.snapshot import Snapshot
 from schemas.config import settings
 
 db_url = settings.DB_URL
-connect_args = {"check_same_thread": False}
-engine = create_engine(db_url, echo=False, connect_args=connect_args)     # echo=True : 모든 sql 문장 출력
+connect_args = {
+    "check_same_thread": False,
+    "timeout": 60,  # 타임아웃 시간 증가
+    "isolation_level": "IMMEDIATE"  # 트랜잭션 격리 수준 설정
+}
+engine = create_engine(
+    db_url, 
+    echo=False, 
+    connect_args=connect_args,
+    pool_pre_ping=True,  # 연결 상태 확인
+    pool_size=20,  # 커넥션 풀 크기 설정
+    max_overflow=30  # 최대 추가 커넥션 수
+)
 
 def create_db_and_tables():
     SQLModel.metadata.create_all(engine)

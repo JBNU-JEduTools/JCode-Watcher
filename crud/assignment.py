@@ -16,12 +16,12 @@ def get_monitoring_data(db: Session, class_div: str, hw_name: str):
 
 def get_graph_data(db: Session, class_div: str, hw_name: str, start: datetime, end: datetime):
     statement = (
-        select(Snapshot)
+        select(Snapshot.student_id, Snapshot.filename, Snapshot.file_size, Snapshot.timestamp)
         .where(Snapshot.class_div == class_div)
         .where(Snapshot.hw_name == hw_name)
         .where(Snapshot.timestamp >= start)
         .where(Snapshot.timestamp <= end)
-        .order_by(Snapshot.timestamp)
+        .order_by(Snapshot.student_id, Snapshot.filename, Snapshot.timestamp)
     )
     results = db.exec(statement).all()
     return results
