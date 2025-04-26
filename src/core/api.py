@@ -8,9 +8,7 @@ logger = get_logger(__name__)
 
 # API 타임아웃 설정 (초)
 API_TIMEOUTS = aiohttp.ClientTimeout(
-    total=10,     # 전체 요청 제한 시간
-    connect=5,    # 연결 수립 제한 시간
-    sock_read=5   # 소켓 읽기 제한 시간
+    total=20,     # 전체 요청 제한 시간
 )
 
 class APIClient:
