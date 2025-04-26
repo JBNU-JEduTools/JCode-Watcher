@@ -138,7 +138,7 @@ class EventProcessor:
         except Exception as e:
             logger.error(
                 f"API 등록 실패 - "
-                f"파일: {path_info.filename}, 오류: {str(e)}"
+                f"파일: {path_info.filename}, 오류: {repr(e)}"
             )
 
     async def _register_deleted_snapshot(self, path_info: PathInfo, snapshot_path: str):
@@ -156,5 +156,5 @@ class EventProcessor:
         except Exception as e:
             logger.error(
                 f"API 등록 실패 - "
-                f"파일: {path_info.filename}, 오류: {str(e)}"
+                f"파일: {path_info.filename}, 오류: {repr(e)}"
             ) 
