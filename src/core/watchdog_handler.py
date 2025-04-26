@@ -69,25 +69,46 @@ class WatchdogHandler(RegexMatchingEventHandler):
             )
         except OSError:
             return
+        except Exception as e:
+            logger.error(f"on_modified 처리 중 오류 발생: {str(e)}")
 
     def on_deleted(self, event):
-        watcher_event = WatcherEvent.from_watchdog_event(event, base_path=self.base_path)
-        self.loop.call_soon_threadsafe(
-            self.event_queue.put_nowait, watcher_event
-        )
+        try:
+            watcher_event = WatcherEvent.from_watchdog_event(event, base_path=self.base_path)
+            self.loop.call_soon_threadsafe(
+                self.event_queue.put_nowait, watcher_event
+            )
+        except Exception as e:
+            logger.error(f"on_deleted 처리 중 오류 발생: {str(e)}")
 
     def on_moved(self, event):
         """파일 이름 변경 이벤트를 삭제 및 수정 이벤트로 처리"""
-        # 1. 이전 파일에 대한 삭제 이벤트 처리
-        delete_event = FileSystemEvent(event.src_path)
-        delete_event.event_type = "deleted"
-        delete_event = WatcherEvent.from_watchdog_event(delete_event, base_path=self.base_path)
-        self.loop.call_soon_threadsafe(
-            self.event_queue.put_nowait, delete_event
-        )
-        
-        # 2. 새 파일에 대한 수정 이벤트 처리
         try:
+            # 1. 이전 파일에 대한 삭제 이벤트 처리
+            delete_event = FileSystemEvent(event.src_path)
+            delete_event.event_type = "deleted"
+            delete_event = WatcherEvent.from_watchdog_event(delete_event, base_path=self.base_path)
+            self.loop.call_soon_threadsafe(
+                self.event_queue.put_nowait, delete_event
+            )
+            
+            # 2. 새 파일에 대한 수정 이벤트 처리
+            # dest_path 유효성 검증
+            if not hasattr(event, 'dest_path') or not event.dest_path or not os.path.exists(event.dest_path):
+                logger.warning(f"이동된 파일 경로가 유효하지 않음: {getattr(event, 'dest_path', '경로 없음')}")
+                return
+            
+            # SOURCE_PATTERNS에 맞는 파일인지 확인
+            is_valid_pattern = False
+            for pattern in SOURCE_PATTERNS:
+                if re.search(pattern, event.dest_path):
+                    is_valid_pattern = True
+                    break
+                    
+            if not is_valid_pattern:
+                logger.warning(f"이동된 파일이 소스 패턴과 일치하지 않음: {event.dest_path}")
+                return
+                
             if os.path.getsize(event.dest_path) > MAX_FILE_SIZE:
                 logger.warning(f"파일 크기 초과 - 경로: {event.dest_path}, 크기: {os.path.getsize(event.dest_path)}B")
                 return
@@ -102,3 +123,5 @@ class WatchdogHandler(RegexMatchingEventHandler):
             )
         except OSError:
             return
+        except Exception as e:
+            logger.error(f"on_moved 처리 중 오류 발생: {str(e)}")
