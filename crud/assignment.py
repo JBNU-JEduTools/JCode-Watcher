@@ -39,6 +39,8 @@ def get_build_avg(db: Session, class_div: str, hw_name: str) -> Optional[float]:
     )
     student = db.exec(student_stmt).one() or 0
 
+    print(count, student)
+
     if student > 0:
         return round(count / student, 2)
     return 0.0

@@ -3,6 +3,7 @@ from typing import Annotated
 from fastapi import Depends
 from models.snapshot import Snapshot
 from schemas.config import settings
+from sqlalchemy import event
 
 db_url = settings.DB_URL
 connect_args = {
@@ -18,6 +19,12 @@ engine = create_engine(
     pool_size=20,  # 커넥션 풀 크기 설정
     max_overflow=30  # 최대 추가 커넥션 수
 )
+
+# @event.listens_for(engine, "connect")
+# def _disable_wal(dbapi_conn, conn_record):
+#     cursor = dbapi_conn.cursor()
+#     cursor.execute("PRAGMA journal_mode=DELETE;")
+#     cursor.close()
 
 def create_db_and_tables():
     SQLModel.metadata.create_all(engine)

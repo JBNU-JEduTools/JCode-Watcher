@@ -41,3 +41,4 @@ class RunLogResponse(BaseModel):
     process_type: str
     timestamp: datetime
     file_size: int
+

@@ -1,4 +1,5 @@
 import numpy as np
+import asyncio
 from sqlmodel import Session
 from crud.student import get_snapshot_data, get_assignment_snapshots, get_build_log, get_run_log, get_closest_snapshot, get_closest_snapshots_batch
 from datetime import datetime, timedelta
@@ -71,18 +72,7 @@ def adjust_to_interval(base_minute: int, current_minute: int, interval: int) -> 
     group = diff // interval
     return base_minute + (group * interval)
 
-def graph_data_by_minutes(db: Session, class_div: str, hw_name: str, student_id: int, interval: int):
-    """
-    전체 데이터를 기준으로 지정된 interval(분 단위)로 평균 코드량과 변화량을 집계.
-    """
-    if interval <= 0:
-        raise HTTPException(status_code=400, detail="Interval must be a positive integer.")
-
-    # 데이터 가져오기
-    results = get_assignment_snapshots(db, class_div, student_id, hw_name)
-    if not results:
-        return {"trends": []}
-
+def compute_trends(results, interval: int):
     kst = pytz.timezone("Asia/Seoul")
 
     # 가장 오래된 데이터의 timestamp 찾기
@@ -140,6 +130,26 @@ def graph_data_by_minutes(db: Session, class_div: str, hw_name: str, student_id:
         trends.append({"timestamp": timestamp, "total_size": total_size, "size_change": size_change})
         prev_size = total_size
 
+    return trends
+
+async def graph_data_by_minutes(db: Session, class_div: str, hw_name: str, student_id: int, interval: int):
+    """
+    전체 데이터를 기준으로 지정된 interval(분 단위)로 평균 코드량과 변화량을 집계.
+    """
+    if interval <= 0:
+        raise HTTPException(status_code=400, detail="Interval must be a positive integer.")
+
+    # 데이터 가져오기
+    results = get_assignment_snapshots(db, class_div, student_id, hw_name)
+    if not results:
+        return {"trends": []}
+
+    trends = await asyncio.to_thread(
+        compute_trends,
+        results,
+        interval
+    )
+
     return {"trends": trends}
 
 @cached(ttl=600)
@@ -147,8 +157,8 @@ def fetch_build_log(db: Session, class_div: str, hw_name: str, student_id: int) 
     results = get_build_log(db, class_div, hw_name, student_id)
     
     # 모든 타임스탬프를 한 번에 처리
-    timestamps = [result.timestamp for result in results]
-    file_sizes = get_closest_snapshots_batch(db, class_div, hw_name, student_id, timestamps)
+    # timestamps = [result.timestamp for result in results]
+    # file_sizes = get_closest_snapshots_batch(db, class_div, hw_name, student_id, timestamps)
     
     # 결과 생성 - 리스트 컴프리헨션 사용
     return [
@@ -159,7 +169,8 @@ def fetch_build_log(db: Session, class_div: str, hw_name: str, student_id: int) 
             binary_path=result.binary_path,
             target_path=result.target_path,
             timestamp=result.timestamp,
-            file_size=file_sizes[i]
+            # file_size=file_sizes[i]
+            file_size=0
         )
         for i, result in enumerate(results)
     ]
@@ -169,8 +180,8 @@ def fetch_run_log(db: Session, class_div: str, hw_name: str, student_id: int) ->
     results = get_run_log(db, class_div, hw_name, student_id)
 
     # 모든 타임스탬프를 한 번에 처리
-    timestamps = [result.timestamp for result in results]
-    file_sizes = get_closest_snapshots_batch(db, class_div, hw_name, student_id, timestamps)
+    # timestamps = [result.timestamp for result in results]
+    # file_sizes = get_closest_snapshots_batch(db, class_div, hw_name, student_id, timestamps)
     
     # 결과 생성 - 리스트 컴프리헨션 사용
     return [
@@ -181,7 +192,8 @@ def fetch_run_log(db: Session, class_div: str, hw_name: str, student_id: int) ->
             target_path=result.target_path,
             process_type=result.process_type,
             timestamp=result.timestamp,
-            file_size=file_sizes[i]
+            # file_size=file_sizes[i]
+            file_size=0
         )
         for i, result in enumerate(results)
     ]

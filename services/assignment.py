@@ -3,9 +3,9 @@ import numpy as np
 from crud.assignment import get_monitoring_data, get_build_avg, get_run_avg, get_graph_data
 from sqlmodel import Session
 from datetime import datetime
-import pytz
 from fastapi import FastAPI
 from schemas.assignment import BuildAvgResponse, RunAvgResponse
+import asyncio
 
 # 퍼센타일, 전체 학생별 평균 bytes&개수, 최근 작업자(타임스탬프, 학번, 사이즈) 
 def calculate_monitoring_data(db: Session, class_div: str, hw_name: str):
@@ -55,9 +55,9 @@ def calculate_monitoring_data(db: Session, class_div: str, hw_name: str):
     return {
         "percentile_90": percentile_90,                  # 90% 퍼센타일(상위 10% 경계값)
         "percentile_50": percentile_50,                  # 50% 퍼센타일(데이터 중앙값)
-        "top_7": top_7,
         "avg_bytes": avg_bytes,
-        "avg_num": avg_snapshots_per_student
+        "avg_num": avg_snapshots_per_student, 
+        "top_7": top_7
     }
 
 def parse_timestamp(timestamp: str) -> datetime:
@@ -70,7 +70,40 @@ def parse_timestamp(timestamp: str) -> datetime:
         print(f"Timestamp parsing error: {e} for timestamp: {timestamp}")
         raise
 
-def fetch_total_graph_data(db: Session, class_div: str, hw_name: str, start: datetime, end: datetime):
+def compute_total(results):
+    student_changes = {}
+
+    for snapshot in results:
+        student_id = snapshot.student_id
+        filename = snapshot.filename
+
+        if student_id not in student_changes:
+            student_changes[student_id] = {
+                "files": {},
+                "total_changes": 0
+            }
+        
+        # 파일별 이전 크기와 현재 크기 비교
+        if filename not in student_changes[student_id]["files"]:
+            student_changes[student_id]["files"][filename] = snapshot.file_size
+        else:
+            # 파일 크기 변화량의 절대값을 총 변화량에 더함
+            size_diff = abs(snapshot.file_size - student_changes[student_id]["files"][filename])
+            student_changes[student_id]["total_changes"] += size_diff
+            # 현재 파일 크기를 저장
+            student_changes[student_id]["files"][filename] = snapshot.file_size
+
+    result = [
+        {
+            "student_num": student_id,
+            "size_change": data["total_changes"]
+        }
+        for student_id, data in student_changes.items()
+    ]
+
+    return result
+
+async def fetch_total_graph_data(db: Session, class_div: str, hw_name: str, start: datetime, end: datetime):
     # 타임스탬프 형식 변환
     start_str = start.strftime("%Y%m%d_%H%M%S")
     end_str = end.strftime("%Y%m%d_%H%M%S")
@@ -81,35 +114,10 @@ def fetch_total_graph_data(db: Session, class_div: str, hw_name: str, start: dat
         return None
     
     try:        
-        student_changes = {}
-
-        for snapshot in results:
-            student_id = snapshot.student_id
-            filename = snapshot.filename
-
-            if student_id not in student_changes:
-                student_changes[student_id] = {
-                    "files": {},
-                    "total_changes": 0
-                }
-            
-            # 파일별 이전 크기와 현재 크기 비교
-            if filename not in student_changes[student_id]["files"]:
-                student_changes[student_id]["files"][filename] = snapshot.file_size
-            else:
-                # 파일 크기 변화량의 절대값을 총 변화량에 더함
-                size_diff = abs(snapshot.file_size - student_changes[student_id]["files"][filename])
-                student_changes[student_id]["total_changes"] += size_diff
-                # 현재 파일 크기를 저장
-                student_changes[student_id]["files"][filename] = snapshot.file_size
-
-        result = [
-            {
-                "student_num": student_id,
-                "size_change": data["total_changes"]
-            }
-            for student_id, data in student_changes.items()
-        ]
+        result = await asyncio.to_thread(
+            compute_total,
+            results
+        )
 
         return {"results": result}
     except Exception as e:

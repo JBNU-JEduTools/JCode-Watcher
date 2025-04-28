@@ -5,9 +5,9 @@ from pydantic import BaseModel
 class AssignmentResponse(SQLModel):
     percentile_90: Optional[float] = None
     percentile_50: Optional[float] = None
-    top_7: List[Dict[str, Union[str, int, float]]] = []
     avg_bytes: Optional[float] = None
     avg_num: Optional[float] = None
+    top_7: List[Dict[str, Union[str, int, float]]] = []
 
 class CodeSizeChange(BaseModel):
     """ 응답 모델: 학생별 코드 크기 변화량 """

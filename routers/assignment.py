@@ -28,14 +28,14 @@ def get_assignment_data(class_div: str, hw_name: str, db: Session = Depends(get_
     return result
 
 @router.get("/api/total_graph_data/{class_div}/{hw_name}/{start}/{end}", response_model=CodeSizeChangeResponse)
-def get_graph_data(
+async def get_graph_data(
     class_div: str, 
     hw_name: str, 
     start: datetime,  # str에서 datetime으로 변경
     end: datetime,    # str에서 datetime으로 변경
     db: Session = Depends(get_session)
 ):
-    result = fetch_total_graph_data(db, class_div, hw_name, start, end)
+    result = await fetch_total_graph_data(db, class_div, hw_name, start, end)
 
     if not result:
         return CodeSizeChangeResponse(results=[])
