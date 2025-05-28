@@ -47,7 +47,12 @@ def insert_data():
         session.commit()
     
 def get_session():
-    with Session(engine) as session:
+    # with Session(engine) as session:
+    #     yield session
+    session = Session(engine)
+    try:
         yield session
+    finally:
+        session.close()
 
 # SessionDep = Annotated[Session, Depends(get_session)]
