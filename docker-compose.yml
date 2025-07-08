@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  watcher:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: watcher-proc:latest
+    cap_drop:
+      - ALL
+    cap_add:
+      - SYS_ADMIN
+      - SYS_PTRACE
+    pid: host
+    volumes:
+      - ./src:/app/src
+      - /sys/kernel/debug:/sys/kernel/debug:ro
+      - /lib/modules:/lib/modules:ro
+      - /usr/src:/usr/src:ro
+    environment:
+      - PYTHONUNBUFFERED=1
+      - LOG_LEVEL=INFO
+      - API_ENDPOINT=http://echo:3000
+  echo:
+    image: echo:latest
+    ports:
+      - "3000:3000"
