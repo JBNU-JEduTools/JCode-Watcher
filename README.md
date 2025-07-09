@@ -76,7 +76,6 @@ JCode Watcher는 **Kubernetes DaemonSet 패턴**으로 설계된 분산 모니�
 - RESTful API를 통한 데이터 전송
 - Prometheus 메트릭 제공
 
-**기술스택:** Python, Watchdog, AsyncIO
 
 ### ⚡ **procmon** (Process Monitor)
 eBPF 기술을 활용해 커널 레벨에서 프로세스 실행을 추적하고 분석합니다.
@@ -92,8 +91,6 @@ eBPF 기술을 활용해 커널 레벨에서 프로세스 실행을 추적하고
 - Python 스크립트 실행 및 인터프리터 버전
 - 과제 디렉토리 내 바이너리 실행
 - 프로세스 종료 코드, 실행 시간, 명령줄 인수
-
-**기술스택:** Python, BPF(eBPF), bcc
 
 ### 모니터링 대상
 
@@ -125,10 +122,22 @@ eBPF 기술을 활용해 커널 레벨에서 프로세스 실행을 추적하고
 
 ## 운영 환경
 
-**프로덕션 배포**: 전북대학교 JCloud 인프라  
-**서비스 URL**: https://jcode.jbnu.ac.kr  
-**모니터링**: Prometheus + Grafana  
-**로그 관리**: 구조화된 JSON 로깅
+전북대학교 JCloud 인프라의 JEduTools 클러스터에서 실행됩니다. 
+
+Watcher는 각 워커 노드에서 학생 컨테이너들과 함께 실행되며, 호스트 커널에 직접 접근하여 컨테이너 내부의 프로세스 실행과 파일 변경을 감지합니다. 이를 위해 `hostPID` 권한과 `/sys/kernel/debug` 마운트, `SYS_ADMIN`/`SYS_PTRACE` capabilities가 필요합니다.
+
+**클러스터 구성**
+- Kubernetes v1.32.0
+- Ubuntu 24.04 LTS 노드
+- Longhorn 볼륨 2개
+  - 웹IDE 워크스페이스 디렉터리 (감시 대상)
+  - 스냅샷 저장 공간 (카피본 저장)
+
+**프로젝트 요구사항**
+- `hostPID: true` (호스트 PID 네임스페이스 접근)
+- `/sys/kernel/debug` 호스트 마운트 (eBPF 실행)
+- `SYS_ADMIN`, `SYS_PTRACE` capabilities (커널 추적)
+
 
 ## 개발 및 배포
 
