@@ -16,55 +16,6 @@ JCode Watcher는 [JCode 플랫폼](https://jcode.jbnu.ac.kr)에서 학습자들�
 - 과제 수행 과정에서의 시행착오와 문제 해결 패턴 분석
 - 학습 분석 및 이상 행위 탐지를 위한 행동 데이터 수집
 
-
-## 아키텍처
-
-### 시스템 구성
-
-JCode Watcher는 **Kubernetes DaemonSet 패턴**으로 설계된 분산 모니터링 시스템입니다. 각 노드에서 독립적으로 실행되면서 해당 노드의 모든 학생 컨테이너를 감시합니다.
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                  JCode Platform                         │
-│  Frontend (WebIDE Interface) + Backend (Container Mgmt) │
-└─────────────────────────────────────────────────────────┘
-                             │
-                             ▼
-┌─────────────────────────────────────────────────────────┐
-│  ┌─────────────────────┐  ┌─────────────────────┐       │
-│  │       Node 1        │  │       Node 2        │ ...   │
-│  │                     │  │                     │       │
-│  │ Watcher (DaemonSet) │  │ Watcher (DaemonSet) │       │
-│  │ ├─ filemon          │  │ ├─ filemon          │       │
-│  │ │  (inotify)        │  │ │  (inotify)        │       │
-│  │ └─ procmon          │  │ └─ procmon          │       │
-│  │    (eBPF)           │  │    (eBPF)           │       │
-│  │        ↓ 감시        │  │        ↓ 감시       │       │
-│  │ ┌─────┐ ┌─────┐     │  │ ┌─────┐ ┌─────┐     │       │
-│  │ │Pod A│ │Pod B│ ... │  │ │Pod C│ │Pod D│ ... │       │
-│  │ │Web  │ │Web  │     │  │ │Web  │ │Web  │     │       │
-│  │ │IDE  │ │IDE  │     │  │ │IDE  │ │IDE  │     │       │
-│  │ └─────┘ └─────┘     │  │ └─────┘ └─────┘     │       │
-│  └─────────────────────┘  └─────────────────────┘       │
-└─────────────────────────────────────────────────────────┘
-                             │ REST API
-              ┌─────────────────────────────┐
-              │    JCode Analytics API      │
-              └─────────────────────────────┘
-```
-
-### 배포 및 확장성
-- **DaemonSet 패턴**: 각 Kubernetes 노드마다 정확히 하나의 Watcher 인스턴스
-- **수평 확장**: 노드 추가 시 자동으로 Watcher 인스턴스도 배포
-- **장애 격리**: 노드별 독립 실행으로 부분 장애가 전체 시스템에 영향 없음
-- **리소스 효율성**: 노드 레벨 모니터링으로 컨테이너당 에이전트 불필요
-
-### 데이터 플로우
-1. **이벤트 수집**: filemon(inotify) + procmon(eBPF) 병렬 수집
-2. **컨테이너 필터링**: UTS namespace hostname 기반 `jcode-*` 패턴 매칭
-3. **데이터 전송**: 각 Watcher → JCode Analytics API (비동기 HTTP)
-4. **메트릭 노출**: Prometheus scraping endpoint 제공
-
 ## 컴포넌트
 
 ### 📁 **filemon** (File Monitor)
@@ -107,6 +58,50 @@ eBPF 기술을 활용해 커널 레벨에서 프로세스 실행을 추적하고
 - **실행 결과**: 종료 코드, 실행 시간, 명령줄 인수
 - **컴파일 메타데이터**: 소스 파일 경로, 컴파일러 옵션, 출력 바이너리
 
+
+## 아키텍처
+
+### 시스템 구성
+
+JCode Watcher는 **Kubernetes DaemonSet 패턴**으로 설계된 분산 모니터링 시스템입니다. 각 노드에서 독립적으로 실행되면서 해당 노드의 모든 학생 컨테이너를 감시합니다.
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                  JCode Platform                         │
+│  Frontend (WebIDE Interface) + Backend (Container Mgmt) │
+└─────────────────────────────────────────────────────────┘
+                             │
+                             ▼
+┌─────────────────────────────────────────────────────────┐
+│  ┌─────────────────────┐  ┌─────────────────────┐       │
+│  │       Node 1        │  │       Node 2        │ ...   │
+│  │                     │  │                     │       │
+│  │ Watcher (DaemonSet) │  │ Watcher (DaemonSet) │       │
+│  │ ├─ filemon          │  │ ├─ filemon          │       │
+│  │ │  (inotify)        │  │ │  (inotify)        │       │
+│  │ └─ procmon          │  │ └─ procmon          │       │
+│  │    (eBPF)           │  │    (eBPF)           │       │
+│  │        ↓ 감시        │  │        ↓ 감시       │       │
+│  │ ┌─────┐ ┌─────┐     │  │ ┌─────┐ ┌─────┐     │       │
+│  │ │Pod A│ │Pod B│ ... │  │ │Pod C│ │Pod D│ ... │       │
+│  │ │Web  │ │Web  │     │  │ │Web  │ │Web  │     │       │
+│  │ │IDE  │ │IDE  │     │  │ │IDE  │ │IDE  │     │       │
+│  │ └─────┘ └─────┘     │  │ └─────┘ └─────┘     │       │
+│  └─────────────────────┘  └─────────────────────┘       │
+└─────────────────────────────────────────────────────────┘
+                             │ REST API
+              ┌─────────────────────────────┐
+              │    JCode Analytics API      │
+              └─────────────────────────────┘
+```
+
+### 데이터 플로우
+1. **이벤트 수집**: filemon(inotify) + procmon(eBPF) 병렬 수집
+2. **컨테이너 필터링**: UTS namespace hostname 기반 `jcode-*` 패턴 매칭
+3. **데이터 전송**: 각 Watcher → JCode Analytics API (비동기 HTTP)
+4. **메트릭 노출**: Prometheus scraping endpoint 제공
+
+
 ## 기술 스택
 
 | 구분 | 기술 | 용도 |
@@ -144,10 +139,10 @@ Watcher는 각 워커 노드에서 학생 컨테이너들과 함께 실행되며
 ### 로컬 개발
 ```bash
 # filemon 개발
-cd packages/filemon && docker-compose up
+cd packages/filemon && docker compose up
 
 # procmon 개발  
-cd packages/procmon && docker-compose up
+cd packages/procmon && docker compose up
 ```
 
 ### 프로덕션 배포
