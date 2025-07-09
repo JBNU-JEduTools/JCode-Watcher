@@ -5,8 +5,6 @@
 ![eBPF](https://img.shields.io/badge/eBPF-00D4AA?style=for-the-badge&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
 ![Kubernetes](https://img.shields.io/badge/Kubernetes-326CE5?style=for-the-badge&logo=kubernetes&logoColor=white)
-![Prometheus](https://img.shields.io/badge/Prometheus-E6522C?style=for-the-badge&logo=prometheus&logoColor=white)
-
 
 **교육용 WebIDE 플랫폼의 백그라운드 모니터링 시스템**
 
@@ -114,26 +112,6 @@ JCode Watcher는 **Kubernetes DaemonSet 패턴**으로 설계된 분산 모니�
 | **HTTP 클라이언트** | aiohttp | 비동기 API 통신 |
 | **메트릭** | Prometheus | 시스템 모니터링 및 관찰성 |
 | **컨테이너** | Docker, Kubernetes | 애플리케이션 배포 및 오케스트레이션 |
-| **권한 관리** | Linux Capabilities | 최소 권한 보안 모델 |
-
-## 운영 환경
-
-전북대학교 JCloud 인프라의 JEduTools 클러스터에서 실행됩니다. 
-
-Watcher는 각 워커 노드에서 학생 컨테이너들과 함께 실행되며, 호스트 커널에 직접 접근하여 컨테이너 내부의 프로세스 실행과 파일 변경을 감지합니다. 이를 위해 `hostPID` 권한과 `/sys/kernel/debug` 마운트, `SYS_ADMIN`/`SYS_PTRACE` capabilities가 필요합니다.
-
-**클러스터 구성**
-- Kubernetes v1.32.0
-- Ubuntu 24.04 LTS 노드
-- Longhorn 볼륨 2개
-  - 웹IDE 워크스페이스 디렉터리 (감시 대상)
-  - 스냅샷 저장 공간 (카피본 저장)
-
-**프로젝트 요구사항**
-- `hostPID: true` (호스트 PID 네임스페이스 접근)
-- `/sys/kernel/debug` 호스트 마운트 (eBPF 실행)
-- `SYS_ADMIN`, `SYS_PTRACE` capabilities (커널 추적)
-
 
 ## 개발 및 배포
 
@@ -153,4 +131,20 @@ kubectl apply -f packages/filemon/k8s.yaml
 kubectl apply -f packages/procmon/k8s.yaml
 ```
 
-각 패키지의 상세 개발 가이드는 해당 디렉토리의 README를 참조하세요.
+## 배포 요구사항
+
+전북대학교 JCloud 인프라의 JEduTools 클러스터에서 실행됩니다. 
+
+Watcher는 각 워커 노드에서 학생 컨테이너들과 함께 실행되며, 호스트 커널에 직접 접근하여 컨테이너 내부의 프로세스 실행과 파일 변경을 감지합니다. 이를 위해 `hostPID` 권한과 `/sys/kernel/debug` 마운트, `SYS_ADMIN`/`SYS_PTRACE` capabilities가 필요합니다.
+
+**클러스터 구성**
+- Kubernetes v1.32.0
+- Ubuntu 24.04 LTS 노드
+- Longhorn 볼륨 2개
+  - 웹IDE 워크스페이스 디렉터리 (감시 대상)
+  - 스냅샷 저장 공간 (카피본 저장)
+
+**프로젝트 요구사항**
+- `hostPID: true` (호스트 PID 네임스페이스 접근)
+- `/sys/kernel/debug` 호스트 마운트 (eBPF 실행)
+- `SYS_ADMIN`, `SYS_PTRACE` capabilities (커널 추적)
