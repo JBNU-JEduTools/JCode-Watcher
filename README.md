@@ -53,7 +53,7 @@ JCode Watcher는 [JCode 플랫폼](https://jcode.jbnu.ac.kr)에서 학습자들�
 
 ### 데이터 플로우
 1. **이벤트 수집**: filemon(inotify) + procmon(eBPF) 병렬 수집
-2. **컨테이너 필터링**: UTS namespace hostname 기반 `jcode-*` 패턴 매칭
+2. **컨테이너 식별**: 학생 컨테이너만 선별적 모니터링
 3. **데이터 전송**: 각 Watcher → JCode Analytics API (비동기 HTTP)
 4. **메트릭 노출**: Prometheus scraping endpoint 제공
 
@@ -90,20 +90,15 @@ eBPF 기반으로 컨테이너 내 프로세스 실행을 커널에서 추적합
 - 과제 디렉토리 내 바이너리 실행 이벤트
 - 프로세스 종료 코드, 실행 시간, 명령줄 인수
 
+### 감시 대상
 
+두 컴포넌트가 공통으로 모니터링하는 파일 구조입니다.
 
-**감시 대상:**
 ```
 과목-분반-학번/hw{n}/           # 예: os-1-202012180/hw1/
 ├── *.c, *.h, *.cpp, *.hpp      # C/C++ 소스 파일
 └── *.py                        # Python 스크립트
 ```
-
-
-
-
-
-
 
 ## 기술 스택
 
@@ -135,9 +130,7 @@ kubectl apply -f packages/procmon/k8s.yaml
 
 ## 배포 요구사항
 
-전북대학교 JCloud 인프라의 JEduTools 클러스터에서 실행됩니다. 
-
-Watcher는 각 워커 노드에서 학생 컨테이너들과 함께 실행되며, 호스트 커널에 직접 접근하여 컨테이너 내부의 프로세스 실행과 파일 변경을 감지합니다. 이를 위해 `hostPID` 권한과 `/sys/kernel/debug` 마운트, `SYS_ADMIN`/`SYS_PTRACE` capabilities가 필요합니다.
+전북대학교 JCloud 인프라의 JEduTools 클러스터에서 실행됩니다.
 
 **클러스터 구성**
 - Kubernetes v1.32.0
@@ -150,3 +143,12 @@ Watcher는 각 워커 노드에서 학생 컨테이너들과 함께 실행되며
 - `hostPID: true` (호스트 PID 네임스페이스 접근)
 - `/sys/kernel/debug` 호스트 마운트 (eBPF 실행)
 - `SYS_ADMIN`, `SYS_PTRACE` capabilities (커널 추적)
+
+## 관련 프로젝트
+
+### 기존 프로젝트
+- **[Watcher](https://github.com/JBNU-JEduTools/Watcher)** - 클라이언트-서버 기반 코드 변경 이력 추적 시스템 (C/Shell 구현)
+
+### JCode 플랫폼
+- **[JCode-Frontend](https://github.com/JBNU-JEduTools/JCode-Frontend)** - JCode 플랫폼 프론트엔드
+- **[JCode-Backend](https://github.com/JBNU-JEduTools/JCode-Backend)** - JCode 플랫폼 백엔드
