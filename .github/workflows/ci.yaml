@@ -71,10 +71,10 @@ jobs:
           context: packages/procmon
           push: true
           tags: |
-            ${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/watcher-proc:${{ env.VERSION }}
-            ${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/watcher-proc:latest
-          cache-from: type=registry,ref=${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/watcher-proc:cache
-          cache-to: type=registry,ref=${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/watcher-proc:cache,mode=max
+            ${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/watcher-procmon:${{ env.VERSION }}
+            ${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/watcher-procmon:latest
+          cache-from: type=registry,ref=${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/watcher-procmon:cache
+          cache-to: type=registry,ref=${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/watcher-procmon:cache,mode=max
 
       - name: 📦 Build and Push Filemon
         if: steps.changes.outputs.filemon == 'true'
@@ -84,10 +84,10 @@ jobs:
           context: packages/filemon
           push: true
           tags: |
-            ${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/watcher-code:${{ env.VERSION }}
-            ${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/watcher-code:latest
-          cache-from: type=registry,ref=${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/watcher-code:cache
-          cache-to: type=registry,ref=${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/watcher-code:cache,mode=max
+            ${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/watcher-filemon:${{ env.VERSION }}
+            ${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/watcher-filemon:latest
+          cache-from: type=registry,ref=${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/watcher-filemon:cache
+          cache-to: type=registry,ref=${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/watcher-filemon:cache,mode=max
 
       - name: ✅ Build Summary
         run: |
