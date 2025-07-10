@@ -2,10 +2,7 @@ version: '3.8'
 
 services:
   watcher:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: watcher-proc:latest
+    build: .
     cap_drop:
       - ALL
     cap_add:
@@ -21,7 +18,3 @@ services:
       - PYTHONUNBUFFERED=1
       - LOG_LEVEL=INFO
       - API_ENDPOINT=http://echo:3000
-  echo:
-    image: echo:latest
-    ports:
-      - "3000:3000"
