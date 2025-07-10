@@ -1,0 +1,109 @@
+name: 🚀 CI/CD - Build & Deploy
+
+on:
+  push:
+    branches:
+      - master
+      - main
+    paths:
+      - 'packages/**'
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-22.04
+    
+    env:
+      HARBOR_REGISTRY: harbor.jbnu.ac.kr
+      HARBOR_PROJECT: jinseok1006
+
+    steps:
+      - name: 📂 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📅 Get current date
+        uses: josStorer/get-current-time@v2
+        id: current-time
+        with:
+          format: YYYY.MM.DD
+
+      - name: 🏷️ Generate version tag
+        uses: actions/github-script@v7
+        id: version
+        with:
+          result-encoding: string
+          script: |
+            const date = '${{ steps.current-time.outputs.formattedTime }}';
+            const commit = context.sha.substring(0, 7);
+            const version = `${date}-${commit}`;
+            core.exportVariable('VERSION', version);
+            return version;
+
+      - name: 🐳 Login to Harbor Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.HARBOR_REGISTRY }}
+          username: ${{ secrets.HARBOR_USERNAME }}
+          password: ${{ secrets.HARBOR_PASSWORD }}
+
+      - name: 📂 Check changed files
+        id: changes
+        uses: dorny/paths-filter@v2
+        with:
+          filters: |
+            procmon:
+              - 'packages/procmon/**'
+            filemon:
+              - 'packages/filemon/**'
+
+      - name: 🔨 Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: image=moby/buildkit:latest
+          install: true
+          use: true
+
+      - name: 📦 Build and Push Procmon
+        if: steps.changes.outputs.procmon == 'true'
+        id: build-procmon
+        uses: docker/build-push-action@v5
+        with:
+          context: packages/procmon
+          push: true
+          tags: |
+            ${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/watcher-proc:${{ env.VERSION }}
+            ${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/watcher-proc:latest
+          cache-from: type=registry,ref=${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/watcher-proc:cache
+          cache-to: type=registry,ref=${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/watcher-proc:cache,mode=max
+
+      - name: 📦 Build and Push Filemon
+        if: steps.changes.outputs.filemon == 'true'
+        id: build-filemon
+        uses: docker/build-push-action@v5
+        with:
+          context: packages/filemon
+          push: true
+          tags: |
+            ${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/watcher-code:${{ env.VERSION }}
+            ${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/watcher-code:latest
+          cache-from: type=registry,ref=${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/watcher-code:cache
+          cache-to: type=registry,ref=${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/watcher-code:cache,mode=max
+
+      - name: ✅ Build Summary
+        run: |
+          echo "🎯 Version: ${{ env.VERSION }}"
+          echo "📂 Changed files:"
+          echo "  - Procmon: ${{ steps.changes.outputs.procmon }}"
+          echo "  - Filemon: ${{ steps.changes.outputs.filemon }}"
+          
+          if [[ "${{ steps.changes.outputs.procmon }}" == "true" ]]; then
+            echo "✅ Procmon built successfully"
+          else
+            echo "⏭️ Procmon skipped (no changes)"
+          fi
+          
+          if [[ "${{ steps.changes.outputs.filemon }}" == "true" ]]; then
+            echo "✅ Filemon built successfully"
+          else
+            echo "⏭️ Filemon skipped (no changes)"
+          fi
