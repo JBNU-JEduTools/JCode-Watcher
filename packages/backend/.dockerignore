@@ -1,0 +1,14 @@
+*.db
+
+__pycache__/
+
+.env
+.env.example
+
+.git
+.gitignore
+
+*.yaml
+watcher-backend.tar
+
+README.md

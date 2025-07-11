@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: watcher-backend
-  namespace: watcher
+  namespace: dev  # watcher 네임스페이스 추가
 spec:
   replicas: 1
   selector:
@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: watcher-backend
-          image: harbor.jbnu.ac.kr/jinseok1006/watcher-backend:latest
+          image: watcher-backend-dev:dev
           imagePullPolicy: IfNotPresent 
           env:
             - name: DB_URL
@@ -25,22 +25,25 @@ spec:
           volumeMounts:
             - name: data-storage
               mountPath: /app/data
-      imagePullSecrets:
-      - name: watcher-harbor-registry-secret
       volumes:
         - name: data-storage
           persistentVolumeClaim:
             claimName: watcher-backend-pvc
+      tolerations:
+        - key: "dev-node"
+          operator: "Equal"
+          value: "true"
+          effect: "NoSchedule"
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: watcher-backend-service
-  namespace: watcher
+  namespace: dev  # watcher 네임스페이스 추가
   labels:
     app: watcher-backend
 spec:
-  type: ClusterIP
+  type: ClusterIP  # 내부 네트워크에서만 접근 가능
   selector:
     app: watcher-backend
   ports:
@@ -53,7 +56,7 @@ apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
   name: watcher-backend-monitor
-  namespace: watcher
+  namespace: dev
   labels:
     app: watcher-backend
     release: prometheus
@@ -67,4 +70,4 @@ spec:
   endpoints:
     - port: watcher-backend-port
       path: /metrics
-      interval: 30s 
+      interval: 30s

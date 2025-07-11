@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: watcher-backend
+  namespace: watcher  # watcher 네임스페이스 추가
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: watcher-backend
+  template:
+    metadata:
+      labels:
+        app: watcher-backend
+    spec:
+      containers:
+        - name: watcher-backend
+          image: watcher-backend:latest
+          imagePullPolicy: IfNotPresent 
+          env:
+            - name: DB_URL
+              value: "sqlite:////app/data/database.db"
+          ports:
+            - containerPort: 3000
+          volumeMounts:
+            - name: data-storage
+              mountPath: /app/data
+      volumes:
+        - name: data-storage
+          persistentVolumeClaim:
+            claimName: watcher-backend-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: watcher-backend-service
+  namespace: watcher  # watcher 네임스페이스 추가
+  labels:
+    app: watcher-backend
+spec:
+  type: ClusterIP  # 내부 네트워크에서만 접근 가능
+  selector:
+    app: watcher-backend
+  ports:
+    - name: watcher-backend-port
+      protocol: TCP
+      port: 3000
+      targetPort: 3000
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: watcher-backend-monitor
+  namespace: watcher
+  labels:
+    app: watcher-backend
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: watcher-backend
+  namespaceSelector:
+    matchNames:
+      - watcher
+  endpoints:
+    - port: watcher-backend-port
+      path: /metrics
+      interval: 30s
