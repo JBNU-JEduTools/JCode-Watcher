@@ -64,7 +64,7 @@ pvc-5ba357bc-eaca-4585-8e2a-a19ff156887b   100Gi      RWX
 먼저 프로젝트 디렉토리로 이동하여 최신 변경사항을 가져옵니다:
 
 ```bash
-git clone https://github.com/jinseok1006/JCode-Watcher.git
+git clone https://github.com/JBNU-JEduTools/JCode-Watcher.git
 cd JCode-Watcher
 ```
 

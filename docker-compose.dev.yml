@@ -1,0 +1,89 @@
+version: '3.8'
+
+services:
+  # 백엔드 API 서버
+  watcher-backend:
+    build:
+      context: ./packages/backend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./dev-data/backend-db:/app/data
+      - ./packages/backend/src:/app/src
+    environment:
+      - NODE_ENV=development
+      - DB_URL=sqlite:////app/data/watcher.db
+      - LOG_LEVEL=debug
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # 파일 모니터링 서비스
+  watcher-filemon:
+    build:
+      context: ./packages/filemon
+      dockerfile: Dockerfile
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./dev-workspace:/watcher/codes:ro
+      - ./dev-data/filemon-snapshots:/watcher/snapshots
+      - ./packages/filemon/src:/app/src
+    environment:
+      - WATCHER_LOG_LEVEL=DEBUG
+      - WATCHER_API_URL=http://watcher-backend:3000
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      watcher-backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # 프로세스 모니터링 서비스  
+  watcher-procmon:
+    build:
+      context: ./packages/procmon
+      dockerfile: Dockerfile
+    ports:
+      - "9091:9090"
+    volumes:
+      - ./packages/procmon/src:/app/src
+      - /sys/kernel/debug:/sys/kernel/debug:ro
+      - /lib/modules:/lib/modules:ro
+      - /usr/src:/usr/src:ro
+    environment:
+      - API_ENDPOINT=http://watcher-backend:3000
+      - LOG_LEVEL=DEBUG
+      - PYTHONUNBUFFERED=1
+    cap_add:
+      - SYS_ADMIN
+      - SYS_PTRACE
+    pid: host
+    depends_on:
+      watcher-backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # WebIDE (Code Server)
+  code-server:
+    image: lscr.io/linuxserver/code-server:latest
+    ports:
+      - "8443:8443"
+    volumes:
+      - ./dev-workspace:/config/workspace
+      - ./dev-logs:/config/logs
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Asia/Seoul
+      - PASSWORD=watcher123
+      - SUDO_PASSWORD=watcher123
+      - DEFAULT_WORKSPACE=/config/workspace
+    restart: unless-stopped
+
+networks:
+  default:
+    name: watcher-dev-network 
