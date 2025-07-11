@@ -32,6 +32,7 @@ def create_db_and_tables():
 def insert_data():
     with Session(engine) as session:
         snapshots = [
+            # 테스트 데이터
             Snapshot(class_div="os-1", hw_name="hw2", student_id=202511111, filename="aaaa.c", timestamp="20250226_082535", file_size=52),
             Snapshot(class_div="os-1", hw_name="hw2", student_id=202522222, filename="bbbb.c", timestamp="20250226_082804", file_size=3),
             Snapshot(class_div="os-1", hw_name="hw2", student_id=202533333, filename="cccc.c", timestamp="20250226_082900", file_size=42),

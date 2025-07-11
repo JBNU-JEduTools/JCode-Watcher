@@ -1,46 +1,61 @@
-# Watcher - backend
+# Watcher-bakcend : 프로그래밍 활동 저장 및 분석
+
+**Watcher**는 학생들의 코딩 과제 수행 과정을 실시간으로 저장, 분석하는 FastAPI 기반의 백엔드 시스템입니다.
+
+[![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com/)
+[![SQLite](https://img.shields.io/badge/SQLite-003B57?style=for-the-badge&logo=sqlite&logoColor=white)](https://www.sqlite.org/docs.html)
+[![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/doc/)
+[![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://docs.docker.com/)
+[![Kubernetes](https://img.shields.io/badge/Kubernetes-326CE5?style=for-the-badge&logo=kubernetes&logoColor=white)](https://kubernetes.io/ko/docs/home/)
+
+## 주요 기능
+
+- **코드 스냅샷 추적**: 학생들의 코드 변경 사항을 실시간으로 기록
+- **학습 분석**: 학생별/과제별 코딩 패턴 및 통계 분석
+- **로그 모니터링**: 빌드 및 실행 로그 추적
+- **메트릭 수집**: Prometheus를 통한 시스템 모니터링
+- **API문서** : /docs (스웨거 문서 자동 작성)
 
 ## 파일 구조
- FastAPI 공식 문서 파일 구조 예시
-
-https://fastapi.tiangolo.com/tutorial/bigger-applications/
 
 ```
-.
-├── app/
-│   ├── __init__.py
-│   ├── main.py          # FastAPI 애플리케이션의 메인 진입점
-│   ├── dependencies.py  # 의존성 주입 관련(경로 동작 함수에 필요한 의존성 정의)
-│   ├── routers/         # API 라우터 디렉토리
-│   │   ├── __init__.py
-│   │   ├── example.py
-│   │   └── example2.py
-│   ├── internal/        # 내부에서만 사용되는 코드 정의 - admin 기능/필요한 비즈니스 로직 등등
-│   │   ├── __init__.py
-│   │   └── admin.py
-│   ├── db/              # DB 관련 파일 디렉토리
-│   │   ├── base.py      # SQLAlchemy 모델 정의 기본 클래스 : Base = declarative_base() 등
-│   │   ├── session.py   # DB 연결 엔진, DB 세션 관리
-│   │   └── migrations/  # Alembic 마이그레이션 폴더
-│   ├── models/          # SQLAlchemy 모델 정의
-│   │   ├── example.py
-│   │   └── example2.py
-│   ├── schemas/         # Pydantic 모델 정의 - API 요청, 응답 데이터 구조 관리
-│   │   ├── example.py
-│   │   └── example2.py
-│   └── crud/            # CRUD 작업 정의(DB 처리 로직)
-│   │   ├── example.py
-│   │   └── example2.py
-│   └── services/        # 비즈니스 로직 정의
-│   │   ├── example.py
-│   │   └── example2.py
+app/
+├── crud/                 # CRUD 작업 정의(DB 처리 로직)
+├── data/                 # 데이터 파일 저장소
+│   └── example.db
+├── db/                   # DB 연결 및 세션 관리리
+│   └── connection.py
+├── dev/                  # Kubernetes 테스트용 yaml 파일
+├── models/               # SQLAlchemy 모델 테이블 정의
+├── routers/              # API 라우터 디렉토리
+├── schemas/              # Pydantic 스키마 정의(API 요청/응답 구조)
+├── services/             # 비즈니스 로직 정의
+├── utils/                
+│   └── cache.py          # 캐시 처리 로직
+├── .env
+├── main.py               # FastAPI 애플리케이션 메인 진입점
+└── middleware.py         
 ```
 
+## 구조
+```
+                        ┌──────────────────┐
+Collector ──(POST)────► │                  │
+                        │  Backend Engine  │
+User     ───(GET)─────► │                  │
+                        └───────┬──────────┘
+                                │
+                                ▼
+                            [ Database ]
+                                │
+                                ├─ Stores snapshots, buildLog, runLog
+                                │
+                                └─ Mount Persistent Volume
+```
 
-## 시작하기
+## 배포 및 테스트
 
---reload : 코드 변경 시 자동 리로드(개발환경에서만 사용)
-
+**실행**
 ```
 pip install "fastapi[all]"
 
@@ -49,34 +64,43 @@ pip install sqlmodel
 uvicorn main:app --reload --port 3000 --host 0.0.0.0
 ```
 
-- FastAPI 공식문서 tutorial : https://fastapi.tiangolo.com/tutorial/
-
-- /docs 에서 api 문서 확인 가능 - swagger
-
-
-## Tools
-- FastAPI
-
-
-## DB
-
-- 데이터 삽입
+**Docker**
 ```
-INSERT INTO Snapshot (class_div, hw_name, student_id, filename, timestamp, file_size)
-VALUES
-('OS-5', 'hw1', 202212112, 'test.c', '20250316_090102', 1);
+docker ps
+
+docker compose up --build -d
+
+docker exec [container] [command]
+
+docker compose down
 ```
 
-- 데이터 수정
-```
-UPDATE users
-SET email = 'newemail@example.com'
-WHERE user_id = 123;
-```
-users 테이블에서 user_id가 123인 사용자의 email 값을 바꿉니다.
+**Kubernetes**
 
-
-- 데이터 삭제
+- 배포
 ```
-DELETE FROM snapshot WHERE id = 1137
+docker build . -t watcher-backend:latest
+
+docker save -o watcher-backend.tar watcher-backend:latest
+
+#리소스 정의
+kubectl apply -f [yaml파일]
+
+#config/jcode/image
+./deploy_image.sh watcher-backend.tar
+
+kubectl rollout restart -n [namespace] deploy/watcher-backend
+```
+
+- 모니터링
+```
+watch kubectl top po -n [namespace]
+
+kubectl get po -n [namespace] -o wide
+
+#로그 조회
+kubectl logs -n [namespace] [pod_name] [options]
+
+#파드 안의 컨테이너에서 명령 실행
+kubectl exec -it -n [namespace] [pod_name] [-- command [args...]] 
 ```
