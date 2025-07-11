@@ -1,20 +1,20 @@
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
-  name: watcher-code
+  name: watcher-filemon
   namespace: watcher
 spec:
   selector:
     matchLabels:
-      app: watcher-code
+      app: watcher-filemon
   template:
     metadata:
       labels:
-        app: watcher-code
+        app: watcher-filemon
     spec:
       containers:
-      - name: watcher-code
-        image: watcher-code:latest  # 미리 빌드된 이미지 사용
+      - name: watcher-filemon
+        image: harbor.jbnu.ac.kr/jinseok1006/watcher-filemon:0.0.1  # 미리 빌드된 이미지 사용
         imagePullPolicy: IfNotPresent  # 이미지가 존재하지 않을 때만 가져옴
         ports:
         - name: http-metrics
@@ -28,9 +28,11 @@ spec:
           mountPath: /watcher/snapshots
         env:
         - name: WATCHER_LOG_LEVEL
-          value: "DEBUG"
+          value: "INFO"
         - name: WATCHER_API_URL
           value: "http://watcher-backend-service.watcher.svc.cluster.local:3000"
+      imagePullSecrets:
+      - name: watcher-harbor-registry-secret
       volumes:
       - name: jcode-vol
         nfs:
@@ -38,18 +40,18 @@ spec:
           path: "/pvc-5ba357bc-eaca-4585-8e2a-a19ff156887b"
       - name: snapshot-volume
         persistentVolumeClaim:
-          claimName: watcher-code-snapshot-pvc
+          claimName: watcher-filemon-storage-pvc
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: watcher-code
+  name: watcher-filemon
   namespace: watcher
   labels:
-    app: watcher-code
+    app: watcher-filemon
 spec:
   selector:
-    app: watcher-code
+    app: watcher-filemon
   ports:
   - name: http-metrics
     port: 9090
@@ -60,15 +62,15 @@ spec:
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: watcher-code-monitor
+  name: watcher-filemon-monitor
   namespace: watcher
   labels:
-    app: watcher-code
+    app: watcher-filemon
     release: prometheus
 spec:
   selector:
     matchLabels:
-      app: watcher-code
+      app: watcher-filemon  
   namespaceSelector:
     matchNames:
       - watcher

@@ -1,21 +1,21 @@
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
-  name: watcher-proc
+  name: watcher-procmon
   namespace: watcher
 spec:
   selector:
     matchLabels:
-      app: watcher-proc
+      app: watcher-procmon
   template:
     metadata:
       labels:
-        app: watcher-proc
+        app: watcher-procmon
     spec:
       hostPID: true  # 호스트 PID 네임스페이스 접근
       containers:
-      - name: watcher-proc
-        image: watcher-proc:latest
+      - name: watcher-procmon
+        image: harbor.jbnu.ac.kr/jinseok1006/watcher-procmon:0.0.1
         imagePullPolicy: IfNotPresent  # 로컬 이미지 사용
         ports:
         - name: http-metrics
@@ -39,6 +39,8 @@ spec:
         - name: kernel-debug
           mountPath: /sys/kernel/debug
           readOnly: true
+      imagePullSecrets:
+      - name: watcher-harbor-registry-secret
       volumes:
       - name: kernel-modules
         hostPath:
@@ -57,13 +59,13 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: watcher-proc
+  name: watcher-procmon
   namespace: watcher
   labels:
-    app: watcher-proc
+    app: watcher-procmon
 spec:
   selector:
-    app: watcher-proc
+    app: watcher-procmon
   ports:
   - name: http-metrics
     port: 9090
@@ -74,15 +76,15 @@ spec:
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: watcher-proc-monitor
+  name: watcher-procmon-monitor
   namespace: watcher
   labels:
-    app: watcher-proc
+    app: watcher-procmon
     release: prometheus
 spec:
   selector:
     matchLabels:
-      app: watcher-proc
+      app: watcher-procmon
   namespaceSelector:
     matchNames:
       - watcher
@@ -90,3 +92,4 @@ spec:
     - port: http-metrics
       path: /metrics
       interval: 30s
+

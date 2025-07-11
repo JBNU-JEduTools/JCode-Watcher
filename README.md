@@ -101,39 +101,6 @@ eBPF 기반으로 컨테이너 내 프로세스 실행을 커널에서 추적합
 | **메트릭** | Prometheus | 공통 |
 | **컨테이너** | Docker, Kubernetes | 배포환경 |
 
-## 개발 및 배포
-
-### 로컬 개발
-```bash
-# filemon 개발
-cd packages/filemon && docker compose up
-
-# procmon 개발  
-cd packages/procmon && docker compose up
-```
-
-### 프로덕션 배포
-```bash
-# Kubernetes DaemonSet 배포
-kubectl apply -f packages/filemon/k8s.yaml
-kubectl apply -f packages/procmon/k8s.yaml
-```
-
-## 배포 요구사항
-
-전북대학교 JCloud 인프라의 JEduTools 클러스터에서 실행됩니다.
-
-**클러스터 구성**
-- Kubernetes v1.32.0
-- Ubuntu 24.04 LTS 노드
-- Longhorn 볼륨 2개
-  - 웹IDE 워크스페이스 디렉터리 (감시 대상)
-  - 스냅샷 저장 공간 (카피본 저장)
-
-**프로젝트 요구사항**
-- `hostPID: true` (호스트 PID 네임스페이스 접근)
-- `/sys/kernel/debug` 호스트 마운트 (eBPF 실행)
-- `SYS_ADMIN`, `SYS_PTRACE` capabilities (커널 추적)
 
 ## 관련 프로젝트
 

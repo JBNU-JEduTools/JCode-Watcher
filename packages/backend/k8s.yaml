@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: watcher-backend
+  namespace: watcher
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: watcher-backend
+  template:
+    metadata:
+      labels:
+        app: watcher-backend
+    spec:
+      containers:
+        - name: watcher-backend
+          image: harbor.jbnu.ac.kr/jinseok1006/watcher-backend:latest
+          imagePullPolicy: IfNotPresent 
+          env:
+            - name: DB_URL
+              value: "sqlite:////app/data/database.db"
+          ports:
+            - containerPort: 3000
+          volumeMounts:
+            - name: data-storage
+              mountPath: /app/data
+      imagePullSecrets:
+      - name: watcher-harbor-registry-secret
+      volumes:
+        - name: data-storage
+          persistentVolumeClaim:
+            claimName: watcher-backend-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: watcher-backend-service
+  namespace: watcher
+  labels:
+    app: watcher-backend
+spec:
+  type: ClusterIP
+  selector:
+    app: watcher-backend
+  ports:
+    - name: watcher-backend-port
+      protocol: TCP
+      port: 3000
+      targetPort: 3000
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: watcher-backend-monitor
+  namespace: watcher
+  labels:
+    app: watcher-backend
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: watcher-backend
+  namespaceSelector:
+    matchNames:
+      - watcher
+  endpoints:
+    - port: watcher-backend-port
+      path: /metrics
+      interval: 30s 
