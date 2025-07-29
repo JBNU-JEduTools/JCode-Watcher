@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: watcher-filemon-storage-pvc
+  name: watcher-filemon-pvc
   namespace: watcher
 spec:
   accessModes:

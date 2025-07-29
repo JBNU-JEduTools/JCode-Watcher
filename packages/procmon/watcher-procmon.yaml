@@ -15,7 +15,7 @@ spec:
       hostPID: true  # 호스트 PID 네임스페이스 접근
       containers:
       - name: watcher-procmon
-        image: harbor.jbnu.ac.kr/jinseok1006/watcher-procmon:0.0.1
+        image: harbor.jbnu.ac.kr/jdevops/watcher-procmon:20250729-1
         imagePullPolicy: IfNotPresent  # 로컬 이미지 사용
         ports:
         - name: http-metrics
