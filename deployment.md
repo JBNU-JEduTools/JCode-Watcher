@@ -263,12 +263,12 @@ kubectl get secret -n watcher watcher-harbor-registry-secret
 
 ```bash
 # 백엔드 데이터베이스용 스토리지 (10GB)
-kubectl apply -f packages/backend/k8s-pvc.yaml
+kubectl apply -f packages/backend/watcher-backend-pvc.yaml
 ```
 
 ```bash
 # 파일 스냅샷 저장용 스토리지 (30GB)
-kubectl apply -f packages/filemon/k8s-pvc.yaml
+kubectl apply -f packages/filemon/watcher-filemon-pvc.yaml
 ```
 
 **PVC 생성 확인:**
