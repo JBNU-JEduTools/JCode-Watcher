@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: watcher-backend
-          image: watcher-backend:latest
+          image: harbor.jbnu.ac.kr/jdevops/watcher-backend:20250729-1
           imagePullPolicy: IfNotPresent 
           env:
             - name: DB_URL
