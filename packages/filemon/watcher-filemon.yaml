@@ -35,9 +35,8 @@ spec:
       - name: watcher-harbor-registry-secret
       volumes:
       - name: jcode-vol
-        nfs:
-          server: "pvc-5ba357bc-eaca-4585-8e2a-a19ff156887b.longhorn-system.svc.cluster.local"
-          path: "/pvc-5ba357bc-eaca-4585-8e2a-a19ff156887b"
+        persistentVolumeClaim:
+          claimName: jcode-vol-pvc
       - name: snapshot-volume
         persistentVolumeClaim:
           claimName: watcher-filemon-pvc
