@@ -8,7 +8,10 @@ import sys
 from contextvars import ContextVar
 from typing import Optional
 from pathlib import Path
-from ..config.settings import LOG_LEVEL
+from ..config.settings import (
+    LOG_LEVEL, LOG_DIR, LOG_MAX_BYTES, LOG_BACKUP_COUNT
+)
+import os
 
 # Context Variables 정의
 current_class_student = ContextVar('current_class_student', default='')
@@ -62,14 +65,15 @@ def setup_app_logger() -> None:
     console_handler.setFormatter(logging.Formatter(LOG_FORMAT))
     console_handler.addFilter(context_filter)
     
-    # 파일 핸들러 (추가) - 동일한 출력
-    log_dir = Path("/app/logs")
-    log_dir.mkdir(exist_ok=True)
+    # 파일 핸들러 설정
+    log_dir = Path(LOG_DIR)
+    log_dir.mkdir(parents=True, exist_ok=True)
     
+    # 용량 기반 Rotation 핸들러 (기존 로그 파일 보존)
     file_handler = logging.handlers.RotatingFileHandler(
         filename=log_dir / "watcher.log",
-        maxBytes=10*1024*1024,  # 10MB
-        backupCount=5,
+        maxBytes=LOG_MAX_BYTES,
+        backupCount=LOG_BACKUP_COUNT,
         encoding='utf-8'
     )
     file_handler.setFormatter(logging.Formatter(LOG_FORMAT))

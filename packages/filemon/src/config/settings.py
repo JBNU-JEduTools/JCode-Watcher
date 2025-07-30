@@ -32,6 +32,11 @@ IGNORE_PATTERNS = [
 
 # 로깅 설정
 LOG_LEVEL = os.getenv('WATCHER_LOG_LEVEL', 'INFO')
+LOG_DIR = os.getenv('LOG_DIR', '/app/logs')
+
+# Log Rotation 설정 (용량 기반)
+LOG_MAX_BYTES = int(os.getenv('LOG_MAX_BYTES', str(1 * 1024 * 1024)))  # 50MB
+LOG_BACKUP_COUNT = int(os.getenv('LOG_BACKUP_COUNT', '10'))  # 10개 백업 파일
 
 # 메트릭 설정
 METRICS_PORT = 9090 

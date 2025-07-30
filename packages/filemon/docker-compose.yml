@@ -5,7 +5,7 @@ services:
       - /home/ubuntu/jcode:/watcher/codes:ro
       - ./snapshots:/watcher/snapshots
       - ./src/:/app/src/
-      - ./logs:/app/logs
+      - ./logs:/app/logs  # 로그 파일 영구 보존을 위한 호스트 마운트
     ports:
       - 9090:9090
     environment:
