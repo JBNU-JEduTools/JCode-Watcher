@@ -3,6 +3,7 @@
 이 모듈은 애플리케이션의 로깅 설정을 담당합니다.
 """
 import logging
+import logging.handlers
 import sys
 from contextvars import ContextVar
 from typing import Optional
@@ -53,15 +54,30 @@ def setup_app_logger() -> None:
         if isinstance(handler, logging.StreamHandler):
             root_logger.removeHandler(handler)
     
-    # 새 핸들러 추가
+    # 컨텍스트 필터 생성 (공통 사용)
+    context_filter = FileContextFilter()
+    
+    # 콘솔 핸들러 (기존)
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setFormatter(logging.Formatter(LOG_FORMAT))
-    
-    # 컨텍스트 필터 추가
-    context_filter = FileContextFilter()
     console_handler.addFilter(context_filter)
     
+    # 파일 핸들러 (추가) - 동일한 출력
+    log_dir = Path("/app/logs")
+    log_dir.mkdir(exist_ok=True)
+    
+    file_handler = logging.handlers.RotatingFileHandler(
+        filename=log_dir / "watcher.log",
+        maxBytes=10*1024*1024,  # 10MB
+        backupCount=5,
+        encoding='utf-8'
+    )
+    file_handler.setFormatter(logging.Formatter(LOG_FORMAT))
+    file_handler.addFilter(context_filter)
+    
+    # 두 핸들러 모두 추가
     root_logger.addHandler(console_handler)
+    root_logger.addHandler(file_handler)
     
     # 3. 애플리케이션 로거 설정
     app_logger = logging.getLogger('src')

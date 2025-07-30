@@ -1,42 +1,37 @@
-FILE_COUNT = 4096       # 동시에 생성·수정할 파일 개수
-MODIFY_COUNT = 10    # 각 파일이 수정될 횟수
-DELAY_BETWEEN_MODS = 0.1  # 각 수정 사이 지연(초)
+# Watcher - 파일 시스템 감시 및 스냅샷 관리
 
-================ Stress Test Complete ================
-총 파일 개수: 4096
-각 파일당 수정 횟수: 10
-최종 총 수정 이벤트 수: 40960
-실행 시간: 19.09초
+학생 과제 파일의 변경사항을 실시간으로 감지하고 스냅샷을 생성하는 시스템입니다.
 
-할일
-- gracefully shutdown
-- 에러 핸들링
+## 🚀 개발환경 설정
 
+### 필수 요구사항
+
+- Docker
+- `/home/ubuntu/jcode` 디렉토리 (실제 감시 대상)
+
+### 개발 시작하기
 
 ```bash
-# 1. 기존 minikube 중지 (실행 중인 경우)
-minikube stop
+# 1. 저장소 클론
+git clone https://github.com/JBNU-JEduTools/JCode-Watcher.git
+cd packages/filemon
 
-# 2. MTU 1450으로 설정하여 minikube 시작
-minikube start --docker-opt="mtu=1450"
+# 2. 개발 환경 실행
+docker compose up --build
 
-# 3. minikube docker daemon 환경 설정
-eval $(minikube docker-env)
-
-# 4. 이미지 빌드 (이미지가 minikube VM의 docker daemon에 직접 빌드됨)
-docker build -t watcher-code:latest .
-
-# 선택사항: MTU 설정 확인
-minikube ssh "ip link show docker0"
+# 3. 로그 확인
+docker logs -f watcher-filemon
 ```
 
+### 개발 워크플로우
 
-port 
-```
-minikube kubectl -- port-forward  --address 0.0.0.0 svc/os-1-202012180 8080:8080
-```
+```bash
+# 코드 수정 후 재시작
+docker compose restart watcher-filemon
 
-```
-내부통신용 dns
-http://<svcname>.<namespace>.svc.cluster.local
+# 의존성 변경 시 재빌드
+docker-compose up --build
+
+# 컨테이너 내부 접근 (디버깅)
+docker-compose exec watcher-filemon bash
 ```

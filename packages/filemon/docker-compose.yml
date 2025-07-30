@@ -1,16 +1,13 @@
 services:
-  watcher:
+  watcher-filemon:
     build: .
     volumes:
-      # 코드 서버 디렉토리 마운트 (읽기 전용)
       - /home/ubuntu/jcode:/watcher/codes:ro
-      # 스냅샷 저장소 마운트
       - ./snapshots:/watcher/snapshots
       - ./src/:/app/src/
+      - ./logs:/app/logs
     ports:
       - 9090:9090
     environment:
-      - WATCHER_LOG_LEVEL=INFO
-      # API 서버 설정
+      - WATCHER_LOG_LEVEL=DEBUG
       - WATCHER_API_URL=http://172.17.0.1:3000
-
