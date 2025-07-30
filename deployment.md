@@ -104,7 +104,7 @@ spec:
   containers:
     - name: minimal-client
       image: busybox:latest
-      command: ["sh", "-c", "echo 'Minimal RWX client running'; sleep 3600"]
+      command: ["sh", "-c", "echo 'Minimal RWX client running'; sleep infinity"]
       volumeMounts:
         - name: shared-data
           mountPath: /data
@@ -164,26 +164,12 @@ cd JCode-Watcher
 각 서비스를 순서대로 빌드합니다. 빌드 시간은 서비스당 약 2-3분 소요됩니다:
 
 ```bash
-# 백엔드 API 서버 이미지 빌드
 cd packages/backend
 docker build -t harbor.jbnu.ac.kr/jdevops/watcher-backend:<VERSION_TAG> .
-```
 
-빌드가 성공하면 다음과 같은 메시지가 출력됩니다:
-
-```
-Successfully built abc123def456
-Successfully tagged harbor.jbnu.ac.kr/jdevops/watcher-backend:<VERSION_TAG>
-```
-
-```bash
-# 파일 모니터링 서비스 이미지 빌드 (inotify 기반)
 cd ../filemon
 docker build -t harbor.jbnu.ac.kr/jdevops/watcher-filemon:<VERSION_TAG> .
-```
 
-```bash
-# 프로세스 모니터링 서비스 이미지 빌드 (eBPF 기반)
 cd ../procmon
 docker build -t harbor.jbnu.ac.kr/jdevops/watcher-procmon:<VERSION_TAG> .
 ```
@@ -192,28 +178,22 @@ docker build -t harbor.jbnu.ac.kr/jdevops/watcher-procmon:<VERSION_TAG> .
 
 ```bash
 docker images | grep harbor.jbnu.ac.kr/jdevops/watcher
+
+# 성공하면 다음 메시지가 출력됩니다:
+# harbor.jbnu.ac.kr/jdevops/watcher-backend    <VERSION_TAG>
+# harbor.jbnu.ac.kr/jdevops/watcher-filemon    <VERSION_TAG>
+# harbor.jbnu.ac.kr/jdevops/watcher-procmon    <VERSION_TAG>
 ```
 
-3개의 이미지가 모두 보여야 합니다:
-
-```
-harbor.jbnu.ac.kr/jdevops/watcher-backend    <VERSION_TAG>
-harbor.jbnu.ac.kr/jdevops/watcher-filemon    <VERSION_TAG>
-harbor.jbnu.ac.kr/jdevops/watcher-procmon    <VERSION_TAG>
-```
-
-### 🚀 2단계: Harbor 레지스트리에 이미지 업로드
+### 🚀 3단계: Harbor 레지스트리에 이미지 업로드
 
 #### Harbor 로그인
 
 ```bash
 docker login harbor.jbnu.ac.kr
-```
 
-사용자명과 비밀번호를 입력하세요. 성공하면 다음 메시지가 출력됩니다:
-
-```
-Login Succeeded
+# 성공하면 다음 메시지가 출력됩니다:
+# Login Succeeded
 ```
 
 #### 이미지 업로드
@@ -224,18 +204,15 @@ Login Succeeded
 docker push harbor.jbnu.ac.kr/jdevops/watcher-backend:<VERSION_TAG>
 docker push harbor.jbnu.ac.kr/jdevops/watcher-filemon:<VERSION_TAG>
 docker push harbor.jbnu.ac.kr/jdevops/watcher-procmon:<VERSION_TAG>
-```
 
-각 푸시가 완료되면 다음과 같은 메시지가 출력됩니다:
-
-```
-<VERSION_TAG>: digest: sha256:abc123... size: 1234
+# 성공하면 다음 메시지가 출력됩니다:
+# <VERSION_TAG>: digest: sha256:abc123... size: 1234
 ```
 
 **업로드 확인:**
 Harbor 웹 인터페이스(`https://harbor.jbnu.ac.kr`)에서 `jdevops` 프로젝트를 확인하여 3개 이미지가 업로드되었는지 확인하세요.
 
-### ☸️ 3단계: Kubernetes 클러스터에 배포
+### ☸️ 4단계: Kubernetes 클러스터에 배포
 
 #### Harbor 레지스트리 인증 설정
 
@@ -281,8 +258,132 @@ kubectl get pvc -n watcher
 
 ```
 NAME                           STATUS   VOLUME    CAPACITY   ACCESS MODES   STORAGECLASS
-watcher-backend-pvc            Bound    pvc-...   10Gi       RWO            longhorn
+watcher-backend-pvc            Bound    pvc-...   10Gi       RWX            longhorn
 watcher-filemon-storage-pvc    Bound    pvc-...   30Gi       RWX            longhorn
+```
+
+#### filemon 서비스를 위한 NFS 마운트 설정
+
+filemon 서비스는 `학생용 WebIDE 워크스페이스`에서 파일 변경을 실시간으로 감지하기 위해 inotify를 사용합니다.
+Kubernetes에서 볼륨 접근 방식에 따라 파일 변경 감지 동작이 달라집니다:
+
+**PersistentVolumeClaim (CSI 기반)**
+
+- 각 Pod가 독립적인 마운트 인스턴스를 할당받음
+- 동일 노드 내에서도 Pod 간 파일시스템 이벤트가 실시간 공유되지 않음
+
+**NFS 볼륨 마운트**
+
+- 여러 Pod가 동일한 네트워크 파일시스템을 직접 공유
+- 한 Pod의 파일 변경이 같은 노드의 다른 Pod에서 즉시 감지됨
+
+따라서 실시간 파일 변경 감지가 핵심인 filemon 서비스는 NFS 볼륨 마운트 방식을 사용합니다.
+
+**1. 현재 jcode-vol-pvc의 NFS 정보 확인:**
+
+```bash
+kubectl get pvc jcode-vol-pvc -n watcher -o jsonpath='{.spec.volumeName}'
+
+# pvc-5ba357bc-eaca-4585-8e2a-a19ff156887b
+```
+
+**2. Longhorn NFS 주소 구성 규칙:**
+위에서 얻은 volumeHandle을 사용하여 NFS 정보를 구성합니다:
+
+```yaml
+nfs:
+  server: "<volumeHandle>.longhorn-system.svc.cluster.local"
+  path: "/<volumeHandle>"
+# 실제 예시 (volumeHandle이 "pvc-5ba357bc-eaca-4585-8e2a-a19ff156887b"인 경우):
+# nfs:
+#  server: "pvc-5ba357bc-eaca-4585-8e2a-a19ff156887b.longhorn-system.svc.cluster.local"
+#  path: "/pvc-5ba357bc-eaca-4585-8e2a-a19ff156887b"
+```
+
+**3. watcher-filemon.yaml 수정:**
+`packages/filemon/watcher-filemon.yaml` 파일에서 jcode-vol 볼륨 설정을 다음과 같이 수정하세요:
+
+```yaml
+spec:
+  containers:
+    - name: watcher-filemon
+      image: harbor.jbnu.ac.kr/jdevops/watcher-filemon:20250729-1
+  #...
+  volumes:
+    - name: jcode-vol
+      nfs:
+        server: "pvc-5ba357bc-eaca-4585-8e2a-a19ff156887b.longhorn-system.svc.cluster.local"
+        path: "/pvc-5ba357bc-eaca-4585-8e2a-a19ff156887b"
+  #...
+```
+
+#### 배포 전 매니페스트 설정 점검
+
+배포하기 전에 각 서비스의 매니페스트 파일이 올바르게 설정되어 있는지 확인하고 필요시 수정하세요.
+
+**1. watcher-backend 환경변수 (`packages/backend/watcher-backend.yaml`)**
+
+```yaml
+env:
+  - name: DB_URL
+    value: "sqlite:////app/data/database.db" # SQLite 데이터베이스 경로
+```
+
+- `DB_URL`: 백엔드에서 사용할 데이터베이스 연결 정보
+- SQLite 파일은 PVC 마운트된 `/app/data` 디렉토리에 저장됩니다
+
+**2. watcher-filemon 환경변수 (`packages/filemon/watcher-filemon.yaml`)**
+
+```yaml
+env:
+  - name: WATCHER_LOG_LEVEL
+    value: "INFO" # 로그 레벨: DEBUG, INFO, WARNING, ERROR
+  - name: WATCHER_API_URL
+    value: "http://watcher-backend-service.watcher.svc.cluster.local:3000"
+```
+
+- `WATCHER_LOG_LEVEL`: 파일 모니터링 로그 상세도 설정
+- `WATCHER_API_URL`: 백엔드 API 쿠버네티스 내부 서버 주소
+
+**3. watcher-procmon 환경변수 (`packages/procmon/watcher-procmon.yaml`)**
+
+```yaml
+env:
+  - name: API_ENDPOINT
+    value: "http://watcher-backend-service.watcher.svc.cluster.local:3000"
+  - name: LOG_LEVEL
+    value: "INFO" # 로그 레벨: DEBUG, INFO, WARNING, ERROR
+```
+
+- `API_ENDPOINT`: 백엔드 API 쿠버네티스 내부 서버 주소
+- `LOG_LEVEL`: 프로세스 모니터링 로그 상세도 설정
+
+> 쿠버네티스 내부 URL에 대한 자세한 내용은 [공식문서](https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/)를 참고하세요.
+
+**환경변수 확인:**
+모든 서비스가 `watcher` 네임스페이스를 사용하므로 서비스 URL이 올바른지 확인하세요:
+
+```yaml
+# watcher-filemon.yaml
+- name: WATCHER_API_URL
+  value: "http://watcher-backend-service.watcher.svc.cluster.local:3000"
+
+# watcher-procmon.yaml
+- name: API_ENDPOINT
+  value: "http://watcher-backend-service.watcher.svc.cluster.local:3000"
+```
+
+**이미지 태그 확인:**
+각 YAML 파일에서 이미지 태그가 올바른지 확인하세요:
+
+```yaml
+# 현재 설정된 태그
+image: harbor.jbnu.ac.kr/jdevops/watcher-backend:20250729-1
+image: harbor.jbnu.ac.kr/jdevops/watcher-filemon:20250729-1
+image: harbor.jbnu.ac.kr/jdevops/watcher-procmon:20250729-1
+
+# 필요시 본인이 빌드한 태그로 변경
+image: harbor.jbnu.ac.kr/jdevops/watcher-backend:<VERSION_TAG>
 ```
 
 #### 애플리케이션 서비스 배포
@@ -291,17 +392,9 @@ watcher-filemon-storage-pvc    Bound    pvc-...   30Gi       RWX            long
 
 ```bash
 # 백엔드 API 서버 배포 (포트 3000)
-kubectl apply -f packages/backend/k8s.yaml
-```
-
-```bash
-# 파일 모니터링 서비스 배포 (포트 9090, 모든 노드)
-kubectl apply -f packages/filemon/k8s.yaml
-```
-
-```bash
-# 프로세스 모니터링 서비스 배포 (포트 9090, 모든 노드)
-kubectl apply -f packages/procmon/k8s.yaml
+kubectl apply -f packages/backend/watcher-backend.yaml
+kubectl apply -f packages/filemon/watcher-filemon.yaml
+kubectl apply -f packages/procmon/watcher-procmon.yaml
 ```
 
 ### ✅ 4단계: 배포 상태 확인
@@ -407,46 +500,3 @@ process_events_total{process_name="python3"} 23
 ```bash
 kubectl get servicemonitor -n watcher
 ```
-
-### 🔧 문제 해결 가이드
-
-#### Pod가 Pending 상태인 경우
-
-```bash
-kubectl describe pod -n watcher <pod-name>
-```
-
-일반적인 원인:
-
-- **PVC가 바인딩되지 않음**: Longhorn 설치 상태 확인
-- **노드 리소스 부족**: `kubectl top nodes`로 리소스 사용량 확인
-- **이미지 Pull 실패**: Harbor 시크릿 설정 확인
-
-#### filemon Pod가 CrashLoopBackOff인 경우
-
-NFS 볼륨 접근 권한 문제일 가능성:
-
-```bash
-kubectl exec -n watcher <filemon-pod> -- ls -la /watcher/codes
-```
-
-#### procmon Pod가 권한 오류로 실패하는 경우
-
-eBPF 실행을 위한 커널 권한 문제:
-
-```bash
-kubectl exec -n watcher <procmon-pod> -- ls -la /sys/kernel/debug
-```
-
-### 🎉 배포 완료!
-
-모든 단계가 성공적으로 완료되었다면 Watcher 시스템이 정상 동작합니다.
-
-**최종 확인사항:**
-
-- [ ] 3개 서비스 모두 Running 상태
-- [ ] 백엔드 API 헬스체크 통과
-- [ ] 메트릭 엔드포인트 접근 가능
-- [ ] 로그에 오류 메시지 없음
-
-이제 JCode 플랫폼의 학습자 활동이 실시간으로 모니터링됩니다!
