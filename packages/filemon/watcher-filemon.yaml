@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: watcher-filemon
-        image: harbor.jbnu.ac.kr/jinseok1006/watcher-filemon:0.0.1  # 미리 빌드된 이미지 사용
+        image: harbor.jbnu.ac.kr/jdevops/watcher-filemon:20250729-1  # 미리 빌드된 이미지 사용
         imagePullPolicy: IfNotPresent  # 이미지가 존재하지 않을 때만 가져옴
         ports:
         - name: http-metrics
@@ -35,12 +35,11 @@ spec:
       - name: watcher-harbor-registry-secret
       volumes:
       - name: jcode-vol
-        nfs:
-          server: "pvc-5ba357bc-eaca-4585-8e2a-a19ff156887b.longhorn-system.svc.cluster.local"
-          path: "/pvc-5ba357bc-eaca-4585-8e2a-a19ff156887b"
+        persistentVolumeClaim:
+          claimName: jcode-vol-pvc
       - name: snapshot-volume
         persistentVolumeClaim:
-          claimName: watcher-filemon-storage-pvc
+          claimName: watcher-filemon-pvc
 ---
 apiVersion: v1
 kind: Service
