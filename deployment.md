@@ -239,12 +239,10 @@ kubectl get secret -n watcher watcher-harbor-registry-secret
 서비스가 사용할 영구 볼륨을 먼저 생성합니다:
 
 ```bash
-# 백엔드 데이터베이스용 스토리지 (10GB)
+# 백엔드 데이터베이스용 스토리지
 kubectl apply -f packages/backend/watcher-backend-pvc.yaml
-```
 
-```bash
-# 파일 스냅샷 저장용 스토리지 (30GB)
+# 파일 스냅샷 저장용 스토리지
 kubectl apply -f packages/filemon/watcher-filemon-pvc.yaml
 ```
 
@@ -402,28 +400,39 @@ kubectl apply -f packages/procmon/watcher-procmon.yaml
 #### 전체 리소스 상태 확인
 
 ```bash
-kubectl get all -n watcher
+kubectl get pods -n watcher
 ```
 
 정상 배포된 경우 다음과 같이 출력됩니다:
 
 ```
-NAME                                 READY   STATUS    RESTARTS   AGE
-pod/watcher-backend-xxx-xxx          1/1     Running   0          2m
-pod/watcher-filemon-xxx              1/1     Running   0          1m
-pod/watcher-procmon-xxx              1/1     Running   0          1m
+NAME                         READY  STATUS   RESTARTS  AGE    IP              NODE
+pod/watcher-backend-6f8cc6c4  1/1    Running  0         1h     10.233.117.121  k8s-com03-worker
+pod/watcher-backend-6f8cc6c4  1/1    Running  0         1h     10.233.118.131  k8s-com04-worker
 
-NAME                               TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)    AGE
-service/watcher-backend-service    ClusterIP   10.96.xxx.xxx   <none>        3000/TCP   2m
-service/watcher-filemon           ClusterIP   10.96.xxx.xxx   <none>        9090/TCP   1m
-service/watcher-procmon           ClusterIP   10.96.xxx.xxx   <none>        9090/TCP   1m
+pod/watcher-filemon-t2ftb     1/1    Running  0         1h     10.233.99.178   k8s-com01-worker
+pod/watcher-filemon-944pf     1/1    Running  0         1h     10.233.127.3    k8s-com02-worker
+pod/watcher-filemon-zzskf     1/1    Running  0         1h     10.233.111.131  k8s-com03-worker
+pod/watcher-filemon-8tm8l     1/1    Running  0         1h     10.233.118.147  k8s-com04-worker
+pod/watcher-filemon-bd5dj     1/1    Running  0         1h     10.233.80.178   k8s-gpu13-worker
 
-NAME                             DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR   AGE
-daemonset.apps/watcher-filemon   3         3         3       3            3           <none>          1m
-daemonset.apps/watcher-procmon   3         3         3       3            3           <none>          1m
+pod/watcher-procmon-p45hv     1/1    Running  0         1h     10.233.122.22   k8s-com01-worker
+pod/watcher-procmon-mqrtc     1/1    Running  0         1h     10.233.127.51   k8s-com02-worker
+pod/watcher-procmon-fff5x     1/1    Running  0         1h     10.233.111.143  k8s-com03-worker
+pod/watcher-procmon-jlqlb     1/1    Running  0         1h     10.233.118.156  k8s-com04-worker
+pod/watcher-procmon-cncxp     1/1    Running  0         1h     10.233.80.137   k8s-gpu13-worker
 
-NAME                              READY   UP-TO-DATE   AVAILABLE   AGE
-deployment.apps/watcher-backend   1/1     1            1           2m
+NAME                              TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)             AGE   SELECTOR
+service/watcher-backend-service   ClusterIP   10.233.7.252    <none>        3000/TCP            1h    app=watcher-backend
+service/watcher-filemon           ClusterIP   10.233.43.186   <none>        9090/TCP            1h    app=watcher-filemon
+service/watcher-procmon           ClusterIP   10.233.26.203   <none>        9090/TCP            1h    app=watcher-procmon
+
+NAME                             DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   AGE
+daemonset.apps/watcher-filemon   5         5         5       5            5           14h
+daemonset.apps/watcher-procmon   5         5         5       5            5           11m
+
+NAME                              READY   UP-TO-DATE   AVAILABLE   AGE    CONTAINERS
+deployment.apps/watcher-backend   2/2     2            2           146d   watcher-backend
 ```
 
 #### 개별 서비스 로그 확인
@@ -431,44 +440,230 @@ deployment.apps/watcher-backend   1/1     1            1           2m
 각 서비스가 정상 동작하는지 로그를 확인합니다:
 
 ```bash
-# 백엔드 API 서버 로그
 kubectl logs -n watcher -l app=watcher-backend --tail=20
-```
-
-정상적인 경우 다음과 같은 로그가 출력됩니다:
-
-```
-Server starting on port 3000
-Database initialized
-API endpoints ready
-```
-
-```bash
-# 파일 모니터링 서비스 로그
 kubectl logs -n watcher -l app=watcher-filemon --tail=20
-```
-
-```bash
-# 프로세스 모니터링 서비스 로그
 kubectl logs -n watcher -l app=watcher-procmon --tail=20
 ```
 
 #### 서비스 연결 테스트
 
-백엔드 API가 정상 작동하는지 테스트합니다:
+정상 동작하는 수집기 파드를 이용하여 백엔드 API의 동작 여부를 확인합니다.
+watcher-filemon-q95v8 대신, 실제로 동작하는 watcher-filemon 또는 wathcer-procmon을 사용하세요.
 
 ```bash
-kubectl run test-pod --image=curlimages/curl -i --tty --rm -- \
-  curl http://watcher-backend-service.watcher.svc.cluster.local:3000/health
+kubectl exec -it watcher-filemon-q95v8 -n watcher -- python3 -c "
+import urllib.request
+try:
+   response = urllib.request.urlopen('http://watcher-backend-service.watcher:3000/docs')
+   print(response.read().decode())
+   print(f'Status: {response.status}')
+except Exception as e:
+   print(f'Error: {e}')
+"
 ```
+
+> python코드를 사용할때는 indentation에 주의해야 합니다.
 
 정상적인 경우 다음과 같은 응답이 옵니다:
 
-```json
-{ "status": "healthy", "timestamp": "2024-01-01T00:00:00Z" }
+```html
+<!DOCTYPE html>
+<html>
+  <head>
+    <link
+      type="text/css"
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css"
+    />
+    <link
+      rel="shortcut icon"
+      href="https://fastapi.tiangolo.com/img/favicon.png"
+    />
+    <title>FastAPI - Swagger UI</title>
+    ... Status: 200
+  </head>
+</html>
 ```
 
-### 📊 5단계: 모니터링 및 메트릭 확인
+### ✅ 5단계: filemon 수집 및 저장 테스트
+
+#### 테스트용 WebIDE Pod 생성
+
+filemon이 파일 변경을 정상적으로 감지하는지 테스트하기 위해 jcode-vol에 파일을 작성할 수 있는 간단한 테스트 Pod를 생성합니다.
+
+```yaml
+# test-webide-pod.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-webide-pod
+  namespace: watcher
+spec:
+  containers:
+    - name: test-container
+      image: code-server
+      volumeMounts:
+        - name: jcode-vol
+          mountPath: /home/coder/project
+          subPath: workspace/{과목}-{분반}-{학번}
+  volumes:
+    - name: jcode-vol
+      nfs:
+        server: "pvc-5ba357bc-eaca-4585-8e2a-a19ff156887b.longhorn-system.svc.cluster.local"
+        path: "/pvc-5ba357bc-eaca-4585-8e2a-a19ff156887b"
+  ...
+```
+
+**테스트 Pod 배포:**
+
+```bash
+kubectl apply -f test-webide-pod.yaml
+kubectl get pod test-webide-pod -n watcher
+```
+
+#### 파일 변경 테스트 수행
+
+**1. 테스트 파일 생성:**
+
+```bash
+kubectl exec -it test-webide-pod -n watcher -- bash -c "
+mkdir -p /home/coder/project/hw1
+echo '#include <stdio.h>
+int main() {
+    printf(\"Hello Watcher Test!\");
+    return 0;
+}' > /home/coder/project/hw1/hello.c
+"
+```
+
+**2. filemon 로그 확인:**
+
+**중요**: inotify 특성상 파일 변경은 **같은 노드**에 있는 filemon Pod에서만 감지됩니다.
+
+먼저 테스트 Pod와 같은 노드에 있는 filemon Pod를 찾아야 합니다:
+
+```bash
+# 테스트 Pod가 실행 중인 노드 확인
+kubectl get pod test-webide-pod -n watcher -o wide
+
+# 같은 노드에 있는 filemon Pod 찾기
+kubectl get pod -n watcher -l app=watcher-filemon -o wide
+```
+
+예시 출력:
+
+```
+# 테스트 Pod 위치
+NAME              READY   STATUS    RESTARTS   AGE   IP             NODE
+test-webide-pod   1/1     Running   0          1m    10.233.111.140 k8s-com03-worker
+
+# filemon Pod들의 위치
+NAME                  READY   STATUS    RESTARTS   AGE   IP             NODE
+watcher-filemon-9dc5q 1/1     Running   0          26m   10.233.99.179  k8s-com01-worker
+watcher-filemon-pxt2d 1/1     Running   0          26m   10.233.111.190 k8s-com03-worker  ← 같은 노드!
+watcher-filemon-q95v8 1/1     Running   0          26m   10.233.80.143  k8s-gpu13-worker
+```
+
+**같은 노드의 filemon Pod 로그 확인:**
+
+```bash
+# 같은 노드(k8s-com03-worker)에 있는 filemon Pod 로그 확인
+kubectl logs -n watcher watcher-filemon-pxt2d --tail=10
+```
+
+정상적인 경우 다음과 같은 로그가 출력됩니다:
+
+```
+2025-07-30 06:17:53,792 - [src.core.event_processor] - INFO - test-user-001 - 이벤트 감지됨 - 타입: created, 경로: /watcher/codes/workspace/test-user-001/hw1/hello.c
+2025-07-30 06:17:53,862 - [src.core.snapshot] - INFO - test-user-001 - 스냅샷 생성 완료 - 경로: /watcher/snapshots/test-user-001/hw1/hello.c/20250730_061753.c
+2025-07-30 06:17:54,037 - [src.core.api] - INFO - test-user-001 - API 요청 성공 - 파일: hello.c
+```
+
+**4. 백엔드 API에서 수집된 데이터 확인:**
+
+```bash
+kubectl logs deployment/watcher-backend -n watcher -f --tail=100
+
+# INFO:     10.233.111.190:34888 - "POST /api/test-1/hw1/202012180/hello.c/20250730_061753.c HTTP/1.1" 200 OK
+```
+
+### ✅ 6단계: procmon 프로세스 실행 감지 테스트
+
+#### gcc 컴파일 및 실행 테스트
+
+기존 테스트 Pod를 활용하여 gcc 컴파일과 프로그램 실행을 테스트합니다.
+
+**1. C 프로그램 컴파일:**
+
+```bash
+kubectl exec -it test-webide-pod -n watcher -- bash -c "
+cd /home/coder/project/hw1
+gcc hello.c -o hello
+ls -la hello
+"
+```
+
+**2. 컴파일된 프로그램 실행:**
+
+```bash
+kubectl exec -it test-webide-pod -n watcher -- bash -c "
+cd /home/coder/project/hw1
+./hello
+"
+```
+
+#### procmon 로그 확인
+
+**중요**: procmon도 filemon과 마찬가지로 **같은 노드**에 있는 Pod에서만 프로세스 실행을 감지합니다.
+
+**1. 같은 노드의 procmon Pod 찾기:**
+
+```bash
+# 테스트 Pod가 실행 중인 노드 확인
+kubectl get pod test-webide-pod -n watcher -o wide
+
+# 같은 노드에 있는 procmon Pod 찾기
+kubectl get pod -n watcher -l app=watcher-procmon -o wide
+```
+
+예시 출력:
+
+```
+# 테스트 Pod 위치
+NAME              READY   STATUS    RESTARTS   AGE   IP             NODE
+test-webide-pod   1/1     Running   0          5m    10.233.111.140 k8s-com03-worker
+
+# procmon Pod들의 위치
+NAME                  READY   STATUS    RESTARTS   AGE   IP             NODE
+watcher-procmon-cncxp 1/1     Running   0          55m   10.233.80.137  k8s-gpu13-worker
+watcher-procmon-fff5x 1/1     Running   0          55m   10.233.111.143 k8s-com03-worker  ← 같은 노드!
+watcher-procmon-jlqlb 1/1     Running   0          55m   10.233.118.156 k8s-com04-worker
+```
+
+**2. 같은 노드의 procmon Pod 로그 확인:**
+
+```bash
+# 같은 노드(k8s-com03-worker)에 있는 procmon Pod 로그 확인
+kubectl logs -n watcher watcher-procmon-fff5x --tail=20
+```
+
+정상적인 경우 다음과 같은 로그가 출력됩니다:
+
+```
+2025-07-30 06:40:32,510 - INFO - jcode-test-1-202012180-866cbc896c-lrx9d - 1589549 - src.handlers.enrichment - 이벤트 수신: binary=/usr/bin/x86_64-linux-gnu-gcc-12, args=gcc hello.c -o hello, cwd=/workspace/test-1-202012180/hw1, exit_code=0
+2025-07-30 06:40:32,712 - INFO - jcode-test-1-202012180-866cbc896c-lrx9d - 1589549 - src.api.client - API 성공: endpoint=/api/test-1/hw1/202012180/logs/build
+2025-07-30 06:40:32,714 - INFO - jcode-test-1-202012180-866cbc896c-lrx9d - 1589549 - __main__ - [이벤트 처리 완료] 타입: ProcessType.GCC
+```
+
+#### 테스트 정리
+
+테스트 완료 후 테스트 Pod를 삭제합니다:
+
+```bash
+kubectl delete pod test-webide-pod -n watcher
+```
+
+### 📊 7단계: 모니터링 및 메트릭 확인
 
 #### Prometheus 메트릭 접근
 
