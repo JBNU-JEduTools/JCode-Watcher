@@ -1,12 +1,6 @@
 # JCode Watcher
 
-![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
-![Linux](https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black)
-![eBPF](https://img.shields.io/badge/eBPF-00D4AA?style=for-the-badge&logoColor=white)
-![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
-![Kubernetes](https://img.shields.io/badge/Kubernetes-326CE5?style=for-the-badge&logo=kubernetes&logoColor=white)
-
-**교육용 WebIDE 플랫폼의 백그라운드 모니터링 시스템**
+**교육용 WebIDE 백그라운드 코딩 활동 모니터링 시스템**
 
 JCode Watcher는 [JCode 플랫폼](https://jcode.jbnu.ac.kr)에서 학습자들의 프로그래밍 활동을 실시간으로 모니터링하는 시스템입니다. 브라우저 기반 개발환경에서 학생들이 작성하는 코드와 실행하는 프로세스를 추적하여 학습 데이터를 수집합니다.
 
@@ -47,9 +41,15 @@ JCode Watcher는 Kubernetes DaemonSet 패턴으로 설계된 분산 모니터링
 └─────────────────────────────────────────────────────────┘
                              │ REST API
               ┌─────────────────────────────┐
-              │    JCode Analytics API      │
+              │    Backend (Analytics API)  │
+              │  ┌─────────────────────────┐ │
+              │  │ FastAPI + SQLite        │ │
+              │  │ - 코드 스냅샷 저장      │ │
+              │  │ - 학습 패턴 분석        │ │
+              │  │ - 메트릭 수집           │ │
+              │  └─────────────────────────┘ │
               └─────────────────────────────┘
-```
+```     
 
 ### 데이터 플로우
 1. **이벤트 수집**: filemon(inotify) + procmon(eBPF) 병렬 수집
@@ -91,12 +91,30 @@ eBPF 기반으로 컨테이너 내 프로세스 실행을 커널에서 추적합
 - 프로세스 종료 코드, 실행 시간, 명령줄 인수
 
 
+### 🔧 **backend** (Analytics API)
+FastAPI 기반으로 모니터링 데이터를 수집, 저장, 분석하는 중앙 API 서버입니다.
+
+**동작 방식:**
+- **데이터 수집**: filemon, procmon으로부터 이벤트 수신
+- **학습 분석**: 학생별/과제별 코딩 패턴 및 통계 분석  
+- **API 제공**: 수집된 데이터 조회 및 분석 결과 제공
+- **메트릭 노출**: Prometheus 모니터링 지표 제공
+
+**주요 기능:**
+- 코드 스냅샷 추적 및 변경 이력 관리
+- 빌드/실행 로그 모니터링 및 분석
+- 학습 과정 가시성 제공 및 이상 행위 탐지
+- RESTful API 및 자동 문서화 (/docs)
+
+
 ## 기술 스택
 
 | 구분 | 기술 | 담당 컴포넌트 |
 |------|------|-------------|
 | **파일감시** | inotify/Watchdog | filemon |
 | **프로세스감시** | eBPF/bcc | procmon |
+| **API서버** | FastAPI | backend |
+| **데이터베이스** | SQLite/SQLModel | backend |
 | **데이터전송** | aiohttp | 공통 |
 | **메트릭** | Prometheus | 공통 |
 | **컨테이너** | Docker, Kubernetes | 배포환경 |
