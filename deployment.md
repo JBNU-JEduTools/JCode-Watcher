@@ -480,9 +480,9 @@ except Exception as e:
       href="https://fastapi.tiangolo.com/img/favicon.png"
     />
     <title>FastAPI - Swagger UI</title>
-    ... Status: 200
-  </head>
-</html>
+    ...
+
+Status: 200
 ```
 
 ### ✅ 5단계: filemon 수집 및 저장 테스트

@@ -115,7 +115,6 @@ FastAPI 기반으로 모니터링 데이터를 수집, 저장, 분석하는 중�
 | **프로세스감시** | eBPF/bcc | procmon |
 | **API서버** | FastAPI | backend |
 | **데이터베이스** | SQLite/SQLModel | backend |
-| **데이터전송** | aiohttp | 공통 |
 | **메트릭** | Prometheus | 공통 |
 | **컨테이너** | Docker, Kubernetes | 배포환경 |
 
