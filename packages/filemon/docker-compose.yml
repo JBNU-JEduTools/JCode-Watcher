@@ -2,12 +2,12 @@ services:
   watcher-filemon:
     build: .
     volumes:
-      - /home/ubuntu/jcode:/watcher/codes:ro
-      - ./snapshots:/watcher/snapshots
-      - ./src/:/app/src/
+      - /home/ubuntu/jcode:/watcher/codes:ro # 학생 워크스페이스 마운트
+      - ./snapshots:/watcher/snapshots # 스냅샷 저장소 마운트
+      - ./src/:/app/src/  # 개발시 빠른 코드 변경
       - ./logs:/app/logs  # 로그 파일 영구 보존을 위한 호스트 마운트
     ports:
-      - 9090:9090
+      - 9090:9090 # 메트릭 포트 
     environment:
       - WATCHER_LOG_LEVEL=DEBUG
       - WATCHER_API_URL=http://172.17.0.1:3000
