@@ -47,3 +47,6 @@ venv/
 *.tar
 
 .cursor
+/**/logs
+
+/**/.claude

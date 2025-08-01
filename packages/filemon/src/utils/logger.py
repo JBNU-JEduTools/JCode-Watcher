@@ -3,11 +3,15 @@
 이 모듈은 애플리케이션의 로깅 설정을 담당합니다.
 """
 import logging
+import logging.handlers
 import sys
 from contextvars import ContextVar
 from typing import Optional
 from pathlib import Path
-from ..config.settings import LOG_LEVEL
+from ..config.settings import (
+    LOG_LEVEL, LOG_DIR, LOG_MAX_BYTES, LOG_BACKUP_COUNT
+)
+import os
 
 # Context Variables 정의
 current_class_student = ContextVar('current_class_student', default='')
@@ -53,15 +57,31 @@ def setup_app_logger() -> None:
         if isinstance(handler, logging.StreamHandler):
             root_logger.removeHandler(handler)
     
-    # 새 핸들러 추가
+    # 컨텍스트 필터 생성 (공통 사용)
+    context_filter = FileContextFilter()
+    
+    # 콘솔 핸들러 (기존)
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setFormatter(logging.Formatter(LOG_FORMAT))
-    
-    # 컨텍스트 필터 추가
-    context_filter = FileContextFilter()
     console_handler.addFilter(context_filter)
     
+    # 파일 핸들러 설정
+    log_dir = Path(LOG_DIR)
+    log_dir.mkdir(parents=True, exist_ok=True)
+    
+    # 용량 기반 Rotation 핸들러 (기존 로그 파일 보존)
+    file_handler = logging.handlers.RotatingFileHandler(
+        filename=log_dir / "watcher.log",
+        maxBytes=LOG_MAX_BYTES,
+        backupCount=LOG_BACKUP_COUNT,
+        encoding='utf-8'
+    )
+    file_handler.setFormatter(logging.Formatter(LOG_FORMAT))
+    file_handler.addFilter(context_filter)
+    
+    # 두 핸들러 모두 추가
     root_logger.addHandler(console_handler)
+    root_logger.addHandler(file_handler)
     
     # 3. 애플리케이션 로거 설정
     app_logger = logging.getLogger('src')
