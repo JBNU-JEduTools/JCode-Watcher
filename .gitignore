@@ -48,3 +48,5 @@ venv/
 
 .cursor
 /**/logs
+
+/**/.claude

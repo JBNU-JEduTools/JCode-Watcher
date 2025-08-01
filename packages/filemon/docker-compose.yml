@@ -6,6 +6,8 @@ services:
       - ./snapshots:/watcher/snapshots # 스냅샷 저장소 마운트
       - ./src/:/app/src/  # 개발시 빠른 코드 변경
       - ./logs:/app/logs  # 로그 파일 영구 보존을 위한 호스트 마운트
+      - ./tests:/app/tests  # 테스트 디렉토리 마운트
+      - ./pytest.ini:/app/pytest.ini  # pytest 설정 마운트
     ports:
       - 9090:9090 # 메트릭 포트 
     environment:
