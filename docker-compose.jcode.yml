@@ -1,0 +1,20 @@
+services:
+  jcode-class-1-202012345:
+    image: lscr.io/linuxserver/code-server:latest
+    container_name: jcode-class-1-202012345
+    hostname: jcode-class-1-202012345
+    environment:
+      - PASSWORD=filemon
+    volumes:
+      - /home/ubuntu/jcode/class-1-202012345/:/config/workspace
+    ports:
+      - 8080:8443
+    networks:
+      - my-custom-network
+    restart: unless-stopped
+
+networks:
+  my-custom-network:
+    driver: bridge
+    driver_opts:
+      com.docker.network.driver.mtu: "1450"
