@@ -1,6 +1,6 @@
-# Procmon - Process Monitoring System
+# Watcher Procmon - 프로세스 실시간 감시 서비스
 
-eBPF를 활용한 실시간 프로세스 모니터링 시스템입니다. 컨테이너 환경에서 프로세스 실행을 감지하고, 컴파일러 및 Python 실행을 추적하여 코딩 활동 분석을 수행합니다.
+eBPF를 활용한 실시간 프로세스 모니터링 시스템입니다. 컨테이너 환경에서의 프로세스 실행을 감지하고, 컴파일러 및 Python 실행을 추적하여 코딩 활동 분석을 수행합니다.
 
 ## 📋 목차
 
@@ -37,7 +37,7 @@ Procmon은 eBPF(Extended Berkeley Packet Filter)를 사용하여 리눅스 시�
 ### 전체 시스템 구조
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   BPF Program   │───▶│  Event Queue    │───▶│ Handler Chain   │
+│   BPF Program   │───▶│  Event Queue   │───▶│ Handler Chain   │
 │   (program.c)   │    │  (AsyncIO)      │    │  (Processing)   │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
          │                       │                       │
@@ -47,32 +47,6 @@ Procmon은 eBPF(Extended Berkeley Packet Filter)를 사용하여 리눅스 시�
 │   (exec, etc)   │    │   (Models)      │    │ (HTTP Sender)   │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
-
-### 주요 컴포넌트
-
-#### BPF 모듈 (`bpf/`)
-- **collector.py**: eBPF 프로그램 로딩 및 이벤트 수집
-- **event.py**: BPF 이벤트 데이터 모델
-- **program.c**: 커널 공간에서 실행되는 eBPF 프로그램
-
-#### 이벤트 핸들러 (`handlers/`)
-- **chain.py**: 핸들러 체인 구성 및 실행
-- **process.py**: 프로세스 정보 처리
-- **enrichment.py**: 이벤트 데이터 보강
-- **homework.py**: 코딩 활동 분석 로직
-- **api.py**: 외부 API 연동
-
-#### 파서 시스템 (`parser/`)
-- **compiler.py**: 컴파일러 명령어 파싱
-- **cpp_compiler.py**: C/C++ 컴파일러 전용 파서
-- **python.py**: Python 실행 파서
-
-#### 프로세스 필터링 (`process/`)
-- **filter.py**: 프로세스 타입 판별 및 필터링
-- **types.py**: 프로세스 타입 정의
-
-#### 과제 요구사항 검증 (`homework/`)
-- **checker.py**: 과제 조건 매칭 및 프로세스 검증
 
 ## 3. 설치 및 환경 설정
 
@@ -146,6 +120,34 @@ docker run -it \
 - **--pid=host**: 호스트 프로세스 모니터링에 필요
 
 ## 5. 설정 가이드
+
+
+### 주요 컴포넌트
+
+#### BPF 모듈 (`bpf/`)
+- **collector.py**: eBPF 프로그램 로딩 및 이벤트 수집
+- **event.py**: BPF 이벤트 데이터 모델
+- **program.c**: 커널 공간에서 실행되는 eBPF 프로그램
+
+#### 이벤트 핸들러 (`handlers/`)
+- **chain.py**: 핸들러 체인 구성 및 실행
+- **process.py**: 프로세스 정보 처리
+- **enrichment.py**: 이벤트 데이터 보강
+- **homework.py**: 코딩 활동 분석 로직
+- **api.py**: 외부 API 연동
+
+#### 파서 시스템 (`parser/`)
+- **compiler.py**: 컴파일러 명령어 파싱
+- **cpp_compiler.py**: C/C++ 컴파일러 전용 파서
+- **python.py**: Python 실행 파서
+
+#### 프로세스 필터링 (`process/`)
+- **filter.py**: 프로세스 타입 판별 및 필터링
+- **types.py**: 프로세스 타입 정의
+
+#### 과제 요구사항 검증 (`homework/`)
+- **checker.py**: 과제 조건 매칭 및 프로세스 검증
+
 
 ### 환경 변수 설정
 ```bash
