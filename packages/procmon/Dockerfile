@@ -8,7 +8,7 @@ RUN apt-get update && apt-get install -y \
     python3-bpfcc \
     && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /app
+WORKDIR /workspace
 COPY pyproject.toml uv.lock ./
 
 RUN uv venv --system-site-packages /opt/venv
@@ -17,5 +17,7 @@ ENV UV_PROJECT_ENVIRONMENT=/opt/venv
 
 RUN uv sync --frozen --no-dev
 
-COPY src ./src
-CMD ["/opt/venv/bin/python3", "-m", "src.app"]
+COPY app ./app
+COPY run.py ./
+
+CMD ["/opt/venv/bin/python3", "run.py"]

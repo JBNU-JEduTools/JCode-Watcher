@@ -10,11 +10,11 @@ services:
       - SYS_PTRACE
     pid: host
     volumes:
-      - ./src:/app/src
+      - ./app:/workspace/app
       - /sys/kernel/debug:/sys/kernel/debug:ro
       - /lib/modules:/lib/modules:ro
       - /usr/src:/usr/src:ro
     environment:
       - PYTHONUNBUFFERED=1
-      - LOG_LEVEL=INFO
+      - LOG_LEVEL=DEBUG
       - API_ENDPOINT=http://echo:3000
