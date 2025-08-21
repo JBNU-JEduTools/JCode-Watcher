@@ -3,8 +3,9 @@ from .logger import logger
 from datetime import datetime
 from typing import Optional, Tuple, List
 import traceback
-from .utils import convert_process_struct_to_event
 from .models.event import Event
+from .models.process import Process
+from .models.process_struct import ProcessStruct
 from .models.process_type import ProcessType
 from .classifier import ProcessClassifier
 from .path_parser import PathParser
@@ -13,25 +14,41 @@ from .student_parser import StudentParser
 
 
 
-class ProcessEventPipeline:
+class Pipeline:
     """Process를 Event로 변환하는 파이프라인"""
     
-    def __init__(self):
+    def __init__(self, 
+                 classifier: ProcessClassifier,
+                 path_parser: PathParser,
+                 file_parser: FileParser,
+                 student_parser: StudentParser):
         self.logger = logger
-        self.classifier = ProcessClassifier()
-        self.path_parser = PathParser()
-        self.file_parser = FileParser()
-        self.student_parser = StudentParser()
+        self.classifier = classifier
+        self.path_parser = path_parser
+        self.file_parser = file_parser
+        self.student_parser = student_parser
         
+    def _convert_process_struct(self, struct: ProcessStruct) -> Process:
+        """프로세스 구조체를 Process 객체로 변환"""
+        return Process(
+            pid=struct.pid,
+            error_flags=bin(struct.error_flags),
+            hostname=struct.hostname.decode(),
+            binary_path=bytes(struct.binary_path[struct.binary_path_offset:]).strip(b'\0').decode('utf-8'),
+            cwd=bytes(struct.cwd[struct.cwd_offset:]).strip(b'\0').decode('utf-8'),
+            args=' '.join(arg.decode('utf-8', errors='replace') 
+                         for arg in bytes(struct.args[:struct.args_len]).split(b'\0') if arg),
+            exit_code=struct.exit_code
+        )
     
     async def pipeline(self, process_struct) -> Optional[Event]:
         """ProcessStruct를 Event로 변환 - 명확한 데이터 흐름"""
 
         try:
-            now = datetime.now()
+            current_timestamp = datetime.now()
 
             # ProcessStruct -> Process 변환
-            process = convert_process_struct_to_event(process_struct)
+            process = self._convert_process_struct(process_struct)
             
             # 프로세스 라벨링 - 타입, 과제 디렉토리, 소스파일 결정
             process_type, homework_dir, source_file = self._label_process(
@@ -62,7 +79,7 @@ class ProcessEventPipeline:
                 homework_dir=homework_dir,
                 student_id=student_info.student_id,
                 class_div=student_info.class_div,
-                timestamp=now,
+                timestamp=current_timestamp,
                 source_file=absolute_source_file,
                 exit_code=process.exit_code,
                 args=process.args,
@@ -106,14 +123,14 @@ class ProcessEventPipeline:
             return ProcessType.USER_BINARY, binary_hw, None
 
         # 3) 컴파일러/파이썬이면 대상 파일 기준으로 hw 결정
-        if system_type in (ProcessType.GCC, ProcessType.GPP, ProcessType.CLANG, ProcessType.PYTHON):
+        if system_type.requires_target_file:
             source_file = self.file_parser.parse(system_type, args)
             if not source_file:
-                return None, None
+                return None, None, None
             full_path = source_file if os.path.isabs(source_file) else os.path.join(cwd, source_file)
             file_hw = self.path_parser.parse(full_path)
             if not file_hw:
-                return None, None
+                return None, None, None
             return system_type, file_hw, source_file
 
         # 4) 나머지는 과제와 무관

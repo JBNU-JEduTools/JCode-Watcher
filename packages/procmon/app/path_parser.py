@@ -22,11 +22,9 @@ class PathParser:
         self.logger = logger
         
     def parse(self, path: str | Path) -> Optional[str]:
-        """경로에서 hw 디렉토리명을 추출
-        
+        """경로에서 hw 디렉토리명을 추출        
         Args:
             path: 절대 경로 (예: /workspace/os-1-202012345/hw1/main.c)
-        
         Returns:
             hw 디렉토리명 (예: "hw1") 또는 None
         """
@@ -57,17 +55,3 @@ class PathParser:
         hw_dir = match.group(1) or match.group(2)
         self.logger.debug(f"[PathParser] 성공: path={normalized}, hw={hw_dir}")
         return hw_dir
-    
-    def is_hw_path(self, path: str | Path) -> bool:
-        """경로가 hw 디렉토리 내에 있는지 확인
-        
-        Args:
-            path: 확인할 경로
-            
-        Returns:
-            hw 디렉토리 내에 있으면 True, 그렇지 않으면 False
-        """
-        try:
-            return self.parse(path) is not None
-        except ValueError:
-            return False

@@ -23,11 +23,11 @@ class Event:
     @property
     def is_compilation(self) -> bool:
         """컴파일 이벤트 여부"""
-        return self.process_type in (ProcessType.GCC, ProcessType.CLANG, ProcessType.GPP) if self.process_type else False
+        return self.process_type.is_compilation if self.process_type else False
 
     @property
     def is_execution(self) -> bool:
         """실행 이벤트 여부"""
-        return self.process_type in (ProcessType.USER_BINARY, ProcessType.PYTHON) if self.process_type else False
+        return self.process_type.is_user_binary or (self.process_type == ProcessType.PYTHON) if self.process_type else False
     
   

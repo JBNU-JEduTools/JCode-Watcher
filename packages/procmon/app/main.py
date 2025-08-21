@@ -4,8 +4,12 @@ import os
 from typing import Any
 
 from .collector import Collector
-from .pipeline import ProcessEventPipeline
+from .pipeline import Pipeline
 from .sender import EventSender
+from .classifier import ProcessClassifier
+from .path_parser import PathParser
+from .file_parser import FileParser
+from .student_parser import StudentParser
 from .settings import settings
 
 
@@ -27,7 +31,15 @@ async def main():
         page_cnt=64,
         poll_timeout_ms=100,
     )
-    pipeline = ProcessEventPipeline()
+    
+    # Pipeline 의존성 생성
+    classifier = ProcessClassifier()
+    path_parser = PathParser()
+    file_parser = FileParser()
+    student_parser = StudentParser()
+    
+    # Pipeline 및 Sender 생성
+    pipeline = Pipeline(classifier, path_parser, file_parser, student_parser)
     sender = EventSender(base_url=settings.API_SERVER)
     
     try:
