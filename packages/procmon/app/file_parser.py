@@ -2,7 +2,7 @@ from typing import Set, Optional
 from .models.process_type import ProcessType
 
 
-class SourceParser:
+class FileParser:
     COMPILER_SKIP_OPTIONS: Set[str] = {
         "-o", "-I", "-include", "-D", "-U", "-MF"
     }

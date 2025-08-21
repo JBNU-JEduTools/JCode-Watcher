@@ -5,7 +5,7 @@ from typing import Optional
 from pathlib import Path
 
 
-class DirectoryParser:
+class PathParser:
     """경로에서 hw 디렉토리명을 파싱하는 도구
     
     - 정상적인 hw 경로면 "hw1", "hw2" 등의 문자열 반환
@@ -55,5 +55,19 @@ class DirectoryParser:
             return None
 
         hw_dir = match.group(1) or match.group(2)
-        self.logger.debug(f"[DirectoryParser] 성공: path={normalized}, hw={hw_dir}")
+        self.logger.debug(f"[PathParser] 성공: path={normalized}, hw={hw_dir}")
         return hw_dir
+    
+    def is_hw_path(self, path: str | Path) -> bool:
+        """경로가 hw 디렉토리 내에 있는지 확인
+        
+        Args:
+            path: 확인할 경로
+            
+        Returns:
+            hw 디렉토리 내에 있으면 True, 그렇지 않으면 False
+        """
+        try:
+            return self.parse(path) is not None
+        except ValueError:
+            return False

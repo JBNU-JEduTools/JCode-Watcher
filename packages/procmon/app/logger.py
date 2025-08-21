@@ -2,8 +2,8 @@ import logging
 import sys
 from .settings import settings
 
-# 1. "jcode_watcher" 로거 생성
-logger = logging.getLogger("jcode_watcher")
+
+logger = logging.getLogger("filemon")
 
 # 2. 로그 레벨 설정
 logger.setLevel(settings.LOG_LEVEL)

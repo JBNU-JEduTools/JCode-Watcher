@@ -1,4 +1,3 @@
-from .classification_result import ClassificationResult
 from .event import Event
 from .process import Process
 from .process_struct import ProcessStruct
@@ -14,5 +13,4 @@ __all__ = [
     "Process",
     "ProcessStruct",
     "StudentInfo",
-    "ClassificationResult",
 ]

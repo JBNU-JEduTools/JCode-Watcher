@@ -9,21 +9,21 @@ from .models.process_type import ProcessType
 class EventSender:
     """Event를 백엔드 API로 전송하는 클라이언트"""
     
-    def __init__(self, base_url: str = "http://localhost:8000", timeout: int = 20):
+    def __init__(self, base_url: str, timeout: int = 20):
         self.logger = logger
         self.base_url = base_url.rstrip('/')
         self.timeout = timeout
         
-    async def send_event(self, event: Event, process: Process) -> bool:
+    async def send_event(self, event: Event) -> bool:
         """Event 타입에 따라 적절한 API로 전송"""
         try:
             if not self._validate_event(event):
                 return False
                 
             if event.is_execution:
-                return await self._send_execution(event, process)
+                return await self._send_execution(event)
             elif event.is_compilation:
-                return await self._send_compilation(event, process)
+                return await self._send_compilation(event)
             else:
                 self.logger.warning(f"알 수 없는 이벤트 타입: {event.process_type}")
                 return False
@@ -39,35 +39,35 @@ class EventSender:
             return False
         return True
     
-    async def _send_execution(self, event: Event, process: Process) -> bool:
+    async def _send_execution(self, event: Event) -> bool:
         """실행 이벤트 전송 (USER_BINARY, PYTHON)"""
         endpoint = f"/api/{event.class_div}/{event.homework_dir}/{event.student_id}/logs/run"
         
         # PYTHON vs USER_BINARY에 따른 process_type 결정
         process_type = "python" if event.process_type == ProcessType.PYTHON else "binary"
-        target_path = event.source_file if event.source_file else process.binary_path
+        target_path = event.source_file if event.source_file else event.binary_path
         
         data = {
             'timestamp': event.timestamp.isoformat() if event.timestamp else None,
-            'exit_code': process.exit_code,
-            'cmdline': process.args,
-            'cwd': process.cwd,
+            'exit_code': event.exit_code,
+            'cmdline': event.args,
+            'cwd': event.cwd,
             'target_path': target_path,
             'process_type': process_type
         }
         
         return await self._send_request(endpoint, data)
     
-    async def _send_compilation(self, event: Event, process: Process) -> bool:
+    async def _send_compilation(self, event: Event) -> bool:
         """컴파일 이벤트 전송 (GCC, CLANG, GPP)"""
         endpoint = f"/api/{event.class_div}/{event.homework_dir}/{event.student_id}/logs/build"
         
         data = {
             'timestamp': event.timestamp.isoformat() if event.timestamp else None,
-            'exit_code': process.exit_code,
-            'cmdline': process.args,
-            'cwd': process.cwd,
-            'binary_path': process.binary_path,
+            'exit_code': event.exit_code,
+            'cmdline': event.args,
+            'cwd': event.cwd,
+            'binary_path': event.binary_path,
             'target_path': event.source_file
         }
         
