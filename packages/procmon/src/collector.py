@@ -69,7 +69,7 @@ class Collector:
         )
         self._load_bpf_program()
         self._start_polling()
-        self.logger.info("[start] Collector started (page_cnt=%d, poll_timeout_ms=%d)",
+        self.logger.info("수집기 시작됨 (page_cnt=%d, poll_timeout_ms=%d)",
                          self.page_cnt, self.poll_timeout_ms)
         return self
 
@@ -83,8 +83,8 @@ class Collector:
                 try:
                     self.bpf.cleanup()  # type: ignore[attr-defined]
                 except Exception as e:
-                    self.logger.warning("[cleanup] BPF cleanup error: %s", e)
-            self.logger.info("[stop] Collector stopped (dropped=%d, lost=%d)",
+                    self.logger.warning("BPF 정리 오류: %s", e)
+            self.logger.info("수집기 중지됨 (dropped=%d, lost=%d)",
                              self.dropped_count, self.lost_count)
 
     def __enter__(self) -> "Collector":
@@ -109,7 +109,7 @@ class Collector:
         if not os.path.isfile(self.program_path):
             raise FileNotFoundError(f"BPF source not found: {self.program_path}")
 
-        self.logger.info("[bpf] loading program: %s", self.program_path)
+        self.logger.info("BPF 프로그램 로드 중: %s", self.program_path)
         with open(self.program_path, "r", encoding="utf-8") as f:
             bpf_text = f.read()
 
@@ -139,7 +139,7 @@ class Collector:
             page_cnt=self.page_cnt,
         )
 
-        self.logger.info("[bpf] program loaded & tracepoints attached")
+        self.logger.info("BPF 프로그램 로드 완료 및 트레이스포인트 연결됨")
 
     def _event_callback(self, cpu: int, data: Any, size: int) -> None:
         """BPF 이벤트 콜백: 커널 구조체 → Process → asyncio.Queue put"""
@@ -148,14 +148,14 @@ class Collector:
             # asyncio 루프 스레드에서 안전하게 enqueue
             self.loop.call_soon_threadsafe(self._enqueue_on_loop, raw_struct)
         except Exception as e:
-            self.logger.error("[callback] error: %s", e)
+            self.logger.error("콜백 오류: %s", e)
 
     def _lost_callback(self, cpu: int, lost: int) -> None:
         """BCC가 보고하는 유실 이벤트 카운터 콜백"""
         self.lost_count += int(lost)
         # 과도한 로그 방지: 256번마다 1회
         if (self.lost_count & 0xFF) == 1:
-            self.logger.warning("[loss] cpu=%d lost(total)=%d", cpu, self.lost_count)
+            self.logger.warning("cpu=%d 총 유실 이벤트=%d", cpu, self.lost_count)
 
     def _enqueue_on_loop(self, ev: Any) -> None:
         """루프 스레드에서 호출되어 Queue에 넣는다 (가득 차면 드롭 카운트 증가)"""
@@ -164,7 +164,7 @@ class Collector:
         except asyncio.QueueFull:
             self.dropped_count += 1
             if (self.dropped_count & 0xFF) == 1:
-                self.logger.warning("[drop] queue full (dropped=%d)", self.dropped_count)
+                self.logger.warning("큐 가득참 (dropped=%d)", self.dropped_count)
 
     # -------- Internal: polling thread --------
 
@@ -179,7 +179,7 @@ class Collector:
             daemon=True,
         )
         self.polling_thread.start()
-        self.logger.info("[poll] thread started")
+        self.logger.info("폴링 스레드 시작됨")
 
     def _stop_polling(self) -> None:
         """폴링 스레드 중지"""
@@ -188,15 +188,15 @@ class Collector:
         self.running_event.clear()
         if self.polling_thread and self.polling_thread.is_alive():
             self.polling_thread.join(timeout=1.0)
-        self.logger.info("[poll] thread stopped")
+        self.logger.info("폴링 스레드 중지됨")
 
     def _run_polling(self) -> None:
         """BPF perf buffer 폴링 루프 (정지 반응성을 위해 타임아웃 사용)"""
         if not self.bpf:
-            self.logger.error("[poll] BPF program not loaded")
+            self.logger.error("BPF 프로그램이 로드되지 않음")
             return
 
-        self.logger.info("[poll] loop started (timeout=%d ms)", self.poll_timeout_ms)
+        self.logger.info("폴링 루프 시작됨 (timeout=%d ms)", self.poll_timeout_ms)
         while self.running_event.is_set():
             try:
                 # 타임아웃(ms): stop() 호출 시 최대 이 시간 내로 깨어나 종료
@@ -204,6 +204,6 @@ class Collector:
             except Exception as e:
                 # running 상태에서만 오류 로그 (정지 중 예외는 무시)
                 if self.running_event.is_set():
-                    self.logger.error("[poll] error: %s", e)
+                    self.logger.error("폴링 오류: %s", e)
                 break
-        self.logger.info("[poll] loop exited")
+        self.logger.info("폴링 루프 종료됨")

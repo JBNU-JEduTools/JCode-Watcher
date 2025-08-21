@@ -66,12 +66,12 @@ class Pipeline:
             
             # 과제와 무관한 프로세스는 필터링
             if not process_type or not homework_dir:
-                log_msg = f"[필터링] 과제와 무관한 프로세스 - 바이너리: {process.binary_path}, 작업경로: {process.cwd}, 인자: {process.args}"
+                base_msg = f"[필터링] 과제와 무관한 프로세스 - 바이너리: {process.binary_path}, 작업경로: {process.cwd}, 인자: {process.args}"
                 if source_file:
                     absolute_source_file = source_file if os.path.isabs(source_file) else os.path.join(process.cwd, source_file)
-                    log_msg += f", 대상 소스 파일: {absolute_source_file}"
+                    log_msg = base_msg + f", 대상 소스 파일: {absolute_source_file}"
                 else:
-                    log_msg += f", 대상 소스 파일: 없음 (process_type={process_type}, homework_dir={homework_dir})"
+                    log_msg = base_msg + f", 대상 소스 파일: 없음 (process_type={process_type}, homework_dir={homework_dir})"
                 self.logger.debug(log_msg)
                 return None
             
@@ -94,7 +94,7 @@ class Pipeline:
                 binary_path=process.binary_path
             )
             
-            self.logger.info(f"[이벤트 생성] 타입: {process_type}, 과제: {homework_dir}, 학생: {student_info.student_id}, 소스파일: {absolute_source_file}")
+            self.logger.info(f"이벤트 생성됨 - 타입: {process_type}, 과제: {homework_dir}, 학생: {student_info.student_id}, 소스파일: {absolute_source_file}")
             
             return event
             
@@ -125,7 +125,7 @@ class Pipeline:
         """
         # 1) 시스템 정체성은 고정값(불변)
         system_type = self.classifier.classify(binary_path)
-        self.logger.debug(f"[라벨링] 바이너리 분류 - 경로: {binary_path}, 타입: {system_type}")
+        self.logger.debug(f"바이너리 분류됨 - 경로: {binary_path}, 타입: {system_type}")
 
         # 2) 바이너리 자체가 hw 안이면 → USER_BINARY
         binary_hw = self.path_parser.parse(binary_path)
@@ -135,12 +135,12 @@ class Pipeline:
         # 3) 컴파일러/파이썬이면 대상 파일 기준으로 hw 결정
         if system_type.requires_target_file:
             source_file = self.file_parser.parse(system_type, args)
-            self.logger.debug(f"[라벨링] 파일 파싱 - 인자: '{args}', 파싱된 소스파일: '{source_file}'")
+            self.logger.debug(f"파일 파싱됨 - 인자: '{args}', 파싱된 소스파일: '{source_file}'")
             if not source_file:
                 return system_type, None, None
             full_path = source_file if os.path.isabs(source_file) else os.path.join(cwd, source_file)
             file_hw = self.path_parser.parse(full_path)
-            self.logger.debug(f"[라벨링] 경로 파싱 - 전체경로: '{full_path}', 과제디렉토리: '{file_hw}'")
+            self.logger.debug(f"경로 파싱됨 - 전체경로: '{full_path}', 과제디렉토리: '{file_hw}'")
             if not file_hw:
                 return system_type, None, source_file
             return system_type, file_hw, source_file
