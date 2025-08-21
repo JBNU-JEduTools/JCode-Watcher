@@ -4,7 +4,7 @@ from functools import wraps
 
 def general_activity_logger(logger: logging.Logger, level: str = 'debug'):
     """
-    [범용] 메서드의 활동(실패/예외)을 로깅하는 데코레이터 팩토리.
+    메서드의 활동(실패/예외)을 로깅하는 데코레이터 팩토리.
     동기/비동기 함수를 자동으로 감지하여 처리합니다.
 
     Args:

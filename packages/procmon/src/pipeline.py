@@ -45,6 +45,7 @@ class Pipeline:
         """ProcessStruct를 Event로 변환 - 명확한 데이터 흐름"""
 
         try:
+            # 시간
             current_timestamp = datetime.now()
 
             # ProcessStruct -> Process 변환
@@ -56,7 +57,7 @@ class Pipeline:
                 self.logger.warning(f"학생 정보 파싱 실패: {process.hostname}")
                 return None
             
-            # 프로세스 라벨링 - 타입, 과제 디렉토리, 소스파일 결정
+            # 프로세스 라벨링 - 타입, 과제 디렉토리, 소스파일 결정 & 필터링
             process_type, homework_dir, source_file = self._label_process(
                 process.binary_path, 
                 process.args, 

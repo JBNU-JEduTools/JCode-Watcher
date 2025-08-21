@@ -2,7 +2,7 @@ import re
 import os
 from .utils.logger import logger
 from typing import Optional
-from .pathlib import Path
+from pathlib import Path
 
 
 class PathParser:
