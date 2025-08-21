@@ -8,7 +8,7 @@ RUN apt-get update && apt-get install -y \
     python3-bpfcc \
     && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /workspace
+WORKDIR /app
 COPY pyproject.toml uv.lock ./
 
 RUN uv venv --system-site-packages /opt/venv

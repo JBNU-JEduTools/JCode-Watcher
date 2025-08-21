@@ -39,7 +39,9 @@ develop-eggs/
 .installed.cfg
 lib/
 lib64/
-venv/
+.venv/
+
+venv
 
 # IDE settings
 .vscode/

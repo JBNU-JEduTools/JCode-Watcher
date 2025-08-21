@@ -1,6 +1,6 @@
-from typing import Set, Optional
+from typing import Set, Optional, List
 from .models.process_type import ProcessType
-
+from .utils.logger import logger
 
 class FileParser:
     COMPILER_SKIP_OPTIONS: Set[str] = {
@@ -9,21 +9,22 @@ class FileParser:
     
     CPP_EXTENSIONS = ['.cpp', '.cc', '.cxx', '.c++', '.C']
     
-    def parse(self, process_type: ProcessType, args: str) -> Optional[str]:
+    def parse(self, process_type: ProcessType, args: List[str]) -> Optional[str]:
         """명령어 인자에서 첫 번째 소스 파일 추출
         
         Args:
             process_type: 프로세스 타입 (GCC, CLANG, GPP, PYTHON 등)
-            args: 명령어 인자 문자열
-                예: "main.c -o program"
-                예: "script.py arg1 arg2"
-                예: "-I/usr/include test.c -o test"
+            args: 명령어 인자 리스트
+                예: ["main.c", "-o", "program"]
+                예: ["script.py", "arg1", "arg2"]
+                예: ["-I/usr/include", "test.c", "-o", "test"]
         
         Returns:
             첫 번째 소스 파일명 (상대경로) 또는 None
             예: "main.c", "script.py", "test.c"
         """
-        if not args or not args.strip():
+        logger.info(*args)
+        if not args:
             return None
             
         # ProcessType에 따른 라우팅
@@ -34,22 +35,21 @@ class FileParser:
         else:
             return None
     
-    def _find_python_file(self, args: str) -> Optional[str]:
+    def _find_python_file(self, args: List[str]) -> Optional[str]:
         """Python 스크립트 파일 찾기"""
-        if '-m' in args.split():
+        if '-m' in args:
             return None
             
-        for arg in args.split():
+        for arg in args:
             if arg.endswith('.py') and not arg.startswith('-'):
                 return arg
         return None
     
-    def _find_c_file(self, args: str) -> Optional[str]:
+    def _find_c_file(self, args: List[str]) -> Optional[str]:
         """C/C++ 소스 파일 찾기"""
-        args_list = args.split()
         skip_next = False
         
-        for arg in args_list:
+        for arg in args:
             if skip_next:
                 skip_next = False
                 continue

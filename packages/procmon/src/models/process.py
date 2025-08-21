@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import List
 
 @dataclass(frozen=True)
 class Process:
@@ -10,7 +11,7 @@ class Process:
     pid: int                # 프로세스 ID
     binary_path: str        # 실행 파일 경로
     cwd: str               # 작업 디렉토리
-    args: str              # 명령줄 인자
+    args: List[str]        # 명령줄 인자 리스트
     error_flags: str       # 프로세스 수집 에러 플래그
     exit_code: int         # 프로세스 종료 코드
-    hostname: str          # 호스트 이름 (예: "jcode-os-1-202012180-hash")
+    hostname: str          # 호스트 이름 (예: "jcode-os-1-202012180")
