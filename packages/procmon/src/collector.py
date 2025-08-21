@@ -2,7 +2,7 @@ import os
 import asyncio
 import threading
 import logging
-from .logger import logger
+from .utils.logger import logger
 import ctypes
 from typing import Optional, Any
 

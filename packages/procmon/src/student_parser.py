@@ -1,5 +1,5 @@
 import re
-from .logger import logger
+from .utils.logger import logger
 from typing import Optional
 from .models.student_info import StudentInfo
 from .models.process import Process

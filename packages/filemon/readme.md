@@ -78,18 +78,18 @@ docker --version
 
 #### 1. 학생 작업 디렉토리 생성
 ```bash
-mkdir -p /home/ubuntu/jcode/class-1-202012345
+mkdir -p /workspace/class-1-202012345
 ```
 
 #### 2. Code Server 실행
 ```bash
 sudo docker run -d \
         --name jcode-class-1-202012345 \
-        -p 8080:8443 \
+        -p 8080:8080 \
         -e PASSWORD="jcode" \
-        -v /home/ubuntu/jcode/class-1-202012345/:/config/workspace\
+        -v /workspace/class-1-202012345/:/home/coder/project\
         --hostname jcode-class-1-202012345 \
-        lscr.io/linuxserver/code-server:latest
+        codercom/code-server:latest
 ```
 
 ### 3. Filemon 실행 및 확인

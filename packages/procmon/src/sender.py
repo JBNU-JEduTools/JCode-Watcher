@@ -1,5 +1,5 @@
 import aiohttp
-from .logger import logger
+from .utils.logger import logger
 from typing import Dict, Any, Optional
 from .models.event import Event
 from .models.process import Process

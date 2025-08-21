@@ -1,5 +1,5 @@
 import os
-from .logger import logger
+from .utils.logger import logger
 from datetime import datetime
 from typing import Optional, Tuple, List
 import traceback
@@ -50,6 +50,12 @@ class Pipeline:
             # ProcessStruct -> Process 변환
             process = self._convert_process_struct(process_struct)
             
+            # 학생 정보 파싱
+            student_info = self.student_parser.parse_from_process(process)
+            if not student_info:
+                self.logger.warning(f"학생 정보 파싱 실패: {process.hostname}")
+                return None
+            
             # 프로세스 라벨링 - 타입, 과제 디렉토리, 소스파일 결정
             process_type, homework_dir, source_file = self._label_process(
                 process.binary_path, 
@@ -59,13 +65,13 @@ class Pipeline:
             
             # 과제와 무관한 프로세스는 필터링
             if not process_type or not homework_dir:
-                self.logger.debug(f"[필터링] 과제와 무관한 프로세스: {process.binary_path}")
-                return None
-            
-            # 학생 정보 파싱
-            student_info = self.student_parser.parse_from_process(process)
-            if not student_info:
-                self.logger.warning(f"학생 정보 파싱 실패: {process.hostname}")
+                log_msg = f"[필터링] 과제와 무관한 프로세스 - 바이너리: {process.binary_path}, 작업경로: {process.cwd}, 인자: {process.args}"
+                if source_file:
+                    absolute_source_file = source_file if os.path.isabs(source_file) else os.path.join(process.cwd, source_file)
+                    log_msg += f", 대상 소스 파일: {absolute_source_file}"
+                else:
+                    log_msg += f", 대상 소스 파일: 없음 (process_type={process_type}, homework_dir={homework_dir})"
+                self.logger.debug(log_msg)
                 return None
             
             # source_file을 절대 경로로 변환
@@ -86,6 +92,8 @@ class Pipeline:
                 cwd=process.cwd,
                 binary_path=process.binary_path
             )
+            
+            self.logger.info(f"[이벤트 생성] 타입: {process_type}, 과제: {homework_dir}, 학생: {student_info.student_id}, 소스파일: {absolute_source_file}")
             
             return event
             
@@ -116,6 +124,7 @@ class Pipeline:
         """
         # 1) 시스템 정체성은 고정값(불변)
         system_type = self.classifier.classify(binary_path)
+        self.logger.debug(f"[라벨링] 바이너리 분류 - 경로: {binary_path}, 타입: {system_type}")
 
         # 2) 바이너리 자체가 hw 안이면 → USER_BINARY
         binary_hw = self.path_parser.parse(binary_path)
@@ -125,12 +134,14 @@ class Pipeline:
         # 3) 컴파일러/파이썬이면 대상 파일 기준으로 hw 결정
         if system_type.requires_target_file:
             source_file = self.file_parser.parse(system_type, args)
+            self.logger.debug(f"[라벨링] 파일 파싱 - 인자: '{args}', 파싱된 소스파일: '{source_file}'")
             if not source_file:
-                return None, None, None
+                return system_type, None, None
             full_path = source_file if os.path.isabs(source_file) else os.path.join(cwd, source_file)
             file_hw = self.path_parser.parse(full_path)
+            self.logger.debug(f"[라벨링] 경로 파싱 - 전체경로: '{full_path}', 과제디렉토리: '{file_hw}'")
             if not file_hw:
-                return None, None, None
+                return system_type, None, source_file
             return system_type, file_hw, source_file
 
         # 4) 나머지는 과제와 무관

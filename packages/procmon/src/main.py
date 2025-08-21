@@ -1,5 +1,5 @@
 import asyncio
-from .logger import logger
+from .utils.logger import logger
 import os
 from typing import Any
 
@@ -10,7 +10,7 @@ from .classifier import ProcessClassifier
 from .path_parser import PathParser
 from .file_parser import FileParser
 from .student_parser import StudentParser
-from .settings import settings
+from .config.settings import settings
 
 
 async def main():
@@ -31,16 +31,13 @@ async def main():
         page_cnt=64,
         poll_timeout_ms=100,
     )
-    
-    # Pipeline 의존성 생성
+    sender = EventSender(base_url=settings.API_SERVER)
+
     classifier = ProcessClassifier()
     path_parser = PathParser()
     file_parser = FileParser()
     student_parser = StudentParser()
-    
-    # Pipeline 및 Sender 생성
     pipeline = Pipeline(classifier, path_parser, file_parser, student_parser)
-    sender = EventSender(base_url=settings.API_SERVER)
     
     try:
         logger.info("파이프라인 시작")

@@ -1,6 +1,6 @@
 import logging
 import sys
-from .settings import settings
+from ..config.settings import settings
 
 
 logger = logging.getLogger("filemon")

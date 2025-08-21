@@ -1,4 +1,3 @@
-version: '3.8'
 
 services:
   watcher:
@@ -10,11 +9,11 @@ services:
       - SYS_PTRACE
     pid: host
     volumes:
-      - ./app:/workspace/app
+      - ./src:/workspace/src
       - /sys/kernel/debug:/sys/kernel/debug:ro
       - /lib/modules:/lib/modules:ro
       - /usr/src:/usr/src:ro
     environment:
       - PYTHONUNBUFFERED=1
       - LOG_LEVEL=DEBUG
-      - API_ENDPOINT=http://echo:3000
+      - API_SERVER=http://localhost:8000

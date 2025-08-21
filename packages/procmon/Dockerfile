@@ -17,7 +17,7 @@ ENV UV_PROJECT_ENVIRONMENT=/opt/venv
 
 RUN uv sync --frozen --no-dev
 
-COPY app ./app
+COPY src ./src
 COPY run.py ./
 
 CMD ["/opt/venv/bin/python3", "run.py"]
