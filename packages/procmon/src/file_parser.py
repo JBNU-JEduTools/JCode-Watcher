@@ -23,7 +23,7 @@ class FileParser:
             첫 번째 소스 파일명 (상대경로) 또는 None
             예: "main.c", "script.py", "test.c"
         """
-        logger.info(*args)
+        logger.debug(f"파일 파싱 시작: args={args}")
         if not args:
             return None
             

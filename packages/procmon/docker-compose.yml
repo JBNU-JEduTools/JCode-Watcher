@@ -9,7 +9,7 @@ services:
       - SYS_PTRACE
     pid: host
     volumes:
-      - ./src:/workspace/src
+      - ./src:/app/src
       - /sys/kernel/debug:/sys/kernel/debug:ro
       - /lib/modules:/lib/modules:ro
       - /usr/src:/usr/src:ro
