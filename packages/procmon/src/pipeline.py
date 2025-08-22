@@ -14,92 +14,89 @@ from .file_parser import FileParser
 from .student_parser import StudentParser
 
 
-
 class Pipeline:
     """Process를 Event로 변환하는 파이프라인"""
-    
-    def __init__(self, 
-                 classifier: ProcessClassifier,
-                 path_parser: PathParser,
-                 file_parser: FileParser,
-                 student_parser: StudentParser):
+
+    def __init__(
+        self,
+        classifier: ProcessClassifier,
+        path_parser: PathParser,
+        file_parser: FileParser,
+        student_parser: StudentParser,
+    ):
         self.logger = get_logger("pipeline")
         self.classifier = classifier
         self.path_parser = path_parser
         self.file_parser = file_parser
         self.student_parser = student_parser
-        
-    def _convert_process_struct(self, struct: ProcessStruct) -> Process:
-        """프로세스 구조체를 Process 객체로 변환"""
-        return Process(
-            pid=struct.pid,
-            error_flags=bin(struct.error_flags),
-            hostname=struct.hostname.decode(),
-            binary_path=bytes(struct.binary_path[struct.binary_path_offset:]).strip(b'\0').decode('utf-8'),
-            cwd=bytes(struct.cwd[struct.cwd_offset:]).strip(b'\0').decode('utf-8'),
-            args=[arg.decode('utf-8', errors='replace') 
-                  for arg in bytes(struct.args[:struct.args_len]).split(b'\0') if arg],
-            exit_code=struct.exit_code
-        )
-    
+
     async def pipeline(self, process_struct) -> Optional[Event]:
         """ProcessStruct를 Event로 변환"""
 
         try:
-            # 시간
             current_timestamp = datetime.now()
-
-            # ProcessStruct -> Process 변환
+            # 구조체 클래스 변환
             process = self._convert_process_struct(process_struct)
-            
+
             # 학생 정보 파싱
             student_info = self.student_parser.parse_from_process(process)
             if not student_info:
                 self.logger.warning("학생 정보 파싱 실패", hostname=process.hostname)
                 return None
-            
-            # Context 변수 설정 - 이후 모든 로그에 자동 포함
+
+            # 사용자 정보 컨텍스트 주입
             ctx.bind_contextvars(
-                student_id=student_info.student_id,
-                class_div=student_info.class_div
+                student_id=student_info.student_id, class_div=student_info.class_div
             )
-            
-            # 프로세스 라벨링 - 타입, 과제 디렉토리, 소스파일 결정 & 필터링
+
+            # 프로세스 라벨링
             process_type, homework_dir, source_file = self._label_process(
-                process.binary_path, 
-                process.args, 
-                process.cwd
+                process.binary_path, process.args, process.cwd
             )
-            
-            # 과제와 무관한 프로세스는 필터링
-            if not process_type or not homework_dir:
-                # 긴 args 배열 제한 (처음 3개만 표시)
-                limited_args = process.args[:3] if len(process.args) > 3 else process.args
-                if len(process.args) > 3:
-                    limited_args.append(f"...+{len(process.args)-3}개")
-                
-                # source_file 절대경로 변환
-                if source_file:
-                    absolute_source_file = source_file if os.path.isabs(source_file) else os.path.join(process.cwd, source_file)
-                else:
-                    absolute_source_file = None
-                
-                self.logger.debug("프로세스 필터링됨", 
-                                filter_reason="homework_unrelated",
-                                binary_path=process.binary_path,
-                                cwd=process.cwd,
-                                args=limited_args,
-                                process_type=str(process_type) if process_type else None,
-                                homework_dir=homework_dir,
-                                source_file=absolute_source_file)
+
+            # 필터링 1: 과제와 무관한 케이스들을 세분화하여 필터링
+            if not process_type:
+                self.logger.debug(
+                    "이벤트 필터링: 비 대상 프로세스",
+                    binary_path=process.binary_path,
+                )
                 return None
-            
-            # source_file을 절대 경로로 변환
-            absolute_source_file = None
-            if source_file:
-                absolute_source_file = source_file if os.path.isabs(source_file) else os.path.join(process.cwd, source_file)
-            
-            # 4. 모든 정보가 준비된 후 Event 조립
+
+            # 필터링 2: 타깃 파일 필요 + 소스 누락
+            if process_type.requires_target_file and (not source_file):
+                self.logger.info(
+                    "이벤트 필터링: 컴파일/실행 프로세스의 소스 파일 누락",
+                    process_type=str(process_type),
+                    student_id=student_info.student_id,
+                    binary_path=process.binary_path,
+                )
+                return None
+            # 필터링 3:
+            if process_type.requires_target_file and source_file and (not homework_dir):
+                self.logger.info(
+                    "이벤트 필터링: 과제 디렉터리 외부 파일 컴파일/실행",
+                    process_type=str(process_type),
+                    source_file=source_file,
+                    student_id=student_info.student_id,
+                    binary_path=process.binary_path,
+                )
+                return None
+
+            # 필터링 4: 타깃 파일 불필요(시스템 유틸 등) + 과제 디렉토리 미매칭
+            if not homework_dir:
+                self.logger.info(
+                    "이벤트 필터링: 과제 디렉터리 외 프로세스",
+                    process_type=str(process_type),
+                    binary_path=process.binary_path,
+                )
+                return None
+
+            # 소스파일 절대경로 변환
+            absolute_source_file = self._get_absolute_source_file(
+                source_file, process.cwd
+            )
+
+            # 이벤트 반환
             event = Event(
                 process_type=process_type,
                 homework_dir=homework_dir,
@@ -110,38 +107,36 @@ class Pipeline:
                 exit_code=process.exit_code,
                 args=process.args,
                 cwd=process.cwd,
-                binary_path=process.binary_path
+                binary_path=process.binary_path,
             )
-            
-            self.logger.debug("이벤트 생성 완료", 
-                           process_type=str(process_type), 
-                           homework_dir=homework_dir,
-                           source_file=absolute_source_file)
-            
+
+            self.logger.debug(
+                "이벤트 생성됨",
+                process_type=str(process_type),
+                homework_dir=homework_dir,
+                student_id=student_info.student_id,
+                source_file=absolute_source_file,
+            )
+
             return event
-            
-        except Exception as e:
-            # traceback.format_exc() 함수가 예외에 대한 상세한 스택 트레이스 정보를 문자열로 반환
-            error_trace = traceback.format_exc()
-            self.logger.error("이벤트 변환 실패", error=str(e), exc_info=True)
+
+        except Exception:
+            self.logger.error("이벤트 변환 실패", exc_info=True)
             return None
+
         finally:
-            # Context 변수 정리
             ctx.clear_contextvars()
-    
+
     def _label_process(
-        self,
-        binary_path: str, 
-        args: List[str], 
-        cwd: str
+        self, binary_path: str, args: List[str], cwd: str
     ) -> Tuple[Optional[ProcessType], Optional[str], Optional[str]]:
         """Process의 타입과 과제 디렉토리를 결정하는 라벨링 함수
-        
+
         Args:
             binary_path: 실행 바이너리의 절대 경로
             args: 프로세스 실행 인자 리스트
             cwd: 프로세스의 현재 작업 디렉토리
-            
+
         Returns:
             Tuple[ProcessType | None, homework_dir | None, source_file | None]:
                 - ProcessType: 결정된 프로세스 타입 (과제와 무관하면 None)
@@ -150,7 +145,9 @@ class Pipeline:
         """
         # 1) 시스템 정체성은 고정값(불변)
         system_type = self.classifier.classify(binary_path)
-        self.logger.debug("바이너리 분류 완료", binary_path=binary_path, system_type=str(system_type))
+        self.logger.debug(
+            "바이너리 분류 완료", binary_path=binary_path, system_type=str(system_type)
+        )
 
         # 2) 바이너리 자체가 hw 안이면 → USER_BINARY
         binary_hw = self.path_parser.parse(binary_path)
@@ -163,12 +160,48 @@ class Pipeline:
             self.logger.debug("파일 파싱 완료", args=args, source_file=source_file)
             if not source_file:
                 return system_type, None, None
-            full_path = source_file if os.path.isabs(source_file) else os.path.join(cwd, source_file)
+            full_path = (
+                source_file
+                if os.path.isabs(source_file)
+                else os.path.join(cwd, source_file)
+            )
             file_hw = self.path_parser.parse(full_path)
-            self.logger.debug("경로 파싱 완료", full_path=full_path, homework_dir=file_hw)
+            self.logger.debug(
+                "경로 파싱 완료", full_path=full_path, homework_dir=file_hw
+            )
             if not file_hw:
                 return system_type, None, source_file
             return system_type, file_hw, source_file
 
         # 4) 나머지는 과제와 무관
         return None, None, None
+
+    def _get_absolute_source_file(
+        self, source_file: Optional[str], cwd: str
+    ) -> Optional[str]:
+        """소스파일을 절대경로로 변환"""
+        if not source_file:
+            return None
+        return (
+            source_file
+            if os.path.isabs(source_file)
+            else os.path.join(cwd, source_file)
+        )
+
+    def _convert_process_struct(self, struct: ProcessStruct) -> Process:
+        """프로세스 구조체를 Process 객체로 변환"""
+        return Process(
+            pid=struct.pid,
+            error_flags=bin(struct.error_flags),
+            hostname=struct.hostname.decode(),
+            binary_path=bytes(struct.binary_path[struct.binary_path_offset :])
+            .strip(b"\0")
+            .decode("utf-8"),
+            cwd=bytes(struct.cwd[struct.cwd_offset :]).strip(b"\0").decode("utf-8"),
+            args=[
+                arg.decode("utf-8", errors="replace")
+                for arg in bytes(struct.args[: struct.args_len]).split(b"\0")
+                if arg
+            ],
+            exit_code=struct.exit_code,
+        )
