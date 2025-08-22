@@ -1,6 +1,7 @@
 import asyncio
 import os
 from typing import Any
+from prometheus_client import start_http_server
 
 from .utils.logger import setup_logging, get_logger
 from .collector import Collector
@@ -22,8 +23,12 @@ async def main():
         max_bytes=settings.LOG_MAX_BYTES,
         backup_count=settings.LOG_BACKUP_COUNT,
     )
-
     logger = get_logger("main")
+
+    # 프로메테우스 메트릭 서버 시작
+    start_http_server(9090)
+    logger.info("프로메테우스 메트릭 서버 시작", port=9090)
+
     # 큐 생성
     queue: asyncio.Queue = asyncio.Queue(maxsize=4096)
 
@@ -31,6 +36,7 @@ async def main():
     program_path = os.path.join(os.path.dirname(__file__), "bpf.c")
     logger.info("BPF 프로그램 설정", bpf_program_path=program_path)
     logger.info("로깅 설정 완료", log_level=settings.LOG_LEVEL)
+
 
     # 컴포넌트 생성
     collector = Collector.start(
@@ -55,19 +61,10 @@ async def main():
             try:
                 # 큐에서 ProcessStruct 데이터 가져오기
                 process_struct = await queue.get()
-
                 # ProcessStruct → Event 변환
                 event = await pipeline.pipeline(process_struct)
-
                 if event:
-                    # Sender로 전송
-                    success = await sender.send_event(event)
-                    if success:
-                        logger.debug("이벤트 전송 성공", binary_path=event.binary_path)
-                    else:
-                        logger.error("이벤트 전송 실패", binary_path=event.binary_path)
-                else:
-                    logger.debug("이벤트 필터링됨", process_struct=str(process_struct))
+                    await sender.send_event(event)
 
                 queue.task_done()
 

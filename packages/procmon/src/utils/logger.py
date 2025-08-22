@@ -65,6 +65,7 @@ def setup_logging(
         processors=[
             ctx.merge_contextvars,
             structlog.stdlib.add_log_level,
+            structlog.stdlib.add_logger_name,
             structlog.stdlib.filter_by_level,
             structlog.processors.TimeStamper(fmt="iso", utc=True),
             structlog.processors.StackInfoRenderer(),

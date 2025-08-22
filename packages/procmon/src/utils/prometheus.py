@@ -44,10 +44,3 @@ API_REQUEST_DURATION_SECONDS = Histogram(
     buckets=[0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0],
 )
 
-# 시스템 메트릭
-APP_START_TIME_SECONDS = Gauge(
-    "app_start_time_seconds", "애플리케이션 시작 시간 (유닉스 타임스탬프)"
-)
-
-# 애플리케이션 시작 시간 설정
-APP_START_TIME_SECONDS.set(time.time())

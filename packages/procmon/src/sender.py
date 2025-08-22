@@ -20,9 +20,9 @@ class EventSender:
             if not self._validate_event(event):
                 return False
 
-            if event.is_execution:
+            if event.process_type.is_execution:
                 return await self._send_execution(event)
-            elif event.is_compilation:
+            elif event.process_type.is_compilation:
                 return await self._send_compilation(event)
             else:
                 self.logger.warning(

@@ -8,6 +8,8 @@ services:
       - SYS_ADMIN
       - SYS_PTRACE
     pid: host
+    ports:
+      - "9090:9090"
     volumes:
       - ./src:/app/src
       - /sys/kernel/debug:/sys/kernel/debug:ro
@@ -16,5 +18,5 @@ services:
       - ./logs:/app/logs
     environment:
       - PYTHONUNBUFFERED=1
-      - LOG_LEVEL=INFO
+      - LOG_LEVEL=DEBUG
       - API_SERVER=http://localhost:8000

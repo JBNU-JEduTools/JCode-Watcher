@@ -27,6 +27,16 @@ class ProcessType(Enum):
         return self in (ProcessType.GCC, ProcessType.CLANG, ProcessType.GPP)
 
     @property
+    def is_python(self) -> bool:
+        """Python 타입 여부"""
+        return self == ProcessType.PYTHON
+
+    @property
+    def is_execution(self) -> bool:
+        """실행 프로세스 여부 (USER_BINARY, PYTHON)"""
+        return self in (ProcessType.USER_BINARY, ProcessType.PYTHON)
+
+    @property
     def requires_target_file(self) -> bool:
         return self in (
             ProcessType.GCC,

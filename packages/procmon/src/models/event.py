@@ -20,17 +20,3 @@ class Event:
     cwd: Optional[str] = None  # 현재 작업 디렉토리
     binary_path: Optional[str] = None  # 실행 바이너리 경로
 
-    @property
-    def is_compilation(self) -> bool:
-        """컴파일 이벤트 여부"""
-        return self.process_type.is_compilation if self.process_type else False
-
-    @property
-    def is_execution(self) -> bool:
-        """실행 이벤트 여부"""
-        return (
-            self.process_type.is_user_binary
-            or (self.process_type == ProcessType.PYTHON)
-            if self.process_type
-            else False
-        )
