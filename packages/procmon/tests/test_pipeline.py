@@ -20,7 +20,7 @@ class TestPipeline:
     """Pipeline 클래스 테스트"""
     
     def setup_method(self):
-        """각 테스트 메서드 실행 전 설정"""
+        """Given: Pipeline 인스턴스와 모킹된 의존성 준비"""
         self.mock_classifier = Mock(spec=ProcessClassifier)
         self.mock_path_parser = Mock(spec=PathParser)
         self.mock_file_parser = Mock(spec=FileParser)
@@ -92,13 +92,13 @@ class TestConvertProcessStruct(TestPipeline):
     
     def test_basic_conversion(self):
         """기본적인 ProcessStruct → Process 변환 테스트"""
-        # Given
+        # Given: 기본 값으로 설정된 ProcessStruct 모킹 객체
         struct = self.create_mock_process_struct()
         
-        # When
+        # When: ProcessStruct를 Process로 변환할 때
         process = self.pipeline._convert_process_struct(struct)
         
-        # Then
+        # Then: 모든 필드가 올바르게 변환되어야 함
         assert process.pid == 1234
         assert process.error_flags == "0b0"
         assert process.hostname == "jcode-os-1-202012180"
@@ -286,7 +286,7 @@ class TestPipelineIntegration(TestPipeline):
     @pytest.mark.asyncio
     async def test_successful_event_creation(self):
         """성공적인 이벤트 생성 테스트"""
-        # Given
+        # Given: 모든 의존성이 성공적으로 설정된 상황
         struct = self.create_mock_process_struct()
         student_info = StudentInfo(student_id="202012180", class_div="1")
         
@@ -295,14 +295,14 @@ class TestPipelineIntegration(TestPipeline):
         self.mock_file_parser.parse.return_value = "main.c"
         self.mock_path_parser.parse.return_value = "hw1"
         
-        # When
+        # When: 파이프라인을 실행할 때
         with patch('src.pipeline.datetime') as mock_datetime:
             mock_now = datetime(2024, 1, 1, 12, 0, 0)
             mock_datetime.now.return_value = mock_now
             
             event = await self.pipeline.pipeline(struct)
         
-        # Then
+        # Then: 올바른 Event 객체가 생성되어야 함
         assert event is not None
         assert isinstance(event, Event)
         assert event.process_type == ProcessType.GCC

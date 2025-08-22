@@ -7,12 +7,13 @@ class TestFileParser:
     """FileParser 테스트"""
     
     def setup_method(self):
-        """각 테스트 메서드 실행 전 설정"""
+        """Given: FileParser 인스턴스 생성"""
         self.parser = FileParser()
     
     # Python 파일 파싱 테스트
     def test_python_file_parsing(self):
         """Python 파일 파싱 테스트"""
+        # Given: 다양한 Python 명령어 인자 패턴
         test_cases = [
             (["script.py"], "script.py"),
             (["script.py", "arg1", "arg2"], "script.py"),
@@ -22,11 +23,15 @@ class TestFileParser:
         ]
         
         for args, expected in test_cases:
+            # When: Python 타입으로 인자를 파싱할 때
             result = self.parser.parse(ProcessType.PYTHON, args)
+            
+            # Then: 첫 번째 .py 파일이 반환되어야 함
             assert result == expected, f"Failed to parse '{args}', expected '{expected}', got '{result}'"
     
     def test_python_module_execution(self):
         """Python 모듈 실행 시 파일 없음"""
+        # Given: -m 옵션을 사용한 모듈 실행 명령어
         module_args = [
             ["-m", "pytest"],
             ["python", "-m", "http.server"],
@@ -34,7 +39,10 @@ class TestFileParser:
         ]
         
         for args in module_args:
+            # When: 모듈 실행 명령을 파싱할 때
             result = self.parser.parse(ProcessType.PYTHON, args)
+            
+            # Then: 파일을 찾지 못해야 함 (None 반환)
             assert result is None, f"Should not find file in module execution: '{args}'"
     
     def test_python_with_options(self):
@@ -52,6 +60,7 @@ class TestFileParser:
     # C/C++ 파일 파싱 테스트
     def test_c_file_parsing(self):
         """C 파일 파싱 테스트"""
+        # Given: 다양한 C 컴파일 명령어 패턴
         test_cases = [
             (["main.c"], "main.c"),
             (["main.c", "-o", "program"], "main.c"),
@@ -62,7 +71,10 @@ class TestFileParser:
         
         for args, expected in test_cases:
             for process_type in [ProcessType.GCC, ProcessType.CLANG]:
+                # When: GCC 또는 CLANG 타입으로 인자를 파싱할 때
                 result = self.parser.parse(process_type, args)
+                
+                # Then: 첫 번째 .c 파일이 반환되어야 함
                 assert result == expected, f"Failed to parse '{args}' for {process_type}, expected '{expected}', got '{result}'"
     
     def test_cpp_file_parsing(self):
@@ -110,11 +122,16 @@ class TestFileParser:
     
     def test_unsupported_process_type(self):
         """지원하지 않는 프로세스 타입"""
-        result = self.parser.parse(ProcessType.UNKNOWN, ["main.c"])
-        assert result is None
+        # Given: 지원하지 않는 프로세스 타입
+        unsupported_types = [ProcessType.UNKNOWN, ProcessType.USER_BINARY]
+        args = ["main.c"]
         
-        result = self.parser.parse(ProcessType.USER_BINARY, ["main.c"])
-        assert result is None
+        for process_type in unsupported_types:
+            # When: 지원하지 않는 타입으로 파싱할 때
+            result = self.parser.parse(process_type, args)
+            
+            # Then: None이 반환되어야 함
+            assert result is None
     
     def test_empty_or_none_args(self):
         """빈 리스트나 None 인자"""

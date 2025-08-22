@@ -1,8 +1,8 @@
 import asyncio
-from .utils.logger import logger
 import os
 from typing import Any
 
+from .utils.logger import setup_logging, get_logger
 from .collector import Collector
 from .pipeline import Pipeline
 from .sender import EventSender
@@ -15,13 +15,22 @@ from .config.settings import settings
 
 async def main():
     """메인 애플리케이션 진입점"""
+    # 로깅 설정 초기화
+    setup_logging(
+        log_file_path="/app/logs/procmon.log",
+        log_level=settings.LOG_LEVEL,
+        max_bytes=10 * 1024 * 1024,  # 10MB
+        backup_count=5
+    )
+    
+    logger = get_logger("main")
     # 큐 생성
     queue: asyncio.Queue = asyncio.Queue(maxsize=4096)
     
     # BPF 프로그램 경로 설정
     program_path = os.path.join(os.path.dirname(__file__), "bpf.c")
-    logger.info(f"BPF 프로그램 경로: {program_path}")
-    logger.info(f"로그 레벨: {settings.LOG_LEVEL}")
+    logger.info("BPF 프로그램 설정", bpf_program_path=program_path)
+    logger.info("로깅 설정 완료", log_level=settings.LOG_LEVEL)
     
     # 컴포넌트 생성
     collector = Collector.start(
@@ -54,16 +63,16 @@ async def main():
                     # Sender로 전송
                     success = await sender.send_event(event)
                     if success:
-                        logger.debug(f"이벤트 전송 성공: {event.binary_path}")
+                        logger.debug("이벤트 전송 성공", binary_path=event.binary_path)
                     else:
-                        logger.error(f"이벤트 전송 실패: {event.binary_path}")
+                        logger.error("이벤트 전송 실패", binary_path=event.binary_path)
                 else:
-                    logger.debug(f"이벤트 필터링됨: {process_struct}")
+                    logger.debug("이벤트 필터링됨", process_struct=str(process_struct))
                 
                 queue.task_done()
                 
             except Exception as e:
-                logger.error(f"파이프라인 변환 실패: {e}")
+                logger.error("파이프라인 변환 실패", error=str(e), exc_info=True)
         
     except KeyboardInterrupt:
         logger.info("종료 신호 수신")

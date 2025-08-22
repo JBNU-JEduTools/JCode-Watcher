@@ -2,12 +2,12 @@ import os
 import asyncio
 import threading
 import logging
-from .utils.logger import logger
 import ctypes
 from typing import Optional, Any
 
 from bcc import BPF
 from .models import ProcessStruct
+from .utils.logger import get_logger
 
 
 class Collector:
@@ -37,7 +37,7 @@ class Collector:
         self.poll_timeout_ms: int = poll_timeout_ms
 
         # 내부 상태
-        self.logger: logging.Logger = logger
+        self.logger = get_logger("collector")
         self.bpf: Optional[BPF] = None
         self.running_event: threading.Event = threading.Event()
         self.polling_thread: Optional[threading.Thread] = None
@@ -69,8 +69,9 @@ class Collector:
         )
         self._load_bpf_program()
         self._start_polling()
-        self.logger.info("수집기 시작됨 (page_cnt=%d, poll_timeout_ms=%d)",
-                         self.page_cnt, self.poll_timeout_ms)
+        self.logger.info("수집기 시작 완료", 
+                         page_cnt=self.page_cnt, 
+                         poll_timeout_ms=self.poll_timeout_ms)
         return self
 
     def stop(self) -> None:
@@ -83,9 +84,10 @@ class Collector:
                 try:
                     self.bpf.cleanup()  # type: ignore[attr-defined]
                 except Exception as e:
-                    self.logger.warning("BPF 정리 오류: %s", e)
-            self.logger.info("수집기 중지됨 (dropped=%d, lost=%d)",
-                             self.dropped_count, self.lost_count)
+                    self.logger.warning("BPF 정리 오류", error=str(e))
+            self.logger.info("수집기 중지 완료", 
+                             dropped_count=self.dropped_count, 
+                             lost_count=self.lost_count)
 
     def __enter__(self) -> "Collector":
         return self
@@ -107,9 +109,9 @@ class Collector:
     def _load_bpf_program(self) -> None:
         """BPF 프로그램 로드/어태치 및 perf buffer 설정"""
         if not os.path.isfile(self.program_path):
-            raise FileNotFoundError(f"BPF source not found: {self.program_path}")
+            raise FileNotFoundError(f"BPF 소스 파일을 찾을 수 없음: {self.program_path}")
 
-        self.logger.info("BPF 프로그램 로드 중: %s", self.program_path)
+        self.logger.info("BPF 프로그램 로드 시작", program_path=self.program_path)
         with open(self.program_path, "r", encoding="utf-8") as f:
             bpf_text = f.read()
 
@@ -148,14 +150,14 @@ class Collector:
             # asyncio 루프 스레드에서 안전하게 enqueue
             self.loop.call_soon_threadsafe(self._enqueue_on_loop, raw_struct)
         except Exception as e:
-            self.logger.error("콜백 오류: %s", e)
+            self.logger.error("콜백 오류", error=str(e), exc_info=True)
 
     def _lost_callback(self, cpu: int, lost: int) -> None:
         """BCC가 보고하는 유실 이벤트 카운터 콜백"""
         self.lost_count += int(lost)
         # 과도한 로그 방지: 256번마다 1회
         if (self.lost_count & 0xFF) == 1:
-            self.logger.warning("cpu=%d 총 유실 이벤트=%d", cpu, self.lost_count)
+            self.logger.warning("이벤트 유실 경고", cpu=cpu, lost_count=self.lost_count)
 
     def _enqueue_on_loop(self, ev: Any) -> None:
         """루프 스레드에서 호출되어 Queue에 넣는다 (가득 차면 드롭 카운트 증가)"""
@@ -164,7 +166,7 @@ class Collector:
         except asyncio.QueueFull:
             self.dropped_count += 1
             if (self.dropped_count & 0xFF) == 1:
-                self.logger.warning("큐 가득참 (dropped=%d)", self.dropped_count)
+                self.logger.warning("큐 가득참 경고", dropped_count=self.dropped_count)
 
     # -------- Internal: polling thread --------
 
@@ -196,7 +198,7 @@ class Collector:
             self.logger.error("BPF 프로그램이 로드되지 않음")
             return
 
-        self.logger.info("폴링 루프 시작됨 (timeout=%d ms)", self.poll_timeout_ms)
+        self.logger.info("폴링 루프 시작", timeout_ms=self.poll_timeout_ms)
         while self.running_event.is_set():
             try:
                 # 타임아웃(ms): stop() 호출 시 최대 이 시간 내로 깨어나 종료
@@ -204,6 +206,6 @@ class Collector:
             except Exception as e:
                 # running 상태에서만 오류 로그 (정지 중 예외는 무시)
                 if self.running_event.is_set():
-                    self.logger.error("폴링 오류: %s", e)
+                    self.logger.error("폴링 오류", error=str(e), exc_info=True)
                 break
         self.logger.info("폴링 루프 종료됨")

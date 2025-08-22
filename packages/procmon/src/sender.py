@@ -1,5 +1,5 @@
 import aiohttp
-from .utils.logger import logger
+from .utils.logger import get_logger
 from typing import Dict, Any, Optional
 from .models.event import Event
 from .models.process import Process
@@ -10,7 +10,7 @@ class EventSender:
     """Event를 백엔드 API로 전송하는 클라이언트"""
     
     def __init__(self, base_url: str, timeout: int = 20):
-        self.logger = logger
+        self.logger = get_logger("sender")
         self.base_url = base_url.rstrip('/')
         self.timeout = timeout
         
@@ -25,11 +25,11 @@ class EventSender:
             elif event.is_compilation:
                 return await self._send_compilation(event)
             else:
-                self.logger.warning(f"알 수 없는 이벤트 타입: {event.process_type}")
+                self.logger.warning("알 수 없는 이벤트 타입", event_type=str(event.process_type))
                 return False
                 
         except Exception as e:
-            self.logger.error(f"이벤트 전송 실패: {repr(e)}")
+            self.logger.error("이벤트 전송 실패", error=repr(e), exc_info=True)
             return False
     
     def _validate_event(self, event: Event) -> bool:
@@ -76,7 +76,7 @@ class EventSender:
     async def _send_request(self, endpoint: str, data: Dict[str, Any]) -> bool:
         """HTTP 요청 전송"""
         try:
-            self.logger.debug(f"API 요청: {endpoint}, 데이터: {data}")
+            self.logger.debug("API 요청 시작", endpoint=endpoint, data=data)
             
             async with aiohttp.ClientSession() as session:
                 async with session.post(
@@ -86,12 +86,12 @@ class EventSender:
                 ) as response:
                     if response.status >= 400:
                         error_text = await response.text()
-                        self.logger.error(f"API 실패: status={response.status}, error={error_text}")
+                        self.logger.error("API 요청 실패", status=response.status, error=error_text)
                         return False
                         
-                    self.logger.info(f"API 성공: {endpoint}")
+                    self.logger.info("API 요청 성공", endpoint=endpoint)
                     return True
                     
         except Exception as e:
-            self.logger.error(f"HTTP 요청 실패: {endpoint}, error={repr(e)}")
+            self.logger.error("HTTP 요청 실패", endpoint=endpoint, error=repr(e), exc_info=True)
             return False

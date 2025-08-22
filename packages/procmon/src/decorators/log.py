@@ -1,8 +1,8 @@
-import logging
 import asyncio
 from functools import wraps
+import structlog
 
-def general_activity_logger(logger: logging.Logger, level: str = 'debug'):
+def general_activity_logger(logger, level: str = 'debug'):
     """
     메서드의 활동(실패/예외)을 로깅하는 데코레이터 팩토리.
     동기/비동기 함수를 자동으로 감지하여 처리합니다.
@@ -24,13 +24,14 @@ def general_activity_logger(logger: logging.Logger, level: str = 'debug'):
                 try:
                     result = await func(self, *args, **kwargs)
                     if result is None:
-                        log_func(f"[{func.__name__}] 작업 실패: 입력={repr(input_data)}")
+                        log_func("작업 실패", function=func.__name__, input_data=repr(input_data))
                     return result
                 except Exception as e:
-                    logger.error(
-                        f"[{func.__name__}] 예외 발생: {e}, 입력={repr(input_data)}",
-                        exc_info=True # 트레이스백을 함께 로깅
-                    )
+                    logger.error("함수 실행 중 예외 발생", 
+                               function=func.__name__, 
+                               error=str(e), 
+                               input_data=repr(input_data),
+                               exc_info=True)
                     return None
             return async_wrapper
         else:
@@ -41,13 +42,14 @@ def general_activity_logger(logger: logging.Logger, level: str = 'debug'):
                 try:
                     result = func(self, *args, **kwargs)
                     if result is None:
-                        log_func(f"[{func.__name__}] 작업 실패: 입력={repr(input_data)}")
+                        log_func("작업 실패", function=func.__name__, input_data=repr(input_data))
                     return result
                 except Exception as e:
-                    logger.error(
-                        f"[{func.__name__}] 예외 발생: {e}, 입력={repr(input_data)}",
-                        exc_info=True
-                    )
+                    logger.error("함수 실행 중 예외 발생", 
+                               function=func.__name__, 
+                               error=str(e), 
+                               input_data=repr(input_data),
+                               exc_info=True)
                     return None
             return sync_wrapper
     return decorator

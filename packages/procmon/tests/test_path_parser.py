@@ -7,11 +7,12 @@ class TestPathParser:
     """PathParser 테스트"""
     
     def setup_method(self):
-        """각 테스트 메서드 실행 전 설정"""
+        """Given: PathParser 인스턴스 생성"""
         self.parser = PathParser()
     
     def test_valid_workspace_paths(self):
         """유효한 workspace 경로 테스트"""
+        # Given: 유효한 workspace 경로들
         test_cases = [
             ("/workspace/os-1-202012345/hw1/main.c", "hw1"),
             ("/workspace/a-2-123456789/hw2/test.py", "hw2"),
@@ -21,7 +22,10 @@ class TestPathParser:
         ]
         
         for path, expected in test_cases:
+            # When: 유효한 workspace 경로를 파싱할 때
             result = self.parser.parse(path)
+            
+            # Then: 올바른 homework 디렉토리가 반환되어야 함
             assert result == expected, f"Failed to parse '{path}', expected '{expected}', got '{result}'"
     
     def test_valid_home_coder_paths(self):
@@ -112,7 +116,7 @@ class TestPathParser:
         ]
         
         for path in relative_paths:
-            with pytest.raises(ValueError, match="상대 경로는 지원하지 않습니다"):
+            with pytest.raises(ValueError, match="상대 경로 지원 안함:"):
                 self.parser.parse(path)
     
     def test_escape_characters_raise_exception(self):
@@ -125,7 +129,7 @@ class TestPathParser:
         ]
         
         for path in paths_with_escapes:
-            with pytest.raises(ValueError, match="경로에 이스케이프 문자가 포함되어 있습니다"):
+            with pytest.raises(ValueError, match="경로에 이스케이프 문자 포함:"):
                 self.parser.parse(path)
     
     def test_nested_homework_directories_raise_exception(self):
@@ -137,7 +141,7 @@ class TestPathParser:
         ]
         
         for path in nested_paths:
-            with pytest.raises(ValueError, match="중첩된 hw 디렉토리가 있습니다"):
+            with pytest.raises(ValueError, match="중첩된 hw 디렉토리 감지:"):
                 self.parser.parse(path)
     
     def test_path_normalization(self):
@@ -188,7 +192,7 @@ class TestPathParser:
         # 빈 문자열과 공백은 상대 경로로 처리되어 예외 발생
         relative_path_cases = ["", "   "]
         for path in relative_path_cases:
-            with pytest.raises(ValueError, match="상대 경로는 지원하지 않습니다"):
+            with pytest.raises(ValueError, match="상대 경로 지원 안함:"):
                 self.parser.parse(path)
         
         # 루트 경로들은 유효하지만 homework 패턴에 맞지 않아 None 반환

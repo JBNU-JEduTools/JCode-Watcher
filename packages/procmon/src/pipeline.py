@@ -1,8 +1,9 @@
 import os
-from .utils.logger import logger
+from .utils.logger import get_logger
 from datetime import datetime
 from typing import Optional, Tuple, List
 import traceback
+import structlog.contextvars as ctx
 from .models.event import Event
 from .models.process import Process
 from .models.process_struct import ProcessStruct
@@ -22,7 +23,7 @@ class Pipeline:
                  path_parser: PathParser,
                  file_parser: FileParser,
                  student_parser: StudentParser):
-        self.logger = logger
+        self.logger = get_logger("pipeline")
         self.classifier = classifier
         self.path_parser = path_parser
         self.file_parser = file_parser
@@ -42,7 +43,7 @@ class Pipeline:
         )
     
     async def pipeline(self, process_struct) -> Optional[Event]:
-        """ProcessStruct를 Event로 변환 - 명확한 데이터 흐름"""
+        """ProcessStruct를 Event로 변환"""
 
         try:
             # 시간
@@ -54,8 +55,14 @@ class Pipeline:
             # 학생 정보 파싱
             student_info = self.student_parser.parse_from_process(process)
             if not student_info:
-                self.logger.warning(f"학생 정보 파싱 실패: {process.hostname}")
+                self.logger.warning("학생 정보 파싱 실패", hostname=process.hostname)
                 return None
+            
+            # Context 변수 설정 - 이후 모든 로그에 자동 포함
+            ctx.bind_contextvars(
+                student_id=student_info.student_id,
+                class_div=student_info.class_div
+            )
             
             # 프로세스 라벨링 - 타입, 과제 디렉토리, 소스파일 결정 & 필터링
             process_type, homework_dir, source_file = self._label_process(
@@ -66,13 +73,25 @@ class Pipeline:
             
             # 과제와 무관한 프로세스는 필터링
             if not process_type or not homework_dir:
-                base_msg = f"[필터링] 과제와 무관한 프로세스 - 바이너리: {process.binary_path}, 작업경로: {process.cwd}, 인자: {process.args}"
+                # 긴 args 배열 제한 (처음 3개만 표시)
+                limited_args = process.args[:3] if len(process.args) > 3 else process.args
+                if len(process.args) > 3:
+                    limited_args.append(f"...+{len(process.args)-3}개")
+                
+                # source_file 절대경로 변환
                 if source_file:
                     absolute_source_file = source_file if os.path.isabs(source_file) else os.path.join(process.cwd, source_file)
-                    log_msg = base_msg + f", 대상 소스 파일: {absolute_source_file}"
                 else:
-                    log_msg = base_msg + f", 대상 소스 파일: 없음 (process_type={process_type}, homework_dir={homework_dir})"
-                self.logger.debug(log_msg)
+                    absolute_source_file = None
+                
+                self.logger.debug("프로세스 필터링됨", 
+                                filter_reason="homework_unrelated",
+                                binary_path=process.binary_path,
+                                cwd=process.cwd,
+                                args=limited_args,
+                                process_type=str(process_type) if process_type else None,
+                                homework_dir=homework_dir,
+                                source_file=absolute_source_file)
                 return None
             
             # source_file을 절대 경로로 변환
@@ -94,15 +113,21 @@ class Pipeline:
                 binary_path=process.binary_path
             )
             
-            self.logger.info(f"이벤트 생성됨 - 타입: {process_type}, 과제: {homework_dir}, 학생: {student_info.student_id}, 소스파일: {absolute_source_file}")
+            self.logger.debug("이벤트 생성 완료", 
+                           process_type=str(process_type), 
+                           homework_dir=homework_dir,
+                           source_file=absolute_source_file)
             
             return event
             
         except Exception as e:
             # traceback.format_exc() 함수가 예외에 대한 상세한 스택 트레이스 정보를 문자열로 반환
             error_trace = traceback.format_exc()
-            self.logger.error(f"이벤트 변환 실패: {e}\n{error_trace}")
+            self.logger.error("이벤트 변환 실패", error=str(e), exc_info=True)
             return None
+        finally:
+            # Context 변수 정리
+            ctx.clear_contextvars()
     
     def _label_process(
         self,
@@ -125,7 +150,7 @@ class Pipeline:
         """
         # 1) 시스템 정체성은 고정값(불변)
         system_type = self.classifier.classify(binary_path)
-        self.logger.debug(f"바이너리 분류됨 - 경로: {binary_path}, 타입: {system_type}")
+        self.logger.debug("바이너리 분류 완료", binary_path=binary_path, system_type=str(system_type))
 
         # 2) 바이너리 자체가 hw 안이면 → USER_BINARY
         binary_hw = self.path_parser.parse(binary_path)
@@ -135,12 +160,12 @@ class Pipeline:
         # 3) 컴파일러/파이썬이면 대상 파일 기준으로 hw 결정
         if system_type.requires_target_file:
             source_file = self.file_parser.parse(system_type, args)
-            self.logger.debug(f"파일 파싱됨 - 인자: '{args}', 파싱된 소스파일: '{source_file}'")
+            self.logger.debug("파일 파싱 완료", args=args, source_file=source_file)
             if not source_file:
                 return system_type, None, None
             full_path = source_file if os.path.isabs(source_file) else os.path.join(cwd, source_file)
             file_hw = self.path_parser.parse(full_path)
-            self.logger.debug(f"경로 파싱됨 - 전체경로: '{full_path}', 과제디렉토리: '{file_hw}'")
+            self.logger.debug("경로 파싱 완료", full_path=full_path, homework_dir=file_hw)
             if not file_hw:
                 return system_type, None, source_file
             return system_type, file_hw, source_file

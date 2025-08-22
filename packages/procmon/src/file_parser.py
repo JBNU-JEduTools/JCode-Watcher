@@ -1,6 +1,6 @@
 from typing import Set, Optional, List
 from .models.process_type import ProcessType
-from .utils.logger import logger
+from .utils.logger import get_logger
 
 class FileParser:
     COMPILER_SKIP_OPTIONS: Set[str] = {
@@ -8,6 +8,9 @@ class FileParser:
     }
     
     CPP_EXTENSIONS = ['.cpp', '.cc', '.cxx', '.c++', '.C']
+    
+    def __init__(self):
+        self.logger = get_logger("file_parser")
     
     def parse(self, process_type: ProcessType, args: List[str]) -> Optional[str]:
         """명령어 인자에서 첫 번째 소스 파일 추출
@@ -23,7 +26,7 @@ class FileParser:
             첫 번째 소스 파일명 (상대경로) 또는 None
             예: "main.c", "script.py", "test.c"
         """
-        logger.debug(f"파일 파싱 시작: args={args}")
+        self.logger.debug("파일 파싱 시작", args=args)
         if not args:
             return None
             
