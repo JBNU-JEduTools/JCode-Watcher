@@ -69,9 +69,11 @@ class Collector:
         )
         self._load_bpf_program()
         self._start_polling()
-        self.logger.info("수집기 시작 완료", 
-                         page_cnt=self.page_cnt, 
-                         poll_timeout_ms=self.poll_timeout_ms)
+        self.logger.info(
+            "수집기 시작 완료",
+            page_cnt=self.page_cnt,
+            poll_timeout_ms=self.poll_timeout_ms,
+        )
         return self
 
     def stop(self) -> None:
@@ -85,9 +87,11 @@ class Collector:
                     self.bpf.cleanup()  # type: ignore[attr-defined]
                 except Exception as e:
                     self.logger.warning("BPF 정리 오류", error=str(e))
-            self.logger.info("수집기 중지 완료", 
-                             dropped_count=self.dropped_count, 
-                             lost_count=self.lost_count)
+            self.logger.info(
+                "수집기 중지 완료",
+                dropped_count=self.dropped_count,
+                lost_count=self.lost_count,
+            )
 
     def __enter__(self) -> "Collector":
         return self
@@ -109,7 +113,9 @@ class Collector:
     def _load_bpf_program(self) -> None:
         """BPF 프로그램 로드/어태치 및 perf buffer 설정"""
         if not os.path.isfile(self.program_path):
-            raise FileNotFoundError(f"BPF 소스 파일을 찾을 수 없음: {self.program_path}")
+            raise FileNotFoundError(
+                f"BPF 소스 파일을 찾을 수 없음: {self.program_path}"
+            )
 
         self.logger.info("BPF 프로그램 로드 시작", program_path=self.program_path)
         with open(self.program_path, "r", encoding="utf-8") as f:
@@ -131,8 +137,12 @@ class Collector:
             prog_array[ctypes.c_int(idx)] = ctypes.c_int(handler.fd)
 
         # 트레이스포인트 어태치 (핸들러명은 eBPF 쪽과 매칭)
-        self.bpf.attach_tracepoint(tp="sched:sched_process_exec", fn_name="init_handler")
-        self.bpf.attach_tracepoint(tp="sched:sched_process_exit", fn_name="exit_handler")
+        self.bpf.attach_tracepoint(
+            tp="sched:sched_process_exec", fn_name="init_handler"
+        )
+        self.bpf.attach_tracepoint(
+            tp="sched:sched_process_exit", fn_name="exit_handler"
+        )
 
         # perf buffer 콜백 등록
         self.bpf["events"].open_perf_buffer(

@@ -3,28 +3,34 @@ from enum import Enum, auto
 
 class ProcessType(Enum):
     """지원하는 프로세스 타입"""
+
     UNKNOWN = auto()
     GCC = auto()
     CLANG = auto()
     GPP = auto()
-    PYTHON = auto()   
+    PYTHON = auto()
     USER_BINARY = auto()
-    
+
     @property
     def is_unknown(self) -> bool:
         """UNKNOWN 타입 여부"""
         return self == ProcessType.UNKNOWN
-        
+
     @property
     def is_user_binary(self) -> bool:
         """USER_BINARY 타입 여부"""
         return self == ProcessType.USER_BINARY
-        
+
     @property
     def is_compilation(self) -> bool:
         """컴파일 프로세스 여부"""
         return self in (ProcessType.GCC, ProcessType.CLANG, ProcessType.GPP)
-    
+
     @property
     def requires_target_file(self) -> bool:
-        return self in (ProcessType.GCC, ProcessType.GPP, ProcessType.CLANG, ProcessType.PYTHON)
+        return self in (
+            ProcessType.GCC,
+            ProcessType.GPP,
+            ProcessType.CLANG,
+            ProcessType.PYTHON,
+        )
