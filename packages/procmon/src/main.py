@@ -4,6 +4,7 @@ from typing import Any
 from prometheus_client import start_http_server
 
 from .utils.logger import setup_logging, get_logger
+from .utils.metrics import loop_heartbeat_tick
 from .collector import Collector
 from .pipeline import Pipeline
 from .sender import EventSender
@@ -26,16 +27,14 @@ async def main():
     logger = get_logger("main")
 
     # 프로메테우스 메트릭 서버 시작
-    start_http_server(9090)
-    logger.info("프로메테우스 메트릭 서버 시작", port=9090)
+    start_http_server(settings.METRICS_PORT)
+    logger.info("프로메테우스 메트릭 서버 시작", port=settings.METRICS_PORT)
 
     # 큐 생성
     queue: asyncio.Queue = asyncio.Queue(maxsize=4096)
 
     # BPF 프로그램 경로 설정
     program_path = os.path.join(os.path.dirname(__file__), "bpf.c")
-    logger.info("BPF 프로그램 설정", bpf_program_path=program_path)
-    logger.info("로깅 설정 완료", log_level=settings.LOG_LEVEL)
 
 
     # 컴포넌트 생성
@@ -53,6 +52,19 @@ async def main():
     file_parser = FileParser()
     student_parser = StudentParser()
     pipeline = Pipeline(classifier, path_parser, file_parser, student_parser)
+
+    async def loop_heartbeat_task(period_sec: float = 5.0):
+        """메인 asyncio 루프의 하트비트 태스크"""
+        while True:
+            try:
+                # 루프가 막히면 이 코루틴도 실행되지 않음 → 탐지 신호
+                loop_heartbeat_tick()
+            except Exception:
+                logger.warning("루프 하트비트 갱신 실패", exc_info=True)
+            await asyncio.sleep(period_sec)
+
+    # 하트비트 태스크 시작
+    hb_task = asyncio.create_task(loop_heartbeat_task())
 
     try:
         logger.info("파이프라인 시작")
@@ -75,6 +87,16 @@ async def main():
         logger.info("종료 신호 수신")
     finally:
         logger.info("프로세스 모니터 종료 중...")
+        
+        # 하트비트 태스크 정리
+        try:
+            hb_task.cancel()
+            await hb_task
+        except asyncio.CancelledError:
+            pass
+        except Exception:
+            logger.warning("하트비트 태스크 정리 중 오류", exc_info=True)
+        
         if collector:
             collector.stop()
         logger.info("프로세스 모니터 종료 완료")

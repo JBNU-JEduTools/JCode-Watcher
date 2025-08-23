@@ -9,6 +9,7 @@ from typing import Optional, Any
 from bcc import BPF
 from .models import ProcessStruct
 from .utils.logger import get_logger
+from .utils.metrics import poll_heartbeat_tick
 
 
 class Collector:
@@ -224,6 +225,8 @@ class Collector:
             try:
                 # 타임아웃(ms): stop() 호출 시 최대 이 시간 내로 깨어나 종료
                 self.bpf.perf_buffer_poll(timeout=self.poll_timeout_ms)
+                # 폴링이 정상적으로 한 사이클 돈 것을 하트비트로 남김
+                poll_heartbeat_tick()
             except Exception as e:
                 # running 상태에서만 오류 로그 (정지 중 예외는 무시)
                 if self.running_event.is_set():

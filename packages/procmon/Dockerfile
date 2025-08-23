@@ -26,5 +26,7 @@ RUN mkdir -p /app/logs
 COPY src ./src
 COPY run.py ./
 
+# 메트릭 포트 노출
+EXPOSE 3000
 
 CMD ["/opt/venv/bin/python3", "run.py"]

@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     API_SERVER: str = "http://localhost:8000"
 
     # 메트릭 설정
-    METRICS_PORT: int = 9090
+    METRICS_PORT: int = 3000
 
     # 로깅 설정
     LOG_FILE_PATH: str = "/app/logs/procmon.log"

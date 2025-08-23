@@ -44,3 +44,34 @@ API_REQUEST_DURATION_SECONDS = Histogram(
     buckets=[0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0],
 )
 
+# 하트비트 메트릭 (Control-plane 모니터링)
+HB_POLL_TS = Gauge(
+    "procmon_poll_heartbeat_ts_seconds",
+    "마지막 perf-poll 하트비트 (epoch 초)",
+)
+HB_POLL_SEQ = Counter(
+    "procmon_poll_heartbeat_seq_total",
+    "Perf-poll 하트비트 틱 수",
+)
+
+HB_LOOP_TS = Gauge(
+    "procmon_loop_heartbeat_ts_seconds",
+    "마지막 asyncio-loop 하트비트 (epoch 초)",
+)
+HB_LOOP_SEQ = Counter(
+    "procmon_loop_heartbeat_seq_total",
+    "Asyncio-loop 하트비트 틱 수",
+)
+
+
+def poll_heartbeat_tick() -> None:
+    """콜렉터 perf_buffer_poll 루프에서 호출"""
+    HB_POLL_TS.set(time.time())
+    HB_POLL_SEQ.inc()
+
+
+def loop_heartbeat_tick() -> None:
+    """메인 asyncio 루프의 주기 코루틴에서 호출"""
+    HB_LOOP_TS.set(time.time())
+    HB_LOOP_SEQ.inc()
+

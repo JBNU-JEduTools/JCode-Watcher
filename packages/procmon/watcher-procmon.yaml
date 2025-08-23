@@ -19,7 +19,7 @@ spec:
         imagePullPolicy: IfNotPresent  # 로컬 이미지 사용
         ports:
         - name: http-metrics
-          containerPort: 9090
+          containerPort: 3000
         env:
         - name: API_ENDPOINT
           value: "http://watcher-backend-service.watcher.svc.cluster.local:3000"  # API 서비스 엔드포인트
@@ -68,8 +68,8 @@ spec:
     app: watcher-procmon
   ports:
   - name: http-metrics
-    port: 9090
-    targetPort: 9090
+    port: 3000
+    targetPort: 3000
     protocol: TCP
   type: ClusterIP
 ---
