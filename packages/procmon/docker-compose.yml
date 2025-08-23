@@ -6,15 +6,14 @@ services:
       - ALL
     cap_add:
       - SYS_ADMIN
-      - SYS_PTRACE
     pid: host
     ports:
       - "9090:9090"
     volumes:
-      - ./src:/app/src
       - /sys/kernel/debug:/sys/kernel/debug:ro
       - /lib/modules:/lib/modules:ro
       - /usr/src:/usr/src:ro
+      - ./src:/app/src
       - ./logs:/app/logs
     environment:
       - PYTHONUNBUFFERED=1
