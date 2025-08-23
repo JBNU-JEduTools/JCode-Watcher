@@ -35,5 +35,5 @@ class StudentParser:
 
             return StudentInfo(student_id=student_id, class_div=class_div)
         except ValueError as e:
-            self.logger.error("StudentInfo 생성 실패", error=str(e), exc_info=True)
+            self.logger.error("StudentInfo 생성 실패", exc_info=True)
             return None

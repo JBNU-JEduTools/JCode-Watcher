@@ -3,6 +3,7 @@ import asyncio
 import threading
 import logging
 import ctypes
+import time
 from typing import Optional, Any
 
 from bcc import BPF
@@ -43,6 +44,11 @@ class Collector:
         self.polling_thread: Optional[threading.Thread] = None
         self.dropped_count: int = 0
         self.lost_count: int = 0
+        
+        # 쿨다운 로그 설정
+        self._log_cooldown_s: float = 10.0
+        self._next_lost_log: float = 0.0
+        self._next_drop_log: float = 0.0
 
     # -------- Public API --------
 
@@ -92,12 +98,6 @@ class Collector:
                 dropped_count=self.dropped_count,
                 lost_count=self.lost_count,
             )
-
-    def __enter__(self) -> "Collector":
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
-        self.stop()
 
     @property
     def is_running(self) -> bool:
@@ -160,14 +160,19 @@ class Collector:
             # asyncio 루프 스레드에서 안전하게 enqueue
             self.loop.call_soon_threadsafe(self._enqueue_on_loop, raw_struct)
         except Exception as e:
-            self.logger.error("콜백 오류", error=str(e), exc_info=True)
+            self.logger.error("콜백 오류", exc_info=True)
 
     def _lost_callback(self, cpu: int, lost: int) -> None:
         """BCC가 보고하는 유실 이벤트 카운터 콜백"""
         self.lost_count += int(lost)
-        # 과도한 로그 방지: 256번마다 1회
-        if (self.lost_count & 0xFF) == 1:
-            self.logger.warning("이벤트 유실 경고", cpu=cpu, lost_count=self.lost_count)
+        now = time.monotonic()
+        if now >= self._next_lost_log:
+            self._next_lost_log = now + self._log_cooldown_s
+            self.logger.warning(
+                "이벤트 유실 경고",
+                cpu=cpu,
+                lost_total=self.lost_count,
+            )
 
     def _enqueue_on_loop(self, ev: Any) -> None:
         """루프 스레드에서 호출되어 Queue에 넣는다 (가득 차면 드롭 카운트 증가)"""
@@ -175,8 +180,14 @@ class Collector:
             self.event_queue.put_nowait(ev)
         except asyncio.QueueFull:
             self.dropped_count += 1
-            if (self.dropped_count & 0xFF) == 1:
-                self.logger.warning("큐 가득참 경고", dropped_count=self.dropped_count)
+            now = time.monotonic()
+            if now >= self._next_drop_log:
+                self._next_drop_log = now + self._log_cooldown_s
+                self.logger.warning(
+                    "큐 가득참 경고",
+                    dropped_total=self.dropped_count,
+                    queue_maxsize=self.event_queue.maxsize,
+                )
 
     # -------- Internal: polling thread --------
 
@@ -216,6 +227,6 @@ class Collector:
             except Exception as e:
                 # running 상태에서만 오류 로그 (정지 중 예외는 무시)
                 if self.running_event.is_set():
-                    self.logger.error("폴링 오류", error=str(e), exc_info=True)
+                    self.logger.error("폴링 오류", exc_info=True)
                 break
         self.logger.info("폴링 루프 종료됨")

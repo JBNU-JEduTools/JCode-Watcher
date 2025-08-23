@@ -69,7 +69,7 @@ async def main():
                 queue.task_done()
 
             except Exception as e:
-                logger.error("파이프라인 변환 실패", error=str(e), exc_info=True)
+                logger.error("파이프라인 변환 실패", exc_info=True)
 
     except KeyboardInterrupt:
         logger.info("종료 신호 수신")

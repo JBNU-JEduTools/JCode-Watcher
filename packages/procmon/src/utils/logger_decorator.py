@@ -29,7 +29,6 @@ def general_activity_logger(logger, level: str = 'debug'):
                 except Exception as e:
                     logger.error("함수 실행 중 예외 발생", 
                                function=func.__name__, 
-                               error=str(e), 
                                input_data=repr(input_data),
                                exc_info=True)
                     return None
@@ -47,7 +46,6 @@ def general_activity_logger(logger, level: str = 'debug'):
                 except Exception as e:
                     logger.error("함수 실행 중 예외 발생", 
                                function=func.__name__, 
-                               error=str(e), 
                                input_data=repr(input_data),
                                exc_info=True)
                     return None
