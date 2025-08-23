@@ -69,6 +69,7 @@ class Pipeline:
                     process_type=str(process_type),
                     student_id=student_info.student_id,
                     binary_path=process.binary_path,
+                    args=process.args
                 )
                 return None
             # 필터링 3:
@@ -76,8 +77,9 @@ class Pipeline:
                 self.logger.info(
                     "이벤트 필터링: 과제 디렉터리 외부 파일 컴파일/실행",
                     process_type=str(process_type),
-                    source_file=source_file,
                     student_id=student_info.student_id,
+                    args=process.args,
+                    source_file=source_file,
                     binary_path=process.binary_path,
                 )
                 return None
@@ -88,6 +90,7 @@ class Pipeline:
                     "이벤트 필터링: 과제 디렉터리 외 프로세스",
                     process_type=str(process_type),
                     binary_path=process.binary_path,
+                    args=process.args
                 )
                 return None
 
