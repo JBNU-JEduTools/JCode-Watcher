@@ -1,6 +1,5 @@
-def main():
-    print("Hello from filemon!")
-
+import asyncio
+from src.main import main
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
