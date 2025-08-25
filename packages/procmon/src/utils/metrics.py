@@ -62,11 +62,15 @@ def loop_heartbeat_tick() -> None:
     """메인 asyncio 루프의 주기 코루틴에서 호출"""
     HB_LOOP_TS.set(time.time())
 
-# ===== 유니크 호스트 카운트 =====
-HOSTS_SEEN_TOTAL = Gauge(
-    "procmon_hosts_seen_total",
-    "지금까지 본 고유 호스트네임 수"
+# ===== 활성 호스트 추적 =====
+ACTIVE_HOSTS_CURRENT = Gauge(
+    "procmon_active_hosts_current",
+    "현재 활성 중인 호스트 수"
 )
+
+# TTL 기반 활성 호스트 관리
+ACTIVE_HOSTS = {}  # hostname -> last_activity_time
+TTL_SECONDS = 600  # 10분
 
 
 # ===== BPF 메트릭 헬퍼 함수 =====
@@ -107,8 +111,32 @@ def record_pipeline_duration(seconds: float) -> None:
     """파이프라인 처리 시간 기록"""
     PIPELINE_DURATION_SECONDS.observe(seconds)
 
+# ===== 활성 호스트 헬퍼 함수 =====
+def record_host_activity(hostname: str) -> None:
+    """컴파일/실행 이벤트 시 호스트 활동 기록"""
+    ACTIVE_HOSTS[hostname] = time.time()
+
+def get_active_hosts_count() -> int:
+    """TTL 기반 활성 호스트 수 계산"""
+    now = time.time()
+    return sum(1 for last_time in ACTIVE_HOSTS.values() 
+              if now - last_time <= TTL_SECONDS)
+
+def update_active_hosts_gauge() -> None:
+    """Prometheus Gauge 업데이트"""
+    ACTIVE_HOSTS_CURRENT.set(get_active_hosts_count())
+
 # ===== 하트비트 태스크 =====
 
+async def active_hosts_update_task(period_sec: float = 60.0):
+    """활성 호스트 수 업데이트 태스크"""
+    logger = get_logger("metrics")
+    while True:
+        try:
+            update_active_hosts_gauge()
+        except Exception:
+            logger.warning("활성 호스트 업데이트 실패", exc_info=True)
+        await asyncio.sleep(period_sec)
 
 async def loop_heartbeat_task(period_sec: float = 5.0):
     """메인 asyncio 루프의 하트비트 태스크"""

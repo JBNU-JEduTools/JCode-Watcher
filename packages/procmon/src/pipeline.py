@@ -10,7 +10,8 @@ from .utils.metrics import (
     record_pipeline_event_failure, 
     record_pipeline_event_filtered,
     record_pipeline_event_nontarget,
-    record_pipeline_duration
+    record_pipeline_duration,
+    record_host_activity
 )
 from .models.event import Event
 from .models.process import Process
@@ -63,6 +64,10 @@ class Pipeline:
             process_type, homework_dir, source_file = self._label_process(
                 process.binary_path, process.args, process.cwd
             )
+            
+            # 컴파일/실행 프로세스면 호스트 활동 기록
+            if process_type and process_type.is_active_work:
+                record_host_activity(process.hostname)
 
             # 필터링 1: 과제와 무관한 케이스들을 세분화하여 필터링
             if not process_type:

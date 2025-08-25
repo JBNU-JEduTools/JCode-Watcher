@@ -4,7 +4,7 @@ from typing import Any
 from prometheus_client import start_http_server
 
 from .utils.logger import setup_logging, get_logger
-from .utils.metrics import loop_heartbeat_task, update_queue_size
+from .utils.metrics import loop_heartbeat_task, update_queue_size, active_hosts_update_task
 from .collector import Collector
 from .pipeline import Pipeline
 from .sender import EventSender
@@ -55,6 +55,9 @@ async def main():
 
     # 하트비트 태스크 시작
     heartbeat_task = asyncio.create_task(loop_heartbeat_task())
+    
+    # 활성 호스트 업데이트 태스크 시작
+    active_hosts_task = asyncio.create_task(active_hosts_update_task())
 
     try:
         logger.info("파이프라인 시작")
@@ -89,6 +92,15 @@ async def main():
             pass
         except Exception:
             logger.warning("하트비트 태스크 정리 중 오류", exc_info=True)
+        
+        # 활성 호스트 태스크 정리
+        try:
+            active_hosts_task.cancel()
+            await active_hosts_task
+        except asyncio.CancelledError:
+            pass
+        except Exception:
+            logger.warning("활성 호스트 태스크 정리 중 오류", exc_info=True)
         
         if collector:
             collector.stop()

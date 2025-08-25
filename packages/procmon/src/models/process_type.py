@@ -44,3 +44,14 @@ class ProcessType(Enum):
             ProcessType.CLANG,
             ProcessType.PYTHON,
         )
+
+    @property
+    def is_active_work(self) -> bool:
+        """활성 작업(컴파일/실행) 프로세스 여부 - 호스트 활동 추적용"""
+        return self in (
+            ProcessType.GCC,
+            ProcessType.CLANG,
+            ProcessType.GPP,
+            ProcessType.PYTHON,
+            ProcessType.USER_BINARY,
+        )
