@@ -72,7 +72,8 @@ class Pipeline:
                     args=process.args
                 )
                 return None
-            # 필터링 3:
+            
+            # 필터링 3: 과제 디렉터리 외부
             if process_type.requires_target_file and source_file and (not homework_dir):
                 self.logger.info(
                     "이벤트 필터링: 과제 디렉터리 외부 파일 컴파일/실행",
@@ -84,8 +85,8 @@ class Pipeline:
                 )
                 return None
 
-            # 필터링 4: 타깃 파일 불필요(시스템 유틸 등) + 과제 디렉토리 미매칭
-            if not homework_dir:
+            # 필터링 4: 타깃 파일 불필요(유저바이너리) + 과제 디렉토리 미매칭
+            if process_type.is_user_binary and not homework_dir:
                 self.logger.info(
                     "이벤트 필터링: 과제 디렉터리 외 프로세스",
                     process_type=str(process_type),

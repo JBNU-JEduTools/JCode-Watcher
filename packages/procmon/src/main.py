@@ -64,7 +64,7 @@ async def main():
             await asyncio.sleep(period_sec)
 
     # 하트비트 태스크 시작
-    hb_task = asyncio.create_task(loop_heartbeat_task())
+    heartbeat_task = asyncio.create_task(loop_heartbeat_task())
 
     try:
         logger.info("파이프라인 시작")
@@ -90,8 +90,8 @@ async def main():
         
         # 하트비트 태스크 정리
         try:
-            hb_task.cancel()
-            await hb_task
+            heartbeat_task.cancel()
+            await heartbeat_task
         except asyncio.CancelledError:
             pass
         except Exception:
