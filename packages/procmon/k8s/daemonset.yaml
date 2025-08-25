@@ -21,14 +21,18 @@ spec:
         - name: http-metrics
           containerPort: 3000
         env:
-        - name: API_ENDPOINT
-          value: "http://watcher-backend-service.watcher.svc.cluster.local:3000"  # API 서비스 엔드포인트
+        - name: PYTHONUNBUFFERED
+          value: "1"
         - name: LOG_LEVEL
-          value: "INFO"  # 로그 레벨 설정
+          value: "DEBUG"  # docker-compose와 일치
+        - name: API_SERVER
+          value: "http://watcher-backend-service.watcher.svc.cluster.local:8000"  # settings.py와 일치
+        - name: METRICS_PORT
+          value: "3000"
         securityContext:
           capabilities:
             drop: ["ALL"]
-            add: ["SYS_ADMIN", "SYS_PTRACE"]  # 필요한 capabilities만 추가
+            add: ["SYS_ADMIN"]  # docker-compose와 일치
         volumeMounts:
         - name: kernel-modules
           mountPath: /lib/modules
@@ -39,6 +43,8 @@ spec:
         - name: kernel-debug
           mountPath: /sys/kernel/debug
           readOnly: true
+        - name: logs
+          mountPath: /app/logs
       imagePullSecrets:
       - name: watcher-harbor-registry-secret
       volumes:
@@ -54,42 +60,6 @@ spec:
         hostPath:
           path: /sys/kernel/debug
           type: Directory
-
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: watcher-procmon
-  namespace: watcher
-  labels:
-    app: watcher-procmon
-spec:
-  selector:
-    app: watcher-procmon
-  ports:
-  - name: http-metrics
-    port: 3000
-    targetPort: 3000
-    protocol: TCP
-  type: ClusterIP
----
-apiVersion: monitoring.coreos.com/v1
-kind: ServiceMonitor
-metadata:
-  name: watcher-procmon-monitor
-  namespace: watcher
-  labels:
-    app: watcher-procmon
-    release: prometheus
-spec:
-  selector:
-    matchLabels:
-      app: watcher-procmon
-  namespaceSelector:
-    matchNames:
-      - watcher
-  endpoints:
-    - port: http-metrics
-      path: /metrics
-      interval: 30s
-
+      - name: logs
+        persistentVolumeClaim:
+          claimName: watcher-procmon-logs-pvc
