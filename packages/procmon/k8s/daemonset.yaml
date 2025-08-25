@@ -25,6 +25,10 @@ spec:
           value: "DEBUG"  # docker-compose와 일치
         - name: API_SERVER
           value: "http://watcher-backend-service.watcher.svc.cluster.local:3000"  # settings.py와 일치
+        - name: MY_NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
         securityContext:
           capabilities:
             drop: ["ALL"]
