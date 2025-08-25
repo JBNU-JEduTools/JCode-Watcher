@@ -4,7 +4,7 @@ from typing import Any
 from prometheus_client import start_http_server
 
 from .utils.logger import setup_logging, get_logger
-from .utils.metrics import loop_heartbeat_tick
+from .utils.metrics import loop_heartbeat_task, update_queue_size
 from .collector import Collector
 from .pipeline import Pipeline
 from .sender import EventSender
@@ -53,16 +53,6 @@ async def main():
     student_parser = StudentParser()
     pipeline = Pipeline(classifier, path_parser, file_parser, student_parser)
 
-    async def loop_heartbeat_task(period_sec: float = 5.0):
-        """메인 asyncio 루프의 하트비트 태스크"""
-        while True:
-            try:
-                # 루프가 막히면 이 코루틴도 실행되지 않음 → 탐지 신호
-                loop_heartbeat_tick()
-            except Exception:
-                logger.warning("루프 하트비트 갱신 실패", exc_info=True)
-            await asyncio.sleep(period_sec)
-
     # 하트비트 태스크 시작
     heartbeat_task = asyncio.create_task(loop_heartbeat_task())
 
@@ -71,6 +61,9 @@ async def main():
 
         while True:
             try:
+                # 큐 사이즈 메트릭 업데이트
+                update_queue_size(queue.qsize())
+                
                 # 큐에서 ProcessStruct 데이터 가져오기
                 process_struct = await queue.get()
                 # ProcessStruct → Event 변환

@@ -9,7 +9,7 @@ from typing import Optional, Any
 from bcc import BPF
 from .models import ProcessStruct
 from .utils.logger import get_logger
-from .utils.metrics import poll_heartbeat_tick
+from .utils.metrics import poll_heartbeat_tick, record_bpf_event_collected, record_bpf_events_lost, record_queue_event_dropped
 
 
 class Collector:
@@ -158,6 +158,8 @@ class Collector:
         """BPF 이벤트 콜백: 커널 구조체 → Process → asyncio.Queue put"""
         try:
             raw_struct = ctypes.cast(data, ctypes.POINTER(ProcessStruct)).contents
+            # BPF 이벤트 수집 메트릭 기록
+            record_bpf_event_collected()
             # asyncio 루프 스레드에서 안전하게 enqueue
             self.loop.call_soon_threadsafe(self._enqueue_on_loop, raw_struct)
         except Exception as e:
@@ -165,7 +167,11 @@ class Collector:
 
     def _lost_callback(self, cpu: int, lost: int) -> None:
         """BCC가 보고하는 유실 이벤트 카운터 콜백"""
-        self.lost_count += int(lost)
+        lost_count = int(lost)
+        self.lost_count += lost_count
+        # BPF 이벤트 유실 메트릭 기록
+        record_bpf_events_lost(lost_count)
+        
         now = time.monotonic()
         if now >= self._next_lost_log:
             self._next_lost_log = now + self._log_cooldown_s
@@ -181,6 +187,9 @@ class Collector:
             self.event_queue.put_nowait(ev)
         except asyncio.QueueFull:
             self.dropped_count += 1
+            # 큐 가득참 이벤트 드롭 메트릭 기록
+            record_queue_event_dropped()
+            
             now = time.monotonic()
             if now >= self._next_drop_log:
                 self._next_drop_log = now + self._log_cooldown_s

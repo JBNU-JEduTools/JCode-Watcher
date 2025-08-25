@@ -1,5 +1,7 @@
 from prometheus_client import Counter, Histogram, Gauge
 import time
+import asyncio
+from .logger import get_logger
 
 # ===== 파이프라인 =====
 PIPELINE_EVENTS_TOTAL = Counter(
@@ -65,3 +67,35 @@ HOSTS_SEEN_TOTAL = Gauge(
     "procmon_hosts_seen_total",
     "지금까지 본 고유 호스트네임 수"
 )
+
+
+# ===== BPF 메트릭 헬퍼 함수 =====
+def record_bpf_event_collected() -> None:
+    """BPF 이벤트 수집 시 호출"""
+    BPF_EVENTS_COLLECTED_TOTAL.inc()
+
+def record_bpf_events_lost(count: int) -> None:
+    """BPF 이벤트 유실 시 호출"""
+    BPF_EVENTS_LOST_TOTAL.inc(count)
+
+def record_queue_event_dropped() -> None:
+    """큐 가득참으로 이벤트 드롭 시 호출"""
+    QUEUE_EVENTS_DROPPED_TOTAL.inc()
+
+def update_queue_size(size: int) -> None:
+    """현재 큐 사이즈 업데이트"""
+    QUEUE_SIZE_CURRENT.set(size)
+
+# ===== 하트비트 태스크 =====
+
+
+async def loop_heartbeat_task(period_sec: float = 5.0):
+    """메인 asyncio 루프의 하트비트 태스크"""
+    logger = get_logger("metrics")
+    while True:
+        try:
+            # 루프가 막히면 이 코루틴도 실행되지 않음 → 탐지 신호
+            loop_heartbeat_tick()
+        except Exception:
+            logger.warning("루프 하트비트 갱신 실패", exc_info=True)
+        await asyncio.sleep(period_sec)
