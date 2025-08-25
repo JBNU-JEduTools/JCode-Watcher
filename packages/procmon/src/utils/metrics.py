@@ -7,7 +7,7 @@ from .logger import get_logger
 PIPELINE_EVENTS_TOTAL = Counter(
     "pipeline_events_total",
     "파이프라인에서 처리된 총 이벤트 수",
-    ["result"],  # success, failure, filtered
+    ["result"],  # success, failure, filtered, nontarget
 )
 
 PIPELINE_DURATION_SECONDS = Histogram(
@@ -85,6 +85,27 @@ def record_queue_event_dropped() -> None:
 def update_queue_size(size: int) -> None:
     """현재 큐 사이즈 업데이트"""
     QUEUE_SIZE_CURRENT.set(size)
+
+# ===== 파이프라인 메트릭 헬퍼 함수 =====
+def record_pipeline_event_success() -> None:
+    """파이프라인에서 이벤트 성공 처리 시 호출"""
+    PIPELINE_EVENTS_TOTAL.labels(result="success").inc()
+
+def record_pipeline_event_failure() -> None:
+    """파이프라인에서 이벤트 처리 실패 시 호출"""
+    PIPELINE_EVENTS_TOTAL.labels(result="failure").inc()
+
+def record_pipeline_event_filtered() -> None:
+    """파이프라인에서 이벤트 필터링 시 호출"""
+    PIPELINE_EVENTS_TOTAL.labels(result="filtered").inc()
+
+def record_pipeline_event_nontarget() -> None:
+    """비대상 프로세스 이벤트 처리 시 호출"""
+    PIPELINE_EVENTS_TOTAL.labels(result="nontarget").inc()
+
+def record_pipeline_duration(seconds: float) -> None:
+    """파이프라인 처리 시간 기록"""
+    PIPELINE_DURATION_SECONDS.observe(seconds)
 
 # ===== 하트비트 태스크 =====
 

@@ -1,9 +1,17 @@
 import os
+import time
 from .utils.logger import get_logger
 from datetime import datetime
 from typing import Optional, Tuple, List
 import traceback
 import structlog.contextvars as ctx
+from .utils.metrics import (
+    record_pipeline_event_success,
+    record_pipeline_event_failure, 
+    record_pipeline_event_filtered,
+    record_pipeline_event_nontarget,
+    record_pipeline_duration
+)
 from .models.event import Event
 from .models.process import Process
 from .models.process_struct import ProcessStruct
@@ -32,7 +40,9 @@ class Pipeline:
 
     async def pipeline(self, process_struct) -> Optional[Event]:
         """ProcessStruct를 Event로 변환"""
-
+        
+        start_time = time.time()
+        
         try:
             current_timestamp = datetime.now()
             # 구조체 클래스 변환
@@ -60,6 +70,7 @@ class Pipeline:
                     "이벤트 필터링: 비 대상 프로세스",
                     binary_path=process.binary_path,
                 )
+                record_pipeline_event_nontarget()
                 return None
 
             # 필터링 2: 타깃 파일 필요 + 소스 누락
@@ -71,6 +82,7 @@ class Pipeline:
                     binary_path=process.binary_path,
                     args=process.args
                 )
+                record_pipeline_event_filtered()
                 return None
             
             # 필터링 3: 과제 디렉터리 외부
@@ -83,6 +95,7 @@ class Pipeline:
                     source_file=source_file,
                     binary_path=process.binary_path,
                 )
+                record_pipeline_event_filtered()
                 return None
 
             # 필터링 4: 타깃 파일 불필요(유저바이너리) + 과제 디렉토리 미매칭
@@ -93,6 +106,7 @@ class Pipeline:
                     binary_path=process.binary_path,
                     args=process.args
                 )
+                record_pipeline_event_filtered()
                 return None
 
             # 소스파일 절대경로 변환
@@ -121,14 +135,20 @@ class Pipeline:
                 student_id=student_info.student_id,
                 source_file=absolute_source_file,
             )
-
+            
+            # 성공 메트릭 기록
+            record_pipeline_event_success()
             return event
 
         except Exception:
             self.logger.error("이벤트 변환 실패", exc_info=True)
+            record_pipeline_event_failure()
             return None
 
         finally:
+            # 처리 시간 기록
+            duration = time.time() - start_time
+            record_pipeline_duration(duration)
             ctx.clear_contextvars()
 
     def _label_process(
