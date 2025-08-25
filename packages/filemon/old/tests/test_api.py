@@ -2,7 +2,7 @@ import pytest
 import aiohttp
 import asyncio
 from aioresponses import aioresponses
-from src.core.api import APIClient
+from old.core.api import APIClient
 
 @pytest.fixture
 def api_client():

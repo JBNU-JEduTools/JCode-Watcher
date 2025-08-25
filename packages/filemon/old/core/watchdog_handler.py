@@ -4,14 +4,14 @@ import re
 from pathlib import Path
 from datetime import datetime
 from dataclasses import dataclass
-from src.utils.logger import get_logger
+from old.utils.logger import get_logger
 from watchdog.events import RegexMatchingEventHandler, FileSystemEvent
-from src.config.settings import (
+from old.config.settings import (
     MAX_FILE_SIZE,
     SOURCE_PATTERNS,
     IGNORE_PATTERNS
 )
-from src.core.path_info import PathInfo
+from old.core.path_info import PathInfo
 
 # 모듈 레벨 로거 설정
 logger = get_logger(__name__)

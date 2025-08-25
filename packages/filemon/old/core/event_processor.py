@@ -1,11 +1,11 @@
 import asyncio
 from pathlib import Path
-from src.core.api import APIClient
-from src.core.snapshot import SnapshotManager
-from src.core.path_info import PathInfo
-from src.utils.logger import get_logger, set_file_context, clear_file_context
+from old.core.api import APIClient
+from old.core.snapshot import SnapshotManager
+from old.core.path_info import PathInfo
+from old.utils.logger import get_logger, set_file_context, clear_file_context
 from dataclasses import dataclass
-from src.core.watchdog_handler import WatcherEvent
+from old.core.watchdog_handler import WatcherEvent
 
 logger = get_logger(__name__)
 

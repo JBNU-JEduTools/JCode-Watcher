@@ -5,9 +5,9 @@ import shutil
 from unittest.mock import Mock, patch
 from pathlib import Path
 from datetime import datetime
-from src.core.event_processor import EventProcessor, StudentEventHandler
-from src.core.watchdog_handler import WatcherEvent
-from src.core.path_info import PathInfo
+from old.core.event_processor import EventProcessor, StudentEventHandler
+from old.core.watchdog_handler import WatcherEvent
+from old.core.path_info import PathInfo
 
 @pytest.fixture
 def temp_dir(tmp_path):

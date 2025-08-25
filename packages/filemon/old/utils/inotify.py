@@ -1,6 +1,6 @@
 """inotify 관련 유틸리티 함수"""
 import os
-from src.utils.logger import get_logger
+from old.utils.logger import get_logger
 
 logger = get_logger(__name__)
 

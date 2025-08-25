@@ -1,19 +1,19 @@
 import asyncio
 from watchdog.observers import Observer
 from pathlib import Path
-from src.core.watchdog_handler import WatchdogHandler
-from src.core.snapshot import SnapshotManager
-from src.core.api import APIClient
-from src.core.event_processor import EventProcessor
-from src.metrics.prometheus import MetricsManager
-from src.config.settings import (
+from old.core.watchdog_handler import WatchdogHandler
+from old.core.snapshot import SnapshotManager
+from old.core.api import APIClient
+from old.core.event_processor import EventProcessor
+from old.metrics.prometheus import MetricsManager
+from old.config.settings import (
     WATCH_PATH,
     SNAPSHOT_DIR,
     API_URL
 )
-from src.core.path_info import PathInfo
-from src.utils.logger import get_logger
-from src.utils.inotify import log_inotify_status
+from old.core.path_info import PathInfo
+from old.utils.logger import get_logger
+from old.utils.inotify import log_inotify_status
 
 logger = get_logger(__name__)
 

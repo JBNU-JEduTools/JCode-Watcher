@@ -1,4 +1,4 @@
-from src.utils.logger import get_logger
+from old.utils.logger import get_logger
 import aiohttp
 from typing import Optional
 from pathlib import Path

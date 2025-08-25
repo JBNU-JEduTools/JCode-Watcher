@@ -3,7 +3,7 @@ import os
 import shutil
 from pathlib import Path
 from datetime import datetime
-from src.core.snapshot import SnapshotManager
+from old.core.snapshot import SnapshotManager
 
 @pytest.fixture
 def temp_dir(tmp_path):

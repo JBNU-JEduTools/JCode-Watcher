@@ -1,6 +1,6 @@
 from prometheus_client import start_http_server
-from src.utils.logger import get_logger
-from src.config.settings import METRICS_PORT
+from old.utils.logger import get_logger
+from old.config.settings import METRICS_PORT
 import threading
 
 logger = get_logger(__name__)

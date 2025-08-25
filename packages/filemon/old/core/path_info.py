@@ -1,7 +1,7 @@
 from pathlib import Path
 from dataclasses import dataclass
 from typing import Optional
-from src.utils.logger import get_logger
+from old.utils.logger import get_logger
 
 # 모듈 레벨 로거 설정
 logger = get_logger(__name__)

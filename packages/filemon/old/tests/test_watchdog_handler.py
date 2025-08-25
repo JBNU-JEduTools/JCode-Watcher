@@ -6,8 +6,8 @@ import shutil
 from pathlib import Path
 from datetime import datetime
 from watchdog.events import FileModifiedEvent, FileDeletedEvent, FileMovedEvent
-from src.core.watchdog_handler import WatchdogHandler, WatcherEvent
-from src.config.settings import SOURCE_PATTERNS, IGNORE_PATTERNS, MAX_FILE_SIZE
+from old.core.watchdog_handler import WatchdogHandler, WatcherEvent
+from old.config.settings import SOURCE_PATTERNS, IGNORE_PATTERNS, MAX_FILE_SIZE
 
 def check_path_pattern(path: str) -> bool:
     """주어진 경로가 허용된 패턴과 일치하는지 테스트합니다."""

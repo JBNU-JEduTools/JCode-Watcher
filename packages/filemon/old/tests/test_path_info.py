@@ -1,6 +1,6 @@
 import pytest
 from pathlib import Path
-from src.core.path_info import PathInfo
+from old.core.path_info import PathInfo
 
 def test_from_source_path_basic():
     """기본적인 경로 파싱 테스트"""

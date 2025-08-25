@@ -4,7 +4,7 @@ from pathlib import Path
 from datetime import datetime
 import aiofiles
 from typing import Optional
-from src.utils.logger import get_logger
+from old.utils.logger import get_logger
 from .path_info import PathInfo
 
 # 모듈 레벨 로거 설정
