@@ -266,7 +266,7 @@ struct data_t {
 
 `bpf_printk`의 출력 결과는 표준 출력으로 표시되지 않으며, 커널의 trace_pipe를 통해 확인해야 합니다. `sudo cat /sys/kernel/debug/tracing/trace_pipe` 명령어로 실시간 출력을 확인할 수 있습니다.
 
-### 배포 및 컨테이너화
+#### 배포 및 컨테이너화
 
 프로젝트의 핵심 도구인 `python3-bpfcc`는 시스템의 커널 버전에 의존성이 높아 일반적인 Python 패키지 매니저(uv)로 관리하기 어렵습니다. 따라서 `apt`와 같은 시스템 패키지 매니저를 통해 설치해야 합니다.
 
@@ -279,3 +279,6 @@ watcher-procmon은 컨테이너로 배포되지만 호스트의 커널 데이터
       - /lib/modules:/lib/modules:ro
       - /usr/src:/usr/src:ro
 ```
+
+컨테이너가 호스트 수준의 PID 네임스페이스를 그대로 사용하도록 pid: host 옵션을 지정합니다. 이를 통해 컨테이너 내부에서 관찰되는 PID가 호스트와 동일하게 매핑되어, 프로세스 식별이 일관되게 유지됩니다.
+마지막으로, 컨테이너 실행시 SYS_ADMIN를 추가(cap_add: [SYS_ADMIN])하여 eBPF 프로그램을 로딩할 수 있게 합니다.
