@@ -1,13 +1,11 @@
 from pathlib import Path
-from src.models.source_file_info import SourceFileInfo
+from app.models.source_file_info import SourceFileInfo
+from app.config.settings import settings
 
 class SourceFileParser:
     """
     소스 파일 경로를 파싱하고 스냅샷 경로를 생성하는 클래스
     """
-    BASE_PATH = Path('/watcher/codes')
-    SNAPSHOT_BASE = Path('/watcher/snapshots')
-
     def parse(self, source_path: str | Path) -> SourceFileInfo:
         """
         소스 파일 경로로부터 SourceFileInfo 객체 생성
@@ -23,7 +21,7 @@ class SourceFileParser:
         """
         source = Path(source_path)
         try:
-            relative_path = source.relative_to(self.BASE_PATH)
+            relative_path = source.relative_to(settings.BASE_PATH)
             path_parts = relative_path.parts
             
             # 과목-분반과 학번 분리 (os-1-202012180 형식)
@@ -51,7 +49,7 @@ class SourceFileParser:
 
     def get_snapshot_dir(self, path_info: SourceFileInfo) -> Path:
         """스냅샷 디렉토리 경로 생성"""
-        return (self.SNAPSHOT_BASE / 
+        return (settings.SNAPSHOT_BASE / 
                 path_info.class_div / 
                 path_info.hw_name / 
                 path_info.student_id /

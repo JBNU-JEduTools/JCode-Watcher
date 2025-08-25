@@ -1,6 +1,15 @@
 import pytest
 from pathlib import Path
-from src.parser import SourceFileParser
+from unittest.mock import MagicMock
+from app.parser import SourceFileParser
+
+@pytest.fixture(autouse=True)
+def mock_settings(mocker):
+    """모든 테스트에 대해 자동으로 settings 모듈을 모킹합니다."""
+    settings = MagicMock()
+    settings.BASE_PATH = Path('/watcher/codes')
+    settings.SNAPSHOT_BASE = Path('/watcher/snapshots')
+    mocker.patch('app.parser.settings', settings)
 
 @pytest.fixture
 def parser():
