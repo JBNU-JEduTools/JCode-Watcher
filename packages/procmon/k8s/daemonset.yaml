@@ -15,20 +15,16 @@ spec:
       hostPID: true  # 호스트 PID 네임스페이스 접근
       containers:
       - name: watcher-procmon
-        image: harbor.jbnu.ac.kr/jdevops/watcher-procmon:20250729-1
+        image: harbor.jbnu.ac.kr/jdevops/watcher-procmon:latest
         imagePullPolicy: IfNotPresent  # 로컬 이미지 사용
         ports:
         - name: http-metrics
           containerPort: 3000
         env:
-        - name: PYTHONUNBUFFERED
-          value: "1"
         - name: LOG_LEVEL
           value: "DEBUG"  # docker-compose와 일치
         - name: API_SERVER
-          value: "http://watcher-backend-service.watcher.svc.cluster.local:8000"  # settings.py와 일치
-        - name: METRICS_PORT
-          value: "3000"
+          value: "http://watcher-backend-service.watcher.svc.cluster.local:3000"  # settings.py와 일치
         securityContext:
           capabilities:
             drop: ["ALL"]
