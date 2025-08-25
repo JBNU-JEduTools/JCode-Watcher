@@ -31,7 +31,7 @@ class EventSender:
                 return False
 
         except Exception as e:
-            self.logger.error("이벤트 전송 실패", error=repr(e))
+            self.logger.error("이벤트 전송 실패", exc_info=True)
             return False
 
     def _validate_event(self, event: Event) -> bool:
@@ -101,5 +101,5 @@ class EventSender:
                     return True
 
         except Exception as e:
-            self.logger.error("HTTP 요청 실패", endpoint=endpoint, error=repr(e))
+            self.logger.error("HTTP 요청 실패", endpoint=endpoint, exc_info=True)
             return False

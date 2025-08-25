@@ -93,7 +93,7 @@ class Collector:
                 try:
                     self.bpf.cleanup()  # type: ignore[attr-defined]
                 except Exception as e:
-                    self.logger.warning("BPF 정리 오류", error=str(e))
+                    self.logger.warning("BPF 정리 오류", exc_info=True)
             self.logger.info(
                 "수집기 중지 완료",
                 dropped_count=self.dropped_count,
