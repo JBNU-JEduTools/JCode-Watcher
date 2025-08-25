@@ -151,7 +151,7 @@ Watcher Procmon은 eBPF(Extended Berkeley Packet Filter)를 사용하여 리눅�
 
 ## 6. 개발 가이드 
 
-### 유저랜드(파이썬)
+### 유저랜드(Python)
 
 `src/` 디렉토리 내의 주요 컴포넌트들은 다음과 같습니다:
 
@@ -170,15 +170,39 @@ Watcher Procmon은 eBPF(Extended Berkeley Packet Filter)를 사용하여 리눅�
     -   `student_info.py`: 학생 정보 데이터 구조.
 
 
-### 커널랜드(bpf)
-eBPF를 시작하기전에 chatgpt 및 공식문서등을 통해 eBPF의 **제약**에 대해 상세하게 알아보세요. 크기 제한 및 verifier를 통과하기 위해서 몇가지 트릭들이 사용됩니다.
+### 커널랜드(eBPF)
+
+eBPF 개발을 시작하기 전, ChatGPT 또는 공식 문서 등을 통해 eBPF의 **제약 사항**을 확인하세요. 스택 크기 제한과 Verifier의 검증을 통과하기 위해 몇가지 트릭들이 사용됩니다.
 
 #### 가벼운 실행
-bpf에 대한 수정은 프로덕션 프로젝트에서 직접 적용하고 수정하기 까다롭습니다.
-간단한 파이썬 프로젝트를 생성하고 `apt install python3-bpfcc`로 의존성을 설치한 후 다음과 같은 파이썬 코드로 부터 시작하세요. 점차 테스트하고 완성하여 기존 프로젝트에 c코드를 붙여넣기 하세요.
 
-```
-# bpf_text는 기존처럼 파일로 읽거나 아니면 python코드에 string으로 정의해도 됩니다.
+BPF 프로그램은 프로덕션 환경에 직접 적용하고 수정하기에 복잡성이 따릅니다. 따라서 독립된 Python 프로젝트에서 `apt install python3-bpfcc`로 의존성을 설치하고 아래와 같은 최소 기능 코드로 개발을 시작하는 것을 권장합니다. 점진적인 테스트를 통해 프로그램을 완성한 후, 기존 프로젝트에 통합하는 방식이 효율적입니다.
+
+```python
+from bcc import BPF
+import json
+import sys
+
+bpf_text='''#include <uapi/linux/ptrace.h>
+
+struct data_t {
+    u32 pid;
+};
+
+BPF_PERF_OUTPUT(events);
+
+int trace_exec(struct tracepoint__sched__sched_process_exec *ctx) {
+    struct data_t data = {};
+
+    // 현재 실행 중인 task의 PID 추출
+    data.pid = bpf_get_current_pid_tgid() >> 32;
+
+    // user-space로 전송
+    events.perf_submit(ctx, &data, sizeof(data));
+
+    return 0;
+}'''
+
 b = BPF(text=bpf_text)
 b.attach_tracepoint(tp="sched:sched_process_exec", fn_name="trace_exec")
 
@@ -186,8 +210,6 @@ def print_event(cpu, data, size):
     event = b["events"].event(data)
     output = {
         "pid": event.pid,
-        "command": event.comm.decode('utf-8').rstrip('\x00'),
-        "container_id": event.container_id.decode('utf-8').rstrip('\x00')
     }
     print(json.dumps(output))
 
@@ -201,10 +223,11 @@ while True:
         break
 ```
 
-#### 데이터구조
+#### 데이터 구조
 
-watcher-procmon에서 다루는 주요 데이터는 다음과같습니다. 이는 eBPF의 프로그램 스택 크기 제한을 우회하기 위함입니다. 대충 봐도 eBPF의 제한인 512B 를 훨씬 넘습니다. 
-```
+watcher-procmon에서 사용하는 주요 데이터 구조는 다음과 같습니다. 이 구조체는 eBPF의 스택 크기 제한(512B)을 초과하므로, 이를 우회하기 위한 설계가 적용되었습니다.
+
+```c
 struct data_t {
     u32 pid;
     u32 error_flags;
@@ -218,56 +241,41 @@ struct data_t {
     int exit_code;
 };
 ```
-이는 BPF_PERCPU_ARRAY(tmp_array, struct data_t, 1);를 활용해 512B제한보다 더 큰 공간을 먼저 마련하고 필요한 데이터를 획득할때마다 이곳에 데이터를 복사하여 넣는 식으로 프로그램을 운영합니다.
 
+이는 `BPF_PERCPU_ARRAY`를 활용해 512B보다 큰 임시 저장 공간을 확보하고, 필요한 데이터를 수집할 때마다 이 공간에 순차적으로 복사하는 방식으로 동작합니다.
 
 #### 핸들러 정의
-현재 bpf는 총 4개의 handler(bpf 프로그램)이 tailcall로 이어진 형태입니다. 이또한 ebpf의 스택 제한인 512B을 우회하고, 핸들러 분할을 통해서 verifier를 더 쉽게 통과하기 위함입니다.
 
-bpf에 각 4가지의 핸들러를 정의한후 프로세스가 시작되는 타이밍(sched:sched_process_exec)에 init핸들러를 실행합니다. bcc를 이용해 정의한 테일콜에 의해서 각 핸들러가 순차적으로 실행됩니다.
+현재 BPF 프로그램은 총 네 개의 핸들러(BPF 프로그램)가 Tail Call로 연결된 구조입니다. 이러한 핸들러 분할 방식은 eBPF의 스택 제한을 우회하고, 각 핸들러의 복잡도를 낮춰 Verifier의 검증을 용이하게 하는 목적을 가집니다.
 
-// 첫 번째 핸들러: 호스트네임 검증 및 PID 설정
-// 두 번째 핸들러: 바이너리 경로 수집
-// 세 번째 핸들러: CWD 수집
-// 네 번째 핸들러: 명령줄 인수 수집
+프로세스 생성 이벤트(sched:sched_process_exec)가 발생하면 첫 번째 핸들러가 실행되고, 이후 BCC 라이브러리를 통해 설정된 Tail Call에 의해 나머지 핸들러들이 순차적으로 호출됩니다. 이 흐름에서 첫 번째 핸들러는 호스트네임을 검증하고 PID를 설정하며, 두 번째 핸들러는 실행된 바이너리 경로를 수집합니다. 이어서 세 번째 핸들러가 현재 작업 디렉터리(CWD)를 수집하고, 마지막 네 번째 핸들러가 명령줄 인수를 수집합니다.
 
-각 핸들러는 데이터를 모아서 `BPF_HASH(process_data, u32, struct data_t);`에 pid를 키로하여 데이터를 저장합니다. 호스트는 프로세스당 고유의 pid하나를 할당하므로 어떤 컨테이너에서든 실행하더라도 항상 식별가능합니다. 프로세스가 종료되는 타이밍(sched_process_exit)에는 exit handler를 통해서 pid를 얻고 hash에 접근하여 저장된 데이터와 exit코드를 가지고 유저랜드에 반환합니다.
+각 핸들러는 이렇게 수집한 데이터를 BPF_HASH(process_data, u32, struct data_t)에 PID를 키로 하여 저장합니다. 리눅스에서 호스트는 프로세스당 고유의 PID를 하나씩만 할당하므로, 어떤 컨테이너에서 실행되더라도 PID는 항상 유일하게 식별 가능합니다. 또한 프로세스가 종료되는 sched_process_exit 시점에는 exit 핸들러가 해당 프로세스의 PID를 얻어 BPF_HASH에서 데이터를 조회하고, 이 데이터를 종료 코드와 함께 유저랜드로 전송합니다.
 
 #### 디렉터리 경로 재구성
 
-각 핸들러는 ctx를 통해서 현재 프로세스의 컨텍스트를 얻습니다. 컨텍스트로부터 PID를 획득할수있고
-PID를 통해서 task struct를 얻습니다. task struct는 리눅스의 프로세스 제어 블록(PCB)입니다.
-procmon에서 필요한 데이터는 모두 이 task_struct를 통해 획득합니다.
-get_dentry_path라는 인라인 함수는 경로를 재구성하기 위한 함수입니다. 
-현재 프로세스의 CWD가 /home/ubuntu/workspace라면 dentry를 획득하면 workspace라는 문자열과 상위 디렉터리인 ubuntu를 가르키는 연결리스트 구성입니다. 이 경로는 char배열의 마지막 요소부터 채워넣습니다.
-이는 ebpf에서 쉽게 verifier에 통과하기 위한 전략입니다. buf는 충분히 여유로운 크기이기때문에 경로가 완성되면 ['\0', '\0', .... '/', 'h','o','m','e' ...] 과 같은 배열일것입니다.
-파이썬은 항상 ctypes를 기반으로 데이터를 읽기때문에 '\0'을 만나면 문자열의 끝이라 고생각하고 더이상 글자를 읽지 않습니다. 우리는 이를 문자열이라 생각하지 않고 char배열이라고 생각합니다. 파이썬에서는 
-`bytes(struct.binary_path[struct.binary_path_offset :])`와 같은 코드로 배열을 슬라이싱하여 첫번째 문자에서 앞의 널문자를 제거합니다.
+`get_dentry_path` 인라인 함수는 dentry 구조체를 순회하며 파일 경로를 재구성하는 역할을 합니다. 예를 들어 현재 CWD가 `/home/ubuntu/workspace`일 경우, dentry는 'workspace'라는 이름과 상위 디렉터리('ubuntu')의 dentry를 가리키는 포인터로 구성됩니다.
+
+이 함수는 경로를 재구성할 때, 제공된 char 배열의 끝에서부터 문자를 채워나가는 방식을 사용합니다. 이는 Verifier의 검증을 통과하기 위한 eBPF의 일반적인 기법 중 하나입니다. 경로 재구성이 완료된 버퍼는 `['\0', '\0', ..., '/', 'h', 'o', 'm', 'e', ...]`와 같은 형태를 가집니다.
+
+유저랜드의 Python 코드는 ctypes를 통해 이 데이터를 읽는데, 선행하는 NULL 문자(`\0`) 때문에 일반적인 문자열 처리 방식으로는 전체 경로를 읽을 수 없습니다. 따라서 이를 char 배열로 간주하고, `bytes(struct.binary_path[struct.binary_path_offset :])`와 같이 실제 경로가 시작되는 offset부터 슬라이싱하여 올바른 경로 문자열을 얻습니다.
 
 #### 커널 안에서 print
-아무리 수집한 데이터를 파이썬에서 출력해도 원인을 찾지 못하는경우가 있습니다.
-커널에서 프린트하는 방법은 bpf_printk(또는 bpf_trace_printk) 함수를 활용해야합니다. 이또한 eBPF의 제약안에 있으므로, 컴파일타임에 고정되는 상수여야합니다.
-bpf_printk()의 결과는 터미널에 바로 출력되지 않습니다. 커널 trace_pipe 에서 확인해야합니다.
-sudo cat /sys/kernel/debug/tracing/trace_pipe 으로 데이터를 확인할 수 있습니다.
 
+유저랜드에서 데이터를 분석하기 어려운 경우, 커널 레벨에서의 디버깅이 필요할 수 있습니다. 이때 `bpf_printk` (또는 `bpf_trace_printk`) 함수를 사용하여 커널 내부의 상태를 출력할 수 있습니다. 단, eBPF 제약으로 인해 포맷 문자열은 컴파일 타임에 상수로 결정되어야 합니다.
+
+`bpf_printk`의 출력 결과는 표준 출력으로 표시되지 않으며, 커널의 trace_pipe를 통해 확인해야 합니다. `sudo cat /sys/kernel/debug/tracing/trace_pipe` 명령어로 실시간 출력을 확인할 수 있습니다.
 
 ### 배포 및 컨테이너화
 
-이미지 및 패키지
-python3-bpfcc는 프로젝트에서 주로 사용하는 bpf도구입니다. 이는 시스템의 커널 버전과 맞물려있어 uv패키지로 다루기 힘듭니다. apt를 이용해 다운받아야합니다. 
-로컬 패키지와 가상환경 패키지를 통합하기위해 RUN uv venv --system-site-packages /opt/venv
-system-site-packages를 이용합니다. bpfcc는 가상환경이아닌 시스템에서 찾습니다.
+프로젝트의 핵심 도구인 `python3-bpfcc`는 시스템의 커널 버전에 의존성이 높아 일반적인 Python 패키지 매니저(uv)로 관리하기 어렵습니다. 따라서 `apt`와 같은 시스템 패키지 매니저를 통해 설치해야 합니다.
 
-컴포즈
-wathcer-procmon은 컨테이너로 배포되지만 호스트에 바운드된 어플리케이션입니다. 호스트의 커널 데이터에 접근할수있도록 직접 볼륨마운트합니다. 
+Docker 이미지 빌드 시, 시스템 레벨에 설치된 bpfcc와 가상 환경의 패키지를 함께 사용하기 위해 `RUN uv venv --system-site-packages /opt/venv` 명령을 실행합니다. 이 옵션을 통해 가상 환경 내에서도 시스템 사이트 패키지(system-site-packages)를 참조할 수 있으므로, bpfcc 라이브러리를 정상적으로 임포트할 수 있습니다.
+
+watcher-procmon은 컨테이너로 배포되지만 호스트의 커널 데이터에 접근해야 하므로, 아래와 같이 주요 시스템 디렉터리를 컨테이너에 직접 볼륨 마운트합니다.
+```yaml
+    volumes:
       - /sys/kernel/debug:/sys/kernel/debug:ro
       - /lib/modules:/lib/modules:ro
       - /usr/src:/usr/src:ro
-컨테이너에서 PID는 네임스페이스(namespace)로 격리됩니다. 하지만 호스트 수준에서 모든 컨테이너들의 프로세스를 구분해야하므로  pid: host 를 설정하여 이를 우회합니다.
-
-또한 컨테이너에서 ebpf를 실행하기 위한 권한인
-    cap_drop:
-      - ALL
-    cap_add:
-      - SYS_ADMIN
-을 추가하여 통제합니다.
+```
