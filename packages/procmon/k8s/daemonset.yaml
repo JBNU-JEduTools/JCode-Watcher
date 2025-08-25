@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: watcher-procmon
+  namespace: watcher
+spec:
+  selector:
+    matchLabels:
+      app: watcher-procmon
+  template:
+    metadata:
+      labels:
+        app: watcher-procmon
+    spec:
+      hostPID: true  # 호스트 PID 네임스페이스 접근
+      containers:
+      - name: watcher-procmon
+        image: harbor.jbnu.ac.kr/jdevops/watcher-procmon:latest
+        imagePullPolicy: IfNotPresent  # 로컬 이미지 사용
+        ports:
+        - name: http-metrics
+          containerPort: 3000
+        env:
+        - name: LOG_LEVEL
+          value: "DEBUG"  # docker-compose와 일치
+        - name: API_SERVER
+          value: "http://watcher-backend-service.watcher.svc.cluster.local:3000"  # settings.py와 일치
+        securityContext:
+          capabilities:
+            drop: ["ALL"]
+            add: ["SYS_ADMIN"]  # docker-compose와 일치
+        volumeMounts:
+        - name: kernel-modules
+          mountPath: /lib/modules
+          readOnly: true
+        - name: kernel-src
+          mountPath: /usr/src
+          readOnly: true
+        - name: kernel-debug
+          mountPath: /sys/kernel/debug
+          readOnly: true
+        - name: logs
+          mountPath: /app/logs
+      imagePullSecrets:
+      - name: watcher-harbor-registry-secret
+      volumes:
+      - name: kernel-modules
+        hostPath:
+          path: /lib/modules
+          type: Directory
+      - name: kernel-src
+        hostPath:
+          path: /usr/src
+          type: Directory
+      - name: kernel-debug
+        hostPath:
+          path: /sys/kernel/debug
+          type: Directory
+      - name: logs
+        persistentVolumeClaim:
+          claimName: watcher-procmon-logs-pvc

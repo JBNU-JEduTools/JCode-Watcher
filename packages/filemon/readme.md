@@ -78,18 +78,18 @@ docker --version
 
 #### 1. 학생 작업 디렉토리 생성
 ```bash
-mkdir -p /home/ubuntu/jcode/class-1-202012345
+mkdir -p /workspace/class-1-202012345
 ```
 
 #### 2. Code Server 실행
 ```bash
 sudo docker run -d \
         --name jcode-class-1-202012345 \
-        -p 8080:8443 \
-        -e PASSWORD="filemon" \
-        -v /home/ubuntu/jcode/class-1-202012345/:/config/workspace\
+        -p 8080:8080 \
+        -e PASSWORD="jcode" \
+        -v /workspace/class-1-202012345/:/home/coder/project\
         --hostname jcode-class-1-202012345 \
-        lscr.io/linuxserver/code-server:latest
+        codercom/code-server:latest
 ```
 
 ### 3. Filemon 실행 및 확인
@@ -103,7 +103,7 @@ docker compose up --build
 ```
 
 #### 2. 과제 파일 생성 및 변경
-Code Server (`https://localhost:8080`, PW: `filemon`)에 접속하여 과제 파일을 생성하거나 수정합니다.
+Code Server (`https://localhost:8080`, PW: `jcode`)에 접속하여 과제 파일을 생성하거나 수정합니다.
 
 > 과제 파일은 반드시 `hw`로 시작하는 과제 디렉토리 내에 생성해야 합니다. (예: `hw1`, `hw2`)
 
@@ -184,12 +184,7 @@ http://localhost:9090/metrics
 
 **`filemon`의 개발은 Docker 컨테이너 환경에서만 진행하는 것을 원칙으로 합니다.**
 
-로컬 머신에 직접 Python 개발 환경을 구성하는 방식은 지원하지 않으며, 관련 문의는 받지 않습니다. 모든 개발 과정은 아래에 설명된 Docker 기반 환경을 통해 이루어져야 합니다.
-
-- **왜 Docker 인가요?**
-  - **환경 통일성:** 모든 개발자가 동일한 OS와 의존성 위에서 작업하여 "제 컴퓨터에선 돼요" 문제를 원천 차단합니다.
-  - **운영 환경과 일치:** 개발 환경과 실제 배포 환경을 동일하게 유지하여 배포 시 발생할 수 있는 문제를 최소화합니다.
-  - **단순성:** `docker compose up` 명령어 하나로 복잡한 설정 없이 개발 환경을 즉시 구성할 수 있습니다.
+로컬 머신에 직접 Python 개발 환경을 구성하는 방식 대신 모든 개발 과정은 아래에 설명된 Docker 기반 환경을 통해 이루어져야 합니다.
 
 ### 실시간 코드 수정 및 디버깅
 
