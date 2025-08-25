@@ -1,4 +1,3 @@
-version: '3.8'
 
 services:
   watcher:
@@ -7,14 +6,16 @@ services:
       - ALL
     cap_add:
       - SYS_ADMIN
-      - SYS_PTRACE
     pid: host
+    ports:
+      - "3000:3000"
     volumes:
-      - ./src:/app/src
       - /sys/kernel/debug:/sys/kernel/debug:ro
       - /lib/modules:/lib/modules:ro
       - /usr/src:/usr/src:ro
+      - ./src:/app/src
+      - ./logs:/app/logs
     environment:
       - PYTHONUNBUFFERED=1
-      - LOG_LEVEL=INFO
-      - API_ENDPOINT=http://echo:3000
+      - LOG_LEVEL=DEBUG
+      - API_SERVER=http://localhost:8000

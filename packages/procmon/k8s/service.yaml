@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: watcher-procmon
+  namespace: watcher
+  labels:
+    app: watcher-procmon
+spec:
+  selector:
+    app: watcher-procmon
+  ports:
+  - name: http-metrics
+    port: 3000
+    targetPort: 3000
+    protocol: TCP
+  type: ClusterIP
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: watcher-procmon-monitor
+  namespace: watcher
+  labels:
+    app: watcher-procmon
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: watcher-procmon
+  namespaceSelector:
+    matchNames:
+      - watcher
+  endpoints:
+    - port: http-metrics
+      path: /metrics
+      interval: 30s

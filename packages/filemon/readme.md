@@ -78,18 +78,18 @@ docker --version
 
 #### 1. 학생 작업 디렉토리 생성
 ```bash
-mkdir -p /home/ubuntu/jcode/class-1-202012345
+mkdir -p /workspace/class-1-202012345
 ```
 
 #### 2. Code Server 실행
 ```bash
 sudo docker run -d \
         --name jcode-class-1-202012345 \
-        -p 8080:8443 \
-        -e PASSWORD="filemon" \
-        -v /home/ubuntu/jcode/class-1-202012345/:/config/workspace\
+        -p 8080:8080 \
+        -e PASSWORD="jcode" \
+        -v /workspace/class-1-202012345/:/home/coder/project\
         --hostname jcode-class-1-202012345 \
-        lscr.io/linuxserver/code-server:latest
+        codercom/code-server:latest
 ```
 
 ### 3. Filemon 실행 및 확인
@@ -103,7 +103,7 @@ docker compose up --build
 ```
 
 #### 2. 과제 파일 생성 및 변경
-Code Server (`https://localhost:8080`, PW: `filemon`)에 접속하여 과제 파일을 생성하거나 수정합니다.
+Code Server (`https://localhost:8080`, PW: `jcode`)에 접속하여 과제 파일을 생성하거나 수정합니다.
 
 > 과제 파일은 반드시 `hw`로 시작하는 과제 디렉토리 내에 생성해야 합니다. (예: `hw1`, `hw2`)
 
