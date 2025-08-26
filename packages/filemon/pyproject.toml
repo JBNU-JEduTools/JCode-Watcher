@@ -10,6 +10,7 @@ dependencies = [
     "prometheus-client>=0.22.1",
     "pydantic>=2.11.7",
     "pydantic-settings>=2.10.1",
+    "structlog>=25.4.0",
     "watchdog>=6.0.0",
 ]
 
