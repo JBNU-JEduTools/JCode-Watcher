@@ -3,16 +3,16 @@ import os
 from typing import Any
 from prometheus_client import start_http_server
 
-from .utils.logger import setup_logging, get_logger
-from .utils.metrics import loop_heartbeat_task, update_queue_size, active_hosts_update_task
-from .collector import Collector
-from .pipeline import Pipeline
-from .sender import EventSender
-from .classifier import ProcessClassifier
-from .path_parser import PathParser
-from .file_parser import FileParser
-from .student_parser import StudentParser
-from .config.settings import settings
+from app.utils.logger import setup_logging, get_logger
+from app.utils.metrics import loop_heartbeat_task, update_queue_size, active_hosts_update_task
+from app.collector import Collector
+from app.pipeline import Pipeline
+from app.sender import EventSender
+from app.classifier import ProcessClassifier
+from app.path_parser import PathParser
+from app.file_parser import FileParser
+from app.student_parser import StudentParser
+from app.config.settings import settings
 
 
 async def main():

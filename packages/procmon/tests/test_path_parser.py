@@ -1,6 +1,6 @@
 import pytest
 from pathlib import Path
-from src.path_parser import PathParser
+from app.path_parser import PathParser
 
 
 class TestPathParser:

@@ -1,8 +1,8 @@
-from .event import Event
-from .process import Process
-from .process_struct import ProcessStruct
-from .process_type import ProcessType
-from .student_info import StudentInfo
+from app.models.event import Event
+from app.models.process import Process
+from app.models.process_struct import ProcessStruct
+from app.models.process_type import ProcessType
+from app.models.student_info import StudentInfo
 
 # Note: 'Student' and 'Homework' were removed as they were not defined in any file.
 # 'StudentInfo' is exported instead.

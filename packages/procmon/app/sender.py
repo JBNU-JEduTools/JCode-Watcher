@@ -1,9 +1,9 @@
 import aiohttp
-from .utils.logger import get_logger
+from app.utils.logger import get_logger
 from typing import Dict, Any, Optional
-from .models.event import Event
-from .models.process import Process
-from .models.process_type import ProcessType
+from app.models.event import Event
+from app.models.process import Process
+from app.models.process_type import ProcessType
 
 
 class EventSender:
