@@ -81,7 +81,7 @@ Watcher Procmon은 eBPF(Extended Berkeley Packet Filter)를 사용하여 리눅�
 | `LOG_LEVEL`        | 로그 출력 레벨                        | `"INFO"`                      |
 | `API_SERVER`       | 이벤트 전송 대상 API 서버 주소        | `"http://localhost:8000"`     |
 | `METRICS_PORT`     | Prometheus 메트릭 노출 포트           | `3000`                        |
-| `LOG_FILE_PATH`    | 로그 파일 경로 (컨테이너 내부)        | `"/app/logs/procmon.log"`     |
+| `LOG_FILE_PATH`    | 로그 파일 경로 (컨테이너 내부)        | `"/opt/procmon/logs/procmon.log"`     |
 | `LOG_MAX_BYTES`    | 로그 파일 최대 크기 (바이트)          | `10485760` (10MB)             |
 | `LOG_BACKUP_COUNT` | 보관할 최대 로그 파일 수 (0은 무제한) | `0`                           |
 
