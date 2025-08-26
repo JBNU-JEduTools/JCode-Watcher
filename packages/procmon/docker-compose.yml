@@ -13,8 +13,8 @@ services:
       - /sys/kernel/debug:/sys/kernel/debug:ro
       - /lib/modules:/lib/modules:ro
       - /usr/src:/usr/src:ro
-      - ./src:/app/src
-      - ./logs:/app/logs
+      - ./app:/opt/procmon/app
+      - ./logs:/opt/procmon/logs
     environment:
       - PYTHONUNBUFFERED=1
       - LOG_LEVEL=DEBUG
