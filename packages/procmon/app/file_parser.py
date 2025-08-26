@@ -1,6 +1,6 @@
 from typing import Set, Optional, List
-from .models.process_type import ProcessType
-from .utils.logger import get_logger
+from app.models.process_type import ProcessType
+from app.utils.logger import get_logger
 
 
 class FileParser:

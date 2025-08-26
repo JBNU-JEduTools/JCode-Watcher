@@ -3,12 +3,12 @@ import os
 import pytest
 from unittest.mock import Mock
 
-# 프로젝트 루트와 src 디렉토리를 Python path에 추가
+# 프로젝트 루트와 app 디렉토리를 Python path에 추가
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-src_path = os.path.join(project_root, 'src')
+app_path = os.path.join(project_root, 'app')
 
 sys.path.insert(0, project_root)
-sys.path.insert(0, src_path)
+sys.path.insert(0, app_path)
 
 
 @pytest.fixture

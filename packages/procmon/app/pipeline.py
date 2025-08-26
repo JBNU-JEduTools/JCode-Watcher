@@ -1,11 +1,11 @@
 import os
 import time
-from .utils.logger import get_logger
+from app.utils.logger import get_logger
 from datetime import datetime
 from typing import Optional, Tuple, List
 import traceback
 import structlog.contextvars as ctx
-from .utils.metrics import (
+from app.utils.metrics import (
     record_pipeline_event_success,
     record_pipeline_event_failure, 
     record_pipeline_event_filtered,
@@ -13,14 +13,14 @@ from .utils.metrics import (
     record_pipeline_duration,
     record_host_activity
 )
-from .models.event import Event
-from .models.process import Process
-from .models.process_struct import ProcessStruct
-from .models.process_type import ProcessType
-from .classifier import ProcessClassifier
-from .path_parser import PathParser
-from .file_parser import FileParser
-from .student_parser import StudentParser
+from app.models.event import Event
+from app.models.process import Process
+from app.models.process_struct import ProcessStruct
+from app.models.process_type import ProcessType
+from app.classifier import ProcessClassifier
+from app.path_parser import PathParser
+from app.file_parser import FileParser
+from app.student_parser import StudentParser
 
 
 class Pipeline:
