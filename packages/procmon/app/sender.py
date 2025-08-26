@@ -56,7 +56,7 @@ class EventSender:
         data = {
             "timestamp": event.timestamp.isoformat() if event.timestamp else None,
             "exit_code": event.exit_code,
-            "cmdline": event.args,
+            "cmdline": " ".join(event.args) if event.args else "",
             "cwd": event.cwd,
             "target_path": target_path,
             "process_type": process_type,
@@ -73,7 +73,7 @@ class EventSender:
         data = {
             "timestamp": event.timestamp.isoformat() if event.timestamp else None,
             "exit_code": event.exit_code,
-            "cmdline": event.args,
+            "cmdline": " ".join(event.args) if event.args else "",
             "cwd": event.cwd,
             "binary_path": event.binary_path,
             "target_path": event.source_file,
