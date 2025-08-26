@@ -1,6 +1,6 @@
 import re
 import os
-from .utils.logger import get_logger
+from app.utils.logger import get_logger
 from typing import Optional
 from pathlib import Path
 

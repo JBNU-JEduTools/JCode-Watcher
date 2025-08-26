@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional, List
-from .process_type import ProcessType
+from app.models.process_type import ProcessType
 
 
 @dataclass(frozen=True)

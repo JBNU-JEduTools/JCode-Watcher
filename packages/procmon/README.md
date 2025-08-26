@@ -153,7 +153,7 @@ Watcher Procmon은 eBPF(Extended Berkeley Packet Filter)를 사용하여 리눅�
 
 ### 유저랜드(Python)
 
-`src/` 디렉토리 내의 주요 컴포넌트들은 다음과 같습니다:
+`app/` 디렉토리 내의 주요 컴포넌트들은 다음과 같습니다:
 
 -   **`collector.py`**: `bpf.c` eBPF 프로그램을 로드하고 커널로부터 이벤트를 수집하여 `asyncio.Queue`에 전달하는 역할을 합니다.
 -   **`classifier.py`**: 프로세스의 바이너리 경로를 분석하여 `ProcessType` (예: GCC, Python)을 분류합니다.

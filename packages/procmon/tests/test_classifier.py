@@ -1,6 +1,6 @@
 import pytest
-from src.models.process_type import ProcessType
-from src.classifier import ProcessClassifier
+from app.models.process_type import ProcessType
+from app.classifier import ProcessClassifier
 
 
 class TestProcessClassifier:
