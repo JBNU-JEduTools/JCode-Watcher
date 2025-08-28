@@ -5,7 +5,7 @@ from pathlib import Path
 from app.utils.logger import get_logger
 from app.config.settings import settings
 from watchdog.events import FileSystemEventHandler, FileSystemEvent
-from app.models.watcher_event import Event
+from app.models.filemon_event import FilemonEvent
 
 # 모듈 레벨 로거 설정
 logger = get_logger(__name__)
@@ -27,8 +27,6 @@ class WatchdogHandler(FileSystemEventHandler):
         self.event_queue = event_queue
         self.loop = loop
         self.base_path = str(settings.BASE_PATH)
-        
-        # BASE_PATH를 사용해서 동적으로 SOURCE_PATTERN 생성
         self.source_pattern = self.SOURCE_PATTERN_TEMPLATE.format(base_path=self.base_path)
 
     def _should_process_file(self, file_path: str) -> bool:
@@ -36,15 +34,17 @@ class WatchdogHandler(FileSystemEventHandler):
         # 디렉토리는 무시
         if os.path.isdir(file_path):
             return False
-            
+        return self._should_process_path(file_path)
+    
+    def _should_process_path(self, file_path: str) -> bool:
+        """파일 경로가 처리 대상인지 확인 (파일 존재 여부와 무관)"""
+        # IGNORE_PATTERNS 먼저 체크 (더 빠른 필터링)
+        for ignore_pattern in self.IGNORE_PATTERNS:
+            if re.search(ignore_pattern, file_path):
+                return False
+        
         # source_pattern 체크
-        if re.search(self.source_pattern, file_path):
-            # IGNORE_PATTERNS 체크
-            for ignore_pattern in self.IGNORE_PATTERNS:
-                if re.search(ignore_pattern, file_path):
-                    return False
-            return True
-        return False
+        return re.search(self.source_pattern, file_path) is not None
 
     def on_modified(self, event):
         try:
@@ -56,7 +56,7 @@ class WatchdogHandler(FileSystemEventHandler):
                 logger.warning(f"파일 크기 초과 - 경로: {event.src_path}, 크기: {os.path.getsize(event.src_path)}B")
                 return
             
-            watcher_event = Event.from_watchdog_event(event)
+            watcher_event = FilemonEvent.from_watchdog_event(event)
             self.loop.call_soon_threadsafe(
                 self.event_queue.put_nowait, watcher_event
             )
@@ -71,23 +71,13 @@ class WatchdogHandler(FileSystemEventHandler):
             if not self._should_process_path(event.src_path):
                 return
                 
-            watcher_event = Event.from_watchdog_event(event)
+            watcher_event = FilemonEvent.from_watchdog_event(event)
             self.loop.call_soon_threadsafe(
                 self.event_queue.put_nowait, watcher_event
             )
         except Exception as e:
             logger.error(f"on_deleted 처리 중 오류 발생: {str(e)}")
 
-    def _should_process_path(self, file_path: str) -> bool:
-        """파일 경로가 처리 대상인지 확인 (파일 존재 여부와 무관)"""
-        # source_pattern 체크
-        if re.search(self.source_pattern, file_path):
-            # IGNORE_PATTERNS 체크
-            for ignore_pattern in self.IGNORE_PATTERNS:
-                if re.search(ignore_pattern, file_path):
-                    return False
-            return True
-        return False
 
     def on_moved(self, event):
         """파일 이름 변경 이벤트를 삭제 및 수정 이벤트로 처리"""
@@ -95,7 +85,7 @@ class WatchdogHandler(FileSystemEventHandler):
             # 1. 이전 파일에 대한 삭제 이벤트 처리
             delete_event = FileSystemEvent(event.src_path)
             delete_event.event_type = "deleted"
-            delete_event = Event.from_watchdog_event(delete_event)
+            delete_event = FilemonEvent.from_watchdog_event(delete_event)
             self.loop.call_soon_threadsafe(
                 self.event_queue.put_nowait, delete_event
             )
@@ -118,7 +108,7 @@ class WatchdogHandler(FileSystemEventHandler):
             # dest_path를 source_path로 사용하여 새로운 이벤트 생성
             modify_event = FileSystemEvent(event.dest_path)
             modify_event.event_type = "modified"
-            modify_event = Event.from_watchdog_event(modify_event)
+            modify_event = FilemonEvent.from_watchdog_event(modify_event)
             
             self.loop.call_soon_threadsafe(
                 self.event_queue.put_nowait, modify_event
