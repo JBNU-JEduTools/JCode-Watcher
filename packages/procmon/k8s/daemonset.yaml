@@ -44,7 +44,7 @@ spec:
           mountPath: /sys/kernel/debug
           readOnly: true
         - name: logs
-          mountPath: /app/logs
+          mountPath: /opt/procmon/logs
       imagePullSecrets:
       - name: watcher-harbor-registry-secret
       volumes:

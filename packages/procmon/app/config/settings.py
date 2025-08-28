@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     METRICS_PORT: int = 3000
 
     # 로깅 설정
-    LOG_FILE_PATH: str = "/app/logs/procmon.log"
+    LOG_FILE_PATH: str = "/opt/procmon/logs/procmon.log"
     LOG_MAX_BYTES: int = 10 * 1024 * 1024  # 10MB
     LOG_BACKUP_COUNT: int = 0 # 무제한
 
