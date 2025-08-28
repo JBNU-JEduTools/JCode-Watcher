@@ -1,6 +1,6 @@
 import pytest
-from src.models.process_type import ProcessType
-from src.file_parser import FileParser
+from app.models.process_type import ProcessType
+from app.file_parser import FileParser
 
 
 class TestFileParser:

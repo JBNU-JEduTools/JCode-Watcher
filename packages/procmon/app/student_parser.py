@@ -1,8 +1,8 @@
 import re
-from .utils.logger import get_logger
+from app.utils.logger import get_logger
 from typing import Optional
-from .models.student_info import StudentInfo
-from .models.process import Process
+from app.models.student_info import StudentInfo
+from app.models.process import Process
 
 
 class StudentParser:

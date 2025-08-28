@@ -1,7 +1,7 @@
 import re
 from typing import Optional
-from .models.process_type import ProcessType
-from .path_parser import PathParser
+from app.models.process_type import ProcessType
+from app.path_parser import PathParser
 
 
 class ProcessClassifier:

@@ -7,9 +7,9 @@ import time
 from typing import Optional, Any
 
 from bcc import BPF
-from .models import ProcessStruct
-from .utils.logger import get_logger
-from .utils.metrics import poll_heartbeat_tick, record_bpf_event_collected, record_bpf_events_lost, record_queue_event_dropped
+from app.models import ProcessStruct
+from app.utils.logger import get_logger
+from app.utils.metrics import poll_heartbeat_tick, record_bpf_event_collected, record_bpf_events_lost, record_queue_event_dropped
 
 
 class Collector:

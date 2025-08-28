@@ -1,7 +1,7 @@
 from prometheus_client import Counter, Histogram, Gauge
 import time
 import asyncio
-from .logger import get_logger
+from app.utils.logger import get_logger
 
 # ===== 서비스 식별 =====
 SERVICE_NAME = "procmon"

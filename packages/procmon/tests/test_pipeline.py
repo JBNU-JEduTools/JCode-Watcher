@@ -4,16 +4,16 @@ from datetime import datetime
 import os
 import ctypes
 
-from src.pipeline import Pipeline
-from src.models.process_struct import ProcessStruct, UTS_LEN, MAX_PATH_LEN, ARGSIZE
-from src.models.process import Process
-from src.models.process_type import ProcessType
-from src.models.event import Event
-from src.models.student_info import StudentInfo
-from src.classifier import ProcessClassifier
-from src.path_parser import PathParser
-from src.file_parser import FileParser
-from src.student_parser import StudentParser
+from app.pipeline import Pipeline
+from app.models.process_struct import ProcessStruct, UTS_LEN, MAX_PATH_LEN, ARGSIZE
+from app.models.process import Process
+from app.models.process_type import ProcessType
+from app.models.event import Event
+from app.models.student_info import StudentInfo
+from app.classifier import ProcessClassifier
+from app.path_parser import PathParser
+from app.file_parser import FileParser
+from app.student_parser import StudentParser
 
 
 class TestPipeline:
@@ -296,7 +296,7 @@ class TestPipelineIntegration(TestPipeline):
         self.mock_path_parser.parse.return_value = "hw1"
         
         # When: 파이프라인을 실행할 때
-        with patch('src.pipeline.datetime') as mock_datetime:
+        with patch('app.pipeline.datetime') as mock_datetime:
             mock_now = datetime(2024, 1, 1, 12, 0, 0)
             mock_datetime.now.return_value = mock_now
             
@@ -381,7 +381,7 @@ class TestPipelineIntegration(TestPipeline):
         self.mock_path_parser.parse.return_value = "hw2"
         
         # When
-        with patch('src.pipeline.datetime') as mock_datetime:
+        with patch('app.pipeline.datetime') as mock_datetime:
             mock_now = datetime(2024, 1, 1, 12, 0, 0)
             mock_datetime.now.return_value = mock_now
             
@@ -404,7 +404,7 @@ class TestPipelineIntegration(TestPipeline):
         self.mock_path_parser.parse.return_value = "hw1"
         
         # When
-        with patch('src.pipeline.datetime') as mock_datetime:
+        with patch('app.pipeline.datetime') as mock_datetime:
             mock_now = datetime(2024, 1, 1, 12, 0, 0)
             mock_datetime.now.return_value = mock_now
             
@@ -475,7 +475,7 @@ class TestPipelineErrorHandling(TestPipeline):
         self.mock_path_parser.parse.return_value = "hw1"
         
         # When
-        with patch('src.pipeline.Event') as mock_event_class:
+        with patch('app.pipeline.Event') as mock_event_class:
             mock_event_class.side_effect = Exception("Event creation error")
             
             event = await self.pipeline.pipeline(struct)
