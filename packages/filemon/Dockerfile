@@ -1,19 +1,18 @@
 # 베이스 이미지 설정
-FROM python:3.12-slim
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
 
 # 작업 디렉토리 설정
-WORKDIR /app
+WORKDIR /opt/filemon
 
-# 필요한 파이썬 패키지 설치
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# pyproject.toml과 uv.lock 복사
+COPY pyproject.toml uv.lock ./
+
+# 의존성 설치
+RUN uv sync --no-dev --frozen
 
 # 애플리케이션 코드 복사
-COPY ./src ./src
+COPY ./app ./app
 
-# 환경 변수 설정
-ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1
 
-# 실행 명령어
-CMD ["python", "-m", "src.app"]
+ENV PATH="/opt/filemon/.venv/bin:$PATH"
+CMD ["python", "-m", "app"]
