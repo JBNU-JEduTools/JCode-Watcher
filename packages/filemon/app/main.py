@@ -4,6 +4,7 @@ from concurrent.futures import ThreadPoolExecutor
 from watchdog.observers import Observer
 from app.watchdog_handler import WatchdogHandler
 from app.pipeline import FilemonPipeline
+from app.snapshot import SnapshotManager
 from app.config.settings import settings
 from app.utils.logger import get_logger
 
@@ -14,7 +15,8 @@ async def main():
 
     executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="filemon")
     event_queue = asyncio.Queue()
-    pipeline = FilemonPipeline(executor=executor)
+    snapshot_manager = SnapshotManager()
+    pipeline = FilemonPipeline(executor=executor, snapshot_manager=snapshot_manager)
 
     handler = WatchdogHandler(event_queue=event_queue, loop=loop)
 

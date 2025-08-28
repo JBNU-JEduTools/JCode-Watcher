@@ -8,14 +8,13 @@ from app.config.settings import settings
 from app.utils.logger import get_logger
 from app.snapshot import SnapshotManager
 
-logger = get_logger(__name__)
-
 class FilemonPipeline:
     """파일 모니터링 파이프라인"""
     
-    def __init__(self, executor: ThreadPoolExecutor):
+    def __init__(self, executor: ThreadPoolExecutor, snapshot_manager: SnapshotManager):
         self.executor = executor
-        self.snapshot_manager = SnapshotManager()
+        self.snapshot_manager = snapshot_manager
+        self.logger = get_logger("pipeline")
         
     async def process_event(self, event: FilemonEvent):
         """이벤트를 처리하는 단일 통합 흐름"""
@@ -33,14 +32,14 @@ class FilemonPipeline:
                 
                 # 2. 바로 스냅샷 생성 (비교 없이)
                 await self.snapshot_manager.create_snapshot_with_data(path_info, data)
-                logger.info(f"스냅샷 생성됨 - {path_info.filename}")
+                self.logger.info(f"스냅샷 생성됨 - {path_info.filename}")
                 
         except FileNotFoundError:
-            logger.warning(f"파일이 존재하지 않음 - {event.source_path}")
+            self.logger.warning(f"파일이 존재하지 않음 - {event.source_path}")
         except RuntimeError as e:
-            logger.warning(f"파일 읽기 중 변경됨 - {event.source_path}: {str(e)}")
+            self.logger.warning(f"파일 읽기 중 변경됨 - {event.source_path}: {str(e)}")
         except Exception as e:
-            logger.error(f"이벤트 처리 실패 - 경로: {event.source_path}, 오류: {str(e)}")
+            self.logger.error(f"이벤트 처리 실패 - 경로: {event.source_path}, 오류: {str(e)}")
     
     def read_and_verify(self, source_path: str):
         """
