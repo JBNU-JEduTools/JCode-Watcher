@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
-from app.source_path_parser import SourcePathParser
+from typing import Dict, Any
 
 @dataclass(frozen=True)
 class SourceFileInfo:
@@ -12,11 +12,8 @@ class SourceFileInfo:
     target_file_path: Path   # 대상 파일 절대 경로
     
     @classmethod
-    def from_target_file_path(cls, target_file_path: Path, watch_root: Path) -> 'SourceFileInfo':
-        """대상 파일 경로로부터 SourceFileInfo 생성"""
-        parser = SourcePathParser()
-        parsed_data = parser.parse(target_file_path, watch_root)
-        
+    def from_parsed_data(cls, parsed_data: Dict[str, Any], target_file_path: Path) -> 'SourceFileInfo':
+        """파싱된 데이터로부터 SourceFileInfo 생성"""
         return cls(
             class_div=parsed_data['class_div'],
             hw_name=parsed_data['hw_name'],

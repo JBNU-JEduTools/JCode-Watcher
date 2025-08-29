@@ -3,7 +3,6 @@ from datetime import datetime
 from pathlib import Path
 from watchdog.events import FileSystemEvent
 from app.models.source_file_info import SourceFileInfo
-from app.config.settings import settings
 
 @dataclass
 class FilemonEvent:
@@ -18,15 +17,9 @@ class FilemonEvent:
     source_file_info: SourceFileInfo
     
     @classmethod
-    def from_watchdog_event(cls, event: FileSystemEvent) -> 'FilemonEvent':
-        """watchdog 이벤트로부터 Event 생성"""
+    def from_components(cls, event: FileSystemEvent, source_file_info: SourceFileInfo) -> 'FilemonEvent':
+        """watchdog 이벤트와 파싱된 source_file_info로 Event 생성"""
         target_file_path = event.src_path
-        
-        # SourceFileInfo 생성
-        source_file_info = SourceFileInfo.from_target_file_path(
-            Path(target_file_path), 
-            settings.WATCH_ROOT
-        )
         
         # moved 이벤트가 아닌 경우 dest_path를 None으로 설정
         dest_path = getattr(event, 'dest_path', None) if event.event_type == 'moved' else None

@@ -10,6 +10,9 @@ logger = get_logger(__name__)
 
 class SnapshotManager:
     """스냅샷 관리자"""
+    
+    def __init__(self):
+        pass
 
     async def create_snapshot_with_data(self, path_info: SourceFileInfo, data: bytes):
         """읽은 데이터로 스냅샷 파일 생성"""
@@ -21,10 +24,9 @@ class SnapshotManager:
         async with aiofiles.open(snapshot_path, "wb") as f:
             await f.write(data)
 
-    async def create_empty_snapshot(self, target_file_path: str):
-        """빈 스냅샷 생성 (삭제 이벤트용)"""
+    async def create_empty_snapshot_with_info(self, path_info: SourceFileInfo):
+        """빈 스냅샷 생성 (삭제 이벤트용) - 파싱된 정보 사용"""
         try:
-            path_info = SourceFileInfo.from_target_file_path(Path(target_file_path), settings.WATCH_ROOT)
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             snapshot_path = self._get_snapshot_path(path_info, timestamp)
             snapshot_path.parent.mkdir(parents=True, exist_ok=True)
@@ -36,7 +38,7 @@ class SnapshotManager:
             logger.info(f"빈 스냅샷 생성됨 - {path_info.filename}")
             
         except Exception as e:
-            logger.error(f"빈 스냅샷 생성 실패 - {target_file_path}: {str(e)}")
+            logger.error(f"빈 스냅샷 생성 실패 - {path_info.target_file_path}: {str(e)}")
 
     def _get_snapshot_path(self, path_info: SourceFileInfo, timestamp: str) -> Path:
         """스냅샷 파일 경로 생성"""

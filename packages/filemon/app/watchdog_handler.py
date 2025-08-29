@@ -6,6 +6,8 @@ from app.utils.logger import get_logger
 from app.config.settings import settings
 from watchdog.events import FileSystemEventHandler, FileSystemEvent
 from app.models.filemon_event import FilemonEvent
+from app.models.source_file_info import SourceFileInfo
+from app.source_path_parser import SourcePathParser
 
 # 모듈 레벨 로거 설정
 logger = get_logger(__name__)
@@ -22,12 +24,13 @@ class WatchdogHandler(FileSystemEventHandler):
         r".*/\..+",                        # 숨김 파일/디렉토리
     ]
     
-    def __init__(self, event_queue: asyncio.Queue, loop: asyncio.AbstractEventLoop):
+    def __init__(self, event_queue: asyncio.Queue, loop: asyncio.AbstractEventLoop, parser: SourcePathParser):
         super().__init__()
         self.event_queue = event_queue
         self.loop = loop
         self.base_path = str(settings.WATCH_ROOT)
         self.source_pattern = self.SOURCE_PATTERN_TEMPLATE.format(base_path=self.base_path)
+        self.parser = parser
 
     def _should_process_file(self, file_path: str) -> bool:
         """파일이 처리 대상인지 확인"""
@@ -56,7 +59,10 @@ class WatchdogHandler(FileSystemEventHandler):
                 logger.warning(f"파일 크기 초과 - 경로: {event.src_path}, 크기: {os.path.getsize(event.src_path)}B")
                 return
             
-            watcher_event = FilemonEvent.from_watchdog_event(event)
+            # 파일 경로 파싱
+            parsed_data = self.parser.parse(Path(event.src_path))
+            source_info = SourceFileInfo.from_parsed_data(parsed_data, Path(event.src_path))
+            watcher_event = FilemonEvent.from_components(event, source_info)
             self.loop.call_soon_threadsafe(
                 self.event_queue.put_nowait, watcher_event
             )
@@ -71,7 +77,10 @@ class WatchdogHandler(FileSystemEventHandler):
             if not self._should_process_path(event.src_path):
                 return
                 
-            watcher_event = FilemonEvent.from_watchdog_event(event)
+            # 파일 경로 파싱
+            parsed_data = self.parser.parse(Path(event.src_path))
+            source_info = SourceFileInfo.from_parsed_data(parsed_data, Path(event.src_path))
+            watcher_event = FilemonEvent.from_components(event, source_info)
             self.loop.call_soon_threadsafe(
                 self.event_queue.put_nowait, watcher_event
             )
@@ -85,7 +94,10 @@ class WatchdogHandler(FileSystemEventHandler):
             # 1. 이전 파일에 대한 삭제 이벤트 처리
             delete_event = FileSystemEvent(event.src_path)
             delete_event.event_type = "deleted"
-            delete_event = FilemonEvent.from_watchdog_event(delete_event)
+            # 삭제 이벤트용 파일 경로 파싱
+            parsed_data = self.parser.parse(Path(delete_event.src_path))
+            source_info = SourceFileInfo.from_parsed_data(parsed_data, Path(delete_event.src_path))
+            delete_event = FilemonEvent.from_components(delete_event, source_info)
             self.loop.call_soon_threadsafe(
                 self.event_queue.put_nowait, delete_event
             )
@@ -108,7 +120,10 @@ class WatchdogHandler(FileSystemEventHandler):
             # dest_path를 source_path로 사용하여 새로운 이벤트 생성
             modify_event = FileSystemEvent(event.dest_path)
             modify_event.event_type = "modified"
-            modify_event = FilemonEvent.from_watchdog_event(modify_event)
+            # 수정 이벤트용 파일 경로 파싱
+            parsed_data = self.parser.parse(Path(modify_event.src_path))
+            source_info = SourceFileInfo.from_parsed_data(parsed_data, Path(modify_event.src_path))
+            modify_event = FilemonEvent.from_components(modify_event, source_info)
             
             self.loop.call_soon_threadsafe(
                 self.event_queue.put_nowait, modify_event

@@ -19,20 +19,20 @@ class FilemonPipeline:
     async def process_event(self, event: FilemonEvent):
         """이벤트를 처리하는 단일 통합 흐름"""
         try:
-            # 삭제 이벤트는 빈 스냅샷 생성
+            # 삭제 이벤트는 빈 스냅샷 생성 - 이미 파싱된 정보 사용
             if event.event_type == "deleted":
-                await self.snapshot_manager.create_empty_snapshot(event.target_file_path)
+                await self.snapshot_manager.create_empty_snapshot_with_info(event.source_file_info)
                 return
             
             # 수정 이벤트는 통합 처리 흐름
             if event.event_type == "modified":
                 # 1. 스레드풀에서 파일 읽기 및 검증
                 future = self.executor.submit(self.read_and_verify, event.target_file_path)
-                path_info, file_stat, data = await asyncio.wrap_future(future)
+                file_stat, data = await asyncio.wrap_future(future)
                 
-                # 2. 바로 스냅샷 생성 (비교 없이)
-                await self.snapshot_manager.create_snapshot_with_data(path_info, data)
-                self.logger.info(f"스냅샷 생성됨 - {path_info.filename}")
+                # 2. 바로 스냅샷 생성 (비교 없이) - 이미 파싱된 정보 사용
+                await self.snapshot_manager.create_snapshot_with_data(event.source_file_info, data)
+                self.logger.info(f"스냅샷 생성됨 - {event.source_file_info.filename}")
                 
         except FileNotFoundError:
             self.logger.warning(f"파일이 존재하지 않음 - {event.target_file_path}")
@@ -66,7 +66,7 @@ class FilemonPipeline:
                (st_after.st_size, st_after.st_mtime):
                 raise RuntimeError("file changed during read")
 
-            return SourceFileInfo.from_target_file_path(Path(target_file_path), settings.WATCH_ROOT), st_after, data
+            return st_after, data
         finally:
             f.close()
     

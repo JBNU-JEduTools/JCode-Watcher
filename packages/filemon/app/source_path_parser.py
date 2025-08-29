@@ -1,16 +1,16 @@
 from pathlib import Path
 from typing import Dict, Any
+from app.config.settings import settings
 
 
 class SourcePathParser:
     """소스 파일 경로를 파싱하는 클래스"""
     
-    def parse(self, target_file_path: Path, watch_root: Path) -> Dict[str, Any]:
+    def parse(self, target_file_path: Path) -> Dict[str, Any]:
         """소스 파일 경로를 파싱하여 구성 요소를 반환
         
         Args:
             target_file_path: 파싱할 대상 파일 경로
-            watch_root: 감시 루트 경로
             
         Returns:
             Dict containing: class_div, hw_name, student_id, filename
@@ -20,7 +20,7 @@ class SourcePathParser:
         """
         # WATCH_ROOT 기준 상대 경로 계산
         try:
-            relative_path = target_file_path.relative_to(watch_root)
+            relative_path = target_file_path.relative_to(settings.WATCH_ROOT)
         except ValueError:
             raise ValueError(f"파일 경로가 WATCH_ROOT 하위에 있지 않음: {target_file_path}")
         
