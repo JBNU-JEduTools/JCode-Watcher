@@ -1,6 +1,5 @@
 import asyncio
 import os
-import re
 from pathlib import Path
 from app.utils.logger import get_logger
 from app.config.settings import settings
@@ -8,72 +7,28 @@ from watchdog.events import FileSystemEventHandler, FileSystemEvent
 from app.models.filemon_event import FilemonEvent
 from app.models.source_file_info import SourceFileInfo
 from app.source_path_parser import SourcePathParser
+from app.path_filter import PathFilter
 
 # 모듈 레벨 로거 설정
 logger = get_logger(__name__)
 
 class WatchdogHandler(FileSystemEventHandler):
-    # 허용되는 파일 패턴 (최대 3depth까지)
-    SOURCE_PATTERN_TEMPLATE = r"{base_path}/[^/]+-[^/]+-[^/]+/hw(?:[0-9]|10)/(?:[^/]+/?){{1,4}}[^/]+\.(c|h|py|cpp|hpp)$"
     
-    # 무시할 파일 패턴 (정규식)
-    IGNORE_PATTERNS = [
-        r".*/(?:\.?env|ENV)/.+",          # env, .env, ENV, .ENV
-        r".*/(?:site|dist)-packages/.+",   # site-packages, dist-packages
-        r".*/lib(?:64|s)?/.+",            # lib, lib64, libs
-        r".*/\..+",                        # 숨김 파일/디렉토리
-    ]
-    
-    def __init__(self, event_queue: asyncio.Queue, loop: asyncio.AbstractEventLoop, parser: SourcePathParser):
+    def __init__(self, event_queue: asyncio.Queue, loop: asyncio.AbstractEventLoop, parser: SourcePathParser, path_filter: PathFilter):
         super().__init__()
         self.event_queue = event_queue
         self.loop = loop
-        self.base_path = str(settings.WATCH_ROOT)
-        self.source_pattern = self.SOURCE_PATTERN_TEMPLATE.format(base_path=self.base_path)
         self.parser = parser
+        self.path_filter = path_filter
+        logger.debug("WatchdogHandler 초기화됨", path_filter_type=type(self.path_filter).__name__)
 
-    def _should_process_file(self, file_path: str) -> bool:
-        """파일이 처리 대상인지 확인"""
-        logger.debug("파일 처리 대상 검사 시작", file_path=file_path)
-        
-        # 디렉토리는 무시
-        if os.path.isdir(file_path):
-            logger.debug("디렉토리이므로 처리 제외", file_path=file_path)
-            return False
-            
-        result = self._should_process_path(file_path)
-        logger.debug("파일 처리 대상 검사 완료", file_path=file_path, should_process=result)
-        return result
-    
-    def _should_process_path(self, file_path: str) -> bool:
-        """파일 경로가 처리 대상인지 확인 (파일 존재 여부와 무관)"""
-        logger.debug("경로 처리 대상 검사 시작", file_path=file_path)
-        
-        # IGNORE_PATTERNS 먼저 체크 (더 빠른 필터링)
-        for i, ignore_pattern in enumerate(self.IGNORE_PATTERNS):
-            if re.search(ignore_pattern, file_path):
-                logger.debug("무시 패턴에 매칭됨", file_path=file_path, 
-                           pattern_index=i, pattern=ignore_pattern)
-                return False
-        
-        logger.debug("무시 패턴 검사 통과", file_path=file_path)
-        
-        # source_pattern 체크
-        source_match = re.search(self.source_pattern, file_path)
-        if source_match:
-            logger.debug("소스 패턴 매칭됨", file_path=file_path, 
-                        pattern=self.source_pattern, match_groups=source_match.groups())
-            return True
-        else:
-            logger.debug("소스 패턴 매칭 실패", file_path=file_path, pattern=self.source_pattern)
-            return False
 
     def on_modified(self, event):
         logger.debug("파일 수정 이벤트 수신", event_type="modified", src_path=event.src_path)
         
         try:
             # 처리 대상 파일인지 확인
-            if not self._should_process_file(event.src_path):
+            if not self.path_filter.should_process_file(event.src_path):
                 logger.debug("파일 처리 대상 아님", src_path=event.src_path)
                 return
             
@@ -119,7 +74,7 @@ class WatchdogHandler(FileSystemEventHandler):
         
         try:
             # 처리 대상 파일인지 확인 (삭제는 파일 존재하지 않으므로 경로만으로 확인)
-            if not self._should_process_path(event.src_path):
+            if not self.path_filter.should_process_path(event.src_path):
                 logger.debug("삭제된 파일이 처리 대상 아님", src_path=event.src_path)
                 return
             
@@ -193,7 +148,7 @@ class WatchdogHandler(FileSystemEventHandler):
             logger.debug("이동 이벤트 - 수정 처리 시작", dest_path=dest_path)
             
             # 이동된 파일이 처리 대상인지 확인
-            if not self._should_process_file(dest_path):
+            if not self.path_filter.should_process_file(dest_path):
                 logger.debug("이동된 파일이 처리 대상 아님", dest_path=dest_path)
                 return
             

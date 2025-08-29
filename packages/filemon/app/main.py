@@ -6,6 +6,7 @@ from app.watchdog_handler import WatchdogHandler
 from app.pipeline import FilemonPipeline
 from app.snapshot import SnapshotManager
 from app.source_path_parser import SourcePathParser
+from app.path_filter import PathFilter
 from app.config.settings import settings
 from app.utils.logger import get_logger
 
@@ -16,12 +17,13 @@ async def main():
 
     # 의존성 생성
     parser = SourcePathParser()
+    path_filter = PathFilter()
     executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="filemon")
     event_queue = asyncio.Queue()
     snapshot_manager = SnapshotManager()
     pipeline = FilemonPipeline(executor=executor, snapshot_manager=snapshot_manager)
 
-    handler = WatchdogHandler(event_queue=event_queue, loop=loop, parser=parser)
+    handler = WatchdogHandler(event_queue=event_queue, loop=loop, parser=parser, path_filter=path_filter)
 
     observer = Observer()
     observer.schedule(handler, str(settings.WATCH_ROOT), recursive=True)
