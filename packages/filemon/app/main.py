@@ -21,9 +21,9 @@ async def main():
     handler = WatchdogHandler(event_queue=event_queue, loop=loop)
 
     observer = Observer()
-    observer.schedule(handler, str(settings.BASE_PATH), recursive=True)
+    observer.schedule(handler, str(settings.WATCH_ROOT), recursive=True)
     observer.start()
-    logger.info(f"Filemon 시작됨 - 감시 경로: {settings.BASE_PATH}")
+    logger.info(f"Filemon 시작됨 - 감시 경로: {settings.WATCH_ROOT}")
 
     # asyncio 스타일의 시그널 처리(Unix)
     for sig in (signal.SIGINT, signal.SIGTERM):

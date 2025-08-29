@@ -26,7 +26,7 @@ class WatchdogHandler(FileSystemEventHandler):
         super().__init__()
         self.event_queue = event_queue
         self.loop = loop
-        self.base_path = str(settings.BASE_PATH)
+        self.base_path = str(settings.WATCH_ROOT)
         self.source_pattern = self.SOURCE_PATTERN_TEMPLATE.format(base_path=self.base_path)
 
     def _should_process_file(self, file_path: str) -> bool:

@@ -21,10 +21,10 @@ class SnapshotManager:
         async with aiofiles.open(snapshot_path, "wb") as f:
             await f.write(data)
 
-    async def create_empty_snapshot(self, source_path: str):
+    async def create_empty_snapshot(self, target_file_path: str):
         """빈 스냅샷 생성 (삭제 이벤트용)"""
         try:
-            path_info = SourceFileInfo.from_source_path(Path(source_path), settings.BASE_PATH)
+            path_info = SourceFileInfo.from_target_file_path(Path(target_file_path), settings.WATCH_ROOT)
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             snapshot_path = self._get_snapshot_path(path_info, timestamp)
             snapshot_path.parent.mkdir(parents=True, exist_ok=True)
@@ -36,7 +36,7 @@ class SnapshotManager:
             logger.info(f"빈 스냅샷 생성됨 - {path_info.filename}")
             
         except Exception as e:
-            logger.error(f"빈 스냅샷 생성 실패 - {source_path}: {str(e)}")
+            logger.error(f"빈 스냅샷 생성 실패 - {target_file_path}: {str(e)}")
 
     def _get_snapshot_path(self, path_info: SourceFileInfo, timestamp: str) -> Path:
         """스냅샷 파일 경로 생성"""
@@ -50,11 +50,11 @@ class SnapshotManager:
         if nested_path:
             snapshot_dir = snapshot_dir / nested_path
             
-        return snapshot_dir / f"{timestamp}{path_info.source_path.suffix}"
+        return snapshot_dir / f"{timestamp}{path_info.target_file_path.suffix}"
 
     def _get_nested_path(self, path_info: SourceFileInfo) -> str:
         """과제 디렉토리 이후의 경로를 @로 결합하여 반환"""
-        path = Path(path_info.source_path)
+        path = Path(path_info.target_file_path)
         hw_index = -1
         for i, part in enumerate(path.parts):
             if part == path_info.hw_name:
@@ -62,7 +62,7 @@ class SnapshotManager:
                 break
         
         if hw_index == -1:
-            raise ValueError(f"과제 디렉토리를 찾을 수 없음: {path_info.source_path}")
+            raise ValueError(f"과제 디렉토리를 찾을 수 없음: {path_info.target_file_path}")
         
         nested_parts = path.parts[hw_index + 1:]
         return '@'.join(nested_parts)

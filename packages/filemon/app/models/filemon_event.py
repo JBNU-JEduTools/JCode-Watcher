@@ -10,7 +10,7 @@ class FilemonEvent:
     """파일 시스템 이벤트 정보를 담는 클래스"""
     # 이벤트 기본 정보
     event_type: str
-    source_path: str
+    target_file_path: str
     dest_path: str | None  # moved 이벤트의 경우에만 사용
     timestamp: datetime
     
@@ -20,12 +20,12 @@ class FilemonEvent:
     @classmethod
     def from_watchdog_event(cls, event: FileSystemEvent) -> 'FilemonEvent':
         """watchdog 이벤트로부터 Event 생성"""
-        source_path = event.src_path
+        target_file_path = event.src_path
         
         # SourceFileInfo 생성
-        source_file_info = SourceFileInfo.from_source_path(
-            Path(source_path), 
-            settings.BASE_PATH
+        source_file_info = SourceFileInfo.from_target_file_path(
+            Path(target_file_path), 
+            settings.WATCH_ROOT
         )
         
         # moved 이벤트가 아닌 경우 dest_path를 None으로 설정
@@ -33,7 +33,7 @@ class FilemonEvent:
         
         return cls(
             event_type=event.event_type,
-            source_path=source_path,
+            target_file_path=target_file_path,
             dest_path=dest_path,
             timestamp=datetime.now(),
             source_file_info=source_file_info

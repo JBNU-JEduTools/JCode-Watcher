@@ -2,7 +2,7 @@ from pydantic_settings import BaseSettings
 from pathlib import Path
 
 class Settings(BaseSettings):
-    BASE_PATH: Path = Path('/watcher/codes')
+    WATCH_ROOT: Path = Path('/watcher/codes')
     SNAPSHOT_BASE: Path = Path('/watcher/snapshots')
     MAX_CAPTURABLE_FILE_SIZE: int = 64 * 1024  # 64KB - 저장할 수 있는 최대 파일 크기
     API_SERVER: str = "http://localhost:8080"  # API 서버 주소
