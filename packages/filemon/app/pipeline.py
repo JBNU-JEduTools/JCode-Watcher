@@ -7,6 +7,7 @@ from app.models.source_file_info import SourceFileInfo
 from app.config.settings import settings
 from app.utils.logger import get_logger
 from app.snapshot import SnapshotManager
+from app.sender import SnapshotSender
 
 class FilemonPipeline:
     """파일 모니터링 파이프라인"""
@@ -14,6 +15,7 @@ class FilemonPipeline:
     def __init__(self, executor: ThreadPoolExecutor, snapshot_manager: SnapshotManager):
         self.executor = executor
         self.snapshot_manager = snapshot_manager
+        self.snapshot_sender = SnapshotSender()
         self.logger = get_logger("pipeline")
         
     async def process_event(self, event: FilemonEvent):
@@ -22,6 +24,8 @@ class FilemonPipeline:
             # 삭제 이벤트는 빈 스냅샷 생성 - 이미 파싱된 정보 사용
             if event.event_type == "deleted":
                 await self.snapshot_manager.create_empty_snapshot_with_info(event.source_file_info)
+                # 삭제 이벤트의 경우 API 호출 (파일 크기 0으로)
+                await self.snapshot_sender.register_snapshot(event.source_file_info, 0)
                 return
             
             # 수정 이벤트는 통합 처리 흐름
@@ -33,6 +37,13 @@ class FilemonPipeline:
                 # 2. 바로 스냅샷 생성 (비교 없이) - 이미 파싱된 정보 사용
                 await self.snapshot_manager.create_snapshot_with_data(event.source_file_info, data)
                 self.logger.info(f"스냅샷 생성됨 - {event.source_file_info.filename}")
+                
+                # 3. API 서버에 스냅샷 등록
+                api_success = await self.snapshot_sender.register_snapshot(event.source_file_info, len(data))
+                if api_success:
+                    self.logger.info(f"API 등록 성공 - {event.source_file_info.filename}")
+                else:
+                    self.logger.warning(f"API 등록 실패 - {event.source_file_info.filename}")
                 
         except FileNotFoundError:
             self.logger.warning(f"파일이 존재하지 않음 - {event.target_file_path}")
