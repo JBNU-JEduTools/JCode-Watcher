@@ -31,7 +31,7 @@ class SourcePathParser:
         
         # 과목-분반과 학번 분리 (os-1-202012180 형식)
         class_student = parts[0].split('-')
-        if len(class_student) != 3:
+        if len(class_student) != 3 or any(not part.strip() for part in class_student):
             raise ValueError(f"잘못된 디렉토리 형식: {parts[0]}")
             
         class_div = f"{class_student[0]}-{class_student[1]}"
