@@ -18,11 +18,22 @@ class SnapshotManager:
         """읽은 데이터로 스냅샷 파일 생성"""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         snapshot_path = self._get_snapshot_path(path_info, timestamp)
+        
+        # 디렉토리 생성
         snapshot_path.parent.mkdir(parents=True, exist_ok=True)
         
         # aiofiles로 비동기 파일 쓰기
-        async with aiofiles.open(snapshot_path, "wb") as f:
-            await f.write(data)
+        try:
+            async with aiofiles.open(snapshot_path, "wb") as f:
+                await f.write(data)
+            logger.info("스냅샷 파일 생성 완료", 
+                       filename=path_info.filename,
+                       file_size=len(data))
+        except Exception as e:
+            logger.error("스냅샷 파일 생성 실패", 
+                        filename=path_info.filename,
+                        error=str(e), exc_info=True)
+            raise
 
     async def create_empty_snapshot_with_info(self, path_info: SourceFileInfo):
         """빈 스냅샷 생성 (삭제 이벤트용) - 파싱된 정보 사용"""
@@ -35,10 +46,13 @@ class SnapshotManager:
             async with aiofiles.open(snapshot_path, "wb") as f:
                 pass  # 빈 파일
             
-            logger.info(f"빈 스냅샷 생성됨 - {path_info.filename}")
+            logger.info("빈 스냅샷 생성 완료", filename=path_info.filename)
             
         except Exception as e:
-            logger.error(f"빈 스냅샷 생성 실패 - {path_info.target_file_path}: {str(e)}")
+            logger.error("빈 스냅샷 생성 실패", 
+                        filename=path_info.filename,
+                        error=str(e), exc_info=True)
+            raise
 
     def _get_snapshot_path(self, path_info: SourceFileInfo, timestamp: str) -> Path:
         """스냅샷 파일 경로 생성"""
@@ -64,7 +78,11 @@ class SnapshotManager:
                 break
         
         if hw_index == -1:
-            raise ValueError(f"과제 디렉토리를 찾을 수 없음: {path_info.target_file_path}")
+            error_msg = f"과제 디렉토리를 찾을 수 없음: {path_info.target_file_path}"
+            logger.error(error_msg, 
+                        target_path=str(path_info.target_file_path),
+                        hw_name=path_info.hw_name)
+            raise ValueError(error_msg)
         
         nested_parts = path.parts[hw_index + 1:]
         return '@'.join(nested_parts)

@@ -35,8 +35,6 @@ class SnapshotSender:
         endpoint = f"/api/{source_file_info.class_div}/{source_file_info.hw_name}/{source_file_info.student_id}/{source_file_info.filename}/{timestamp}"
         full_url = f"{self.base_url}{endpoint}"
         
-        logger.debug(f"API 요청 시작 - 파일: {source_file_info.filename}")
-        logger.debug(f"API 엔드포인트 - 주소: {full_url}")
         
         try:
             async with aiohttp.ClientSession(timeout=self.timeout) as session:

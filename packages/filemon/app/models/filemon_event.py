@@ -3,6 +3,9 @@ from datetime import datetime
 from pathlib import Path
 from watchdog.events import FileSystemEvent
 from app.models.source_file_info import SourceFileInfo
+from app.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 @dataclass
 class FilemonEvent:
