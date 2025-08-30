@@ -10,7 +10,7 @@ class PathFilter:
     """파일 경로 필터링 전담 클래스"""
     
     # 허용되는 파일 패턴 (최대 3depth까지)
-    SOURCE_PATTERN_TEMPLATE = r"{base_path}/[^/]+-[^/]+-[^/]+/hw(?:[0-9]|10)/(?:[^/]+/?){{0,4}}[^/]+\.(c|h|py|cpp|hpp)$"
+    SOURCE_PATTERN_TEMPLATE = r"{watch_root}/[^/]+-[^/]+-[^/]+/hw(?:[0-9]|10)/(?:[^/]+/?){{0,3}}[^/]+\.(c|h|py|cpp|hpp)$"
     
     # 무시할 파일 패턴 (정규식)
     IGNORE_PATTERNS = [
@@ -21,9 +21,9 @@ class PathFilter:
     ]
     
     def __init__(self):
-        self.base_path = str(settings.WATCH_ROOT)
-        self.source_pattern = self.SOURCE_PATTERN_TEMPLATE.format(base_path=self.base_path)
-        logger.debug("PathFilter 초기화됨", base_path=self.base_path, source_pattern=self.source_pattern)
+        self.watch_root = str(settings.WATCH_ROOT)
+        self.source_pattern = self.SOURCE_PATTERN_TEMPLATE.format(watch_root=self.watch_root)
+        logger.debug("PathFilter 초기화됨", watch_root=self.watch_root, source_pattern=self.source_pattern)
     
     def should_process_file(self, file_path: str) -> bool:
         """파일이 처리 대상인지 확인 (파일 존재 여부도 고려)"""

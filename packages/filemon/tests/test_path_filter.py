@@ -14,7 +14,9 @@ class TestPathFilterPatterns:
         ("/watcher/codes/class-1-202012345/hw1/test.c", True),
         ("/watcher/codes/class-1-202012345/hw1/main.h", True),
         ("/watcher/codes/os-2-202112345/hw5/src/test.py", True),
-        ("/watcher/codes/ds-4-202312345/hw2/a/b/main.hpp", True),
+        ("/watcher/codes/ds-4-202312345/hw2/a/b/main.hpp", True),   # 2depth는 허용
+        ("/watcher/codes/ds-4-202312345/hw2/a/b/c/main.hpp", True), # 3depth는 허용
+        ("/watcher/codes/ds-4-202312345/hw2/a/b/c/d/main.hpp", False), # 4depth는 허용 안됨
         ("/watcher/codes/class-1-202012345/hw0/test.c", True),  # hw0는 허용됨
         ("/watcher/codes/algo-1-202012345/hw10/util.cpp", True),  # hw10은 허용됨
         
@@ -149,12 +151,15 @@ class TestPathFilterDepthLimits:
     """PathFilter 디렉토리 깊이 제한 테스트"""
 
     @pytest.mark.parametrize("depth_path,expected", [
-        # 허용되는 깊이들
+        # 허용되는 깊이들 (최대 3depth까지)
         ("/watcher/codes/class-1-202012345/hw1/test.c", True),           # 0 depth
         ("/watcher/codes/class-1-202012345/hw1/dir1/test.c", True),      # 1 depth
         ("/watcher/codes/class-1-202012345/hw1/dir1/dir2/test.c", True), # 2 depth
         ("/watcher/codes/class-1-202012345/hw1/a/b/c/test.c", True),     # 3 depth
-        ("/watcher/codes/class-1-202012345/hw1/a/b/c/d/test.c", True),   # 4 depth
+        
+        # 허용되지 않는 깊이들 (4depth 이상)
+        ("/watcher/codes/class-1-202012345/hw1/a/b/c/d/test.c", False),   # 4 depth
+        ("/watcher/codes/class-1-202012345/hw1/a/b/c/d/e/test.c", False), # 5 depth
     ])
     def test_directory_depth_limits(self, depth_path, expected):
         """디렉토리 깊이 제한 테스트"""
@@ -204,7 +209,7 @@ class TestPathFilterInitialization:
         
         path_filter = PathFilter()
         
-        assert path_filter.base_path == '/test/watch/root'
+        assert path_filter.watch_root == '/test/watch/root'
         assert '/test/watch/root' in path_filter.source_pattern
 
     def test_pattern_compilation(self):
@@ -212,7 +217,7 @@ class TestPathFilterInitialization:
         path_filter = PathFilter()
         
         # 패턴이 올바르게 포맷되었는지 확인
-        assert path_filter.base_path in path_filter.source_pattern
+        assert path_filter.watch_root in path_filter.source_pattern
         assert 'hw(?:[0-9]|10)' in path_filter.source_pattern
         assert '\\.(c|h|py|cpp|hpp)$' in path_filter.source_pattern
 
