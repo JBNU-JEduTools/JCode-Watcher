@@ -8,6 +8,9 @@ class Settings(BaseSettings):
     API_SERVER: str = "http://localhost:8080"  # API 서버 주소
     API_TIMEOUT_TOTAL: int = 20
     
+    # ThreadPool 설정
+    THREAD_POOL_WORKERS: int = 4  # 파일 읽기용 스레드 풀 워커 수
+    
     # Debounce 설정
     DEBOUNCE_WINDOW: float = 1  # modified 이벤트 1000ms 대기
     DEBOUNCE_MAX_WAIT: float = 4  # 최대 대기 시간 4초

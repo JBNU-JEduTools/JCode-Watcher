@@ -11,7 +11,7 @@ app_path = os.path.join(project_root, 'app')
 sys.path.insert(0, project_root)
 sys.path.insert(0, app_path)
 
-from app.path_filter import PathFilter
+from app.source_path_filter import PathFilter
 
 
 @pytest.fixture
@@ -23,7 +23,7 @@ def real_path_filter():
 @pytest.fixture
 def mock_os():
     """테스트용 os 모듈 모킹 (PathFilter 테스트용)"""
-    with patch('app.path_filter.os') as mock:
+    with patch('app.source_path_filter.os') as mock:
         mock.path.isdir.return_value = False
         mock.path.exists.return_value = True
         yield mock

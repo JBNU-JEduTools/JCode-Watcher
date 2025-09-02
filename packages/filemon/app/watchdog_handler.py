@@ -2,7 +2,7 @@ import asyncio
 from pathlib import Path
 from app.utils.logger import get_logger
 from watchdog.events import FileSystemEventHandler
-from app.path_filter import PathFilter
+from app.source_path_filter import PathFilter
 
 logger = get_logger(__name__)
 

@@ -6,7 +6,7 @@ from watchdog.events import FileSystemEvent
 from app.models.filemon_event import FilemonEvent
 from app.models.source_file_info import SourceFileInfo
 from app.source_path_parser import SourcePathParser
-from app.path_filter import PathFilter
+from app.source_path_filter import PathFilter
 from app.config.settings import settings
 from app.utils.logger import get_logger
 from app.snapshot import SnapshotManager

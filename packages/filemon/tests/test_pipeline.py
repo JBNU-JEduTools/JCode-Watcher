@@ -8,7 +8,7 @@ from watchdog.events import FileSystemEvent
 
 from app.pipeline import FilemonPipeline
 from app.source_path_parser import SourcePathParser
-from app.path_filter import PathFilter
+from app.source_path_filter import PathFilter
 from app.models.source_file_info import SourceFileInfo
 from app.snapshot import SnapshotManager
 

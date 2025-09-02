@@ -8,7 +8,7 @@ from app.debouncer import Debouncer
 from app.snapshot import SnapshotManager
 from app.sender import SnapshotSender
 from app.source_path_parser import SourcePathParser
-from app.path_filter import PathFilter
+from app.source_path_filter import PathFilter
 from app.config.settings import settings
 from app.utils.logger import get_logger
 
@@ -21,7 +21,7 @@ async def main():
     # 의존성 생성
     parser = SourcePathParser()
     path_filter = PathFilter()
-    executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="filemon")
+    executor = ThreadPoolExecutor(max_workers=settings.THREAD_POOL_WORKERS, thread_name_prefix="filemon")
     raw_queue = asyncio.Queue()
     processed_queue = asyncio.Queue()
     snapshot_manager = SnapshotManager()

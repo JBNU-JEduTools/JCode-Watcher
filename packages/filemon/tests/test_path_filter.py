@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import patch, MagicMock
 from pathlib import Path
 
-from app.path_filter import PathFilter
+from app.source_path_filter import PathFilter
 from app.config import settings
 
 
