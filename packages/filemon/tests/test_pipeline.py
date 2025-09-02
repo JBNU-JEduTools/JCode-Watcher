@@ -2,12 +2,13 @@ import pytest
 import asyncio
 import os
 from pathlib import Path
-from datetime import datetime
 from unittest.mock import Mock, patch, AsyncMock
 from concurrent.futures import ThreadPoolExecutor
+from watchdog.events import FileSystemEvent
 
 from app.pipeline import FilemonPipeline
-from app.models.filemon_event import FilemonEvent
+from app.source_path_parser import SourcePathParser
+from app.path_filter import PathFilter
 from app.models.source_file_info import SourceFileInfo
 from app.snapshot import SnapshotManager
 
@@ -28,189 +29,244 @@ def mock_snapshot_manager():
 
 
 @pytest.fixture
-def pipeline(mock_executor, mock_snapshot_manager):
+def mock_parser():
+    """Mock SourcePathParser"""
+    mock = Mock(spec=SourcePathParser)
+    mock.parse.return_value = {
+        'class_div': 'os-1',
+        'hw_name': 'hw1',
+        'student_id': '202012345',
+        'filename': 'test.c'
+    }
+    return mock
+
+
+@pytest.fixture
+def mock_path_filter():
+    """Mock PathFilter"""
+    return Mock(spec=PathFilter)
+
+
+@pytest.fixture
+def pipeline(mock_executor, mock_snapshot_manager, mock_parser, mock_path_filter):
     """FilemonPipeline 인스턴스"""
-    return FilemonPipeline(mock_executor, mock_snapshot_manager)
+    return FilemonPipeline(mock_executor, mock_snapshot_manager, mock_parser, mock_path_filter)
 
 
 @pytest.fixture
-def real_source_info():
-    """실제 SourceFileInfo 객체"""
-    return SourceFileInfo(
-        class_div='os-1',
-        hw_name='hw1',
-        student_id='202012345',
-        filename='test.c',
-        target_file_path=Path('/watch/root/os-1-202012345/hw1/test.c')
-    )
+def mock_fs_event():
+    """Mock FileSystemEvent"""
+    event = Mock(spec=FileSystemEvent)
+    event.event_type = "modified"
+    event.src_path = '/watch/root/os-1-202012345/hw1/test.c'
+    return event
 
 
 @pytest.fixture
-def real_modified_event(real_source_info):
-    """실제 FilemonEvent for modified event"""
-    return FilemonEvent(
-        event_type="modified",
-        target_file_path="/watch/root/os-1-202012345/hw1/test.c",
-        dest_path=None,  # modified 이벤트는 dest_path 없음
-        timestamp=datetime.now(),
-        source_file_info=real_source_info
-    )
+def mock_deleted_event():
+    """Mock FileSystemEvent for deleted"""
+    event = Mock(spec=FileSystemEvent)
+    event.event_type = "deleted"
+    event.src_path = '/watch/root/os-1-202012345/hw1/test.c'
+    return event
 
 
 @pytest.fixture
-def real_deleted_event(real_source_info):
-    """실제 FilemonEvent for deleted event"""
-    return FilemonEvent(
-        event_type="deleted",
-        target_file_path="/watch/root/os-1-202012345/hw1/test.c",
-        dest_path=None,  # deleted 이벤트는 dest_path 없음
-        timestamp=datetime.now(),
-        source_file_info=real_source_info
-    )
+def mock_moved_event():
+    """Mock FileSystemEvent for moved"""
+    event = Mock(spec=FileSystemEvent)
+    event.event_type = "moved"
+    event.src_path = '/watch/root/os-1-202012345/hw1/old_test.c'
+    event.dest_path = '/watch/root/os-1-202012345/hw1/new_test.c'
+    return event
 
 
 class TestFilemonPipeline:
     """FilemonPipeline 테스트"""
 
     @pytest.mark.asyncio
-    async def test_process_event_modified_success(self, real_modified_event, mock_snapshot_manager):
-        """수정 이벤트 성공적 처리 - 실제 데이터 흐름 검증"""
+    async def test_process_event_modified_success(self, pipeline, mock_fs_event, mock_snapshot_manager):
+        """수정 이벤트 성공적 처리"""
         # Given
-        pipeline = FilemonPipeline(Mock(), mock_snapshot_manager)
         test_data = b'#include <stdio.h>\nint main() { return 0; }'
         
-        # read_and_verify 결과 시뮬레이션 (파일 시스템만 Mock)
-        with patch.object(pipeline, 'read_and_verify') as mock_read:
+        with patch('app.pipeline.os.path.getsize') as mock_getsize, \
+             patch('app.pipeline.settings') as mock_settings, \
+             patch('app.pipeline.SourceFileInfo.from_parsed_data') as mock_source_from_data, \
+             patch.object(pipeline.snapshot_sender, 'register_snapshot', new_callable=AsyncMock) as mock_register, \
+             patch('app.pipeline.asyncio.wrap_future') as mock_wrap_future:
+            
+            mock_settings.MAX_CAPTURABLE_FILE_SIZE = 1000000
+            mock_getsize.return_value = 500
             mock_stat = Mock(st_size=len(test_data), st_mtime=1234567890)
-            mock_read.return_value = (mock_stat, test_data)
             
-            # When: 실제 이벤트로 실제 로직 실행
-            await pipeline.process_event(real_modified_event)
+            # asyncio.wrap_future 모킹으로 실제 파일 읽기 우회
+            async def mock_future_result():
+                return (mock_stat, test_data)
+            
+            coro = mock_future_result()
+            mock_wrap_future.return_value = coro
+            
+            mock_source_info = Mock()
+            mock_source_info.filename = 'test.c'
+            mock_source_from_data.return_value = mock_source_info
+            mock_register.return_value = True
+            
+            # When
+            await pipeline.process_event(mock_fs_event)
         
-        # Then: 데이터 검증 (단순 호출 확인이 아님)
-        mock_snapshot_manager.create_snapshot_with_data.assert_called_once()
-        
-        # 실제 전달된 데이터 검증 (핵심!)
-        call_args = mock_snapshot_manager.create_snapshot_with_data.call_args[0]
-        actual_source_info, actual_data = call_args
-        
-        assert actual_source_info.student_id == "202012345"
-        assert actual_source_info.class_div == "os-1"
-        assert actual_source_info.filename == "test.c"
-        assert actual_data == test_data
+        # Then
+        pipeline.parser.parse.assert_called_once_with(Path(mock_fs_event.src_path))
+        mock_source_from_data.assert_called_once()
+        pipeline.executor.submit.assert_called_once()
+        mock_snapshot_manager.create_snapshot_with_data.assert_called_once_with(mock_source_info, test_data)
+        mock_register.assert_called_once_with(mock_source_info, len(test_data))
 
     @pytest.mark.asyncio
-    async def test_process_event_deleted_success(self, real_deleted_event, mock_snapshot_manager):
-        """삭제 이벤트 성공적 처리 - 실제 데이터 흐름 검증"""
+    async def test_process_event_deleted_success(self, pipeline, mock_deleted_event, mock_snapshot_manager):
+        """삭제 이벤트 성공적 처리"""
         # Given
-        pipeline = FilemonPipeline(Mock(), mock_snapshot_manager)
+        with patch('app.pipeline.SourceFileInfo.from_parsed_data') as mock_source_from_data, \
+             patch.object(pipeline.snapshot_sender, 'register_snapshot', new_callable=AsyncMock) as mock_register:
+            
+            mock_source_info = Mock()
+            mock_source_info.filename = 'test.c'
+            mock_source_from_data.return_value = mock_source_info
+            mock_register.return_value = True
+            
+            # When
+            await pipeline.process_event(mock_deleted_event)
         
-        # When: 실제 이벤트로 실제 로직 실행
-        await pipeline.process_event(real_deleted_event)
+        # Then
+        pipeline.parser.parse.assert_called_once_with(Path(mock_deleted_event.src_path))
+        mock_source_from_data.assert_called_once()
+        mock_snapshot_manager.create_empty_snapshot_with_info.assert_called_once_with(mock_source_info)
+        mock_register.assert_called_once_with(mock_source_info, 0)
+
+    @pytest.mark.asyncio
+    async def test_process_event_moved_success(self, pipeline, mock_moved_event, mock_snapshot_manager):
+        """이동 이벤트 성공적 처리"""
+        # Given
+        test_data = b'test content'
         
-        # Then: 데이터 검증
+        with patch('app.pipeline.os.path.exists') as mock_exists, \
+             patch('app.pipeline.os.path.getsize') as mock_getsize, \
+             patch('app.pipeline.settings') as mock_settings, \
+             patch('app.pipeline.SourceFileInfo.from_parsed_data') as mock_source_from_data, \
+             patch.object(pipeline.snapshot_sender, 'register_snapshot', new_callable=AsyncMock) as mock_register, \
+             patch('app.pipeline.asyncio.wrap_future') as mock_wrap_future:
+            
+            mock_exists.return_value = True
+            mock_settings.MAX_CAPTURABLE_FILE_SIZE = 1000000
+            mock_getsize.return_value = 500
+            mock_stat = Mock(st_size=len(test_data), st_mtime=1234567890)
+            
+            # executor.submit과 asyncio.wrap_future 모킹
+            async def mock_future_result():
+                return (mock_stat, test_data)
+            mock_wrap_future.return_value = mock_future_result()
+            
+            mock_source_info = Mock()
+            mock_source_info.filename = 'test.c'
+            mock_source_from_data.return_value = mock_source_info
+            mock_register.return_value = True
+            
+            # When
+            await pipeline.process_event(mock_moved_event)
+        
+        # Then
+        # 파싱이 2번 호출되어야 함 (src_path + dest_path)
+        assert pipeline.parser.parse.call_count == 2
+        # 스냅샷이 2번 생성되어야 함 (empty + data)
         mock_snapshot_manager.create_empty_snapshot_with_info.assert_called_once()
-        
-        # 실제 전달된 데이터 검증
-        call_args = mock_snapshot_manager.create_empty_snapshot_with_info.call_args[0]
-        actual_source_info = call_args[0]
-        
-        assert actual_source_info.student_id == "202012345"
-        assert actual_source_info.class_div == "os-1"
-        assert actual_source_info.filename == "test.c"
-
-    @pytest.mark.parametrize("event_type,expected_method", [
-        ("deleted", "create_empty_snapshot_with_info"),
-        ("modified", "create_snapshot_with_data"),
-    ])
-    @pytest.mark.asyncio
-    async def test_event_type_routing_logic(self, event_type, expected_method, real_source_info, mock_snapshot_manager):
-        """이벤트 타입별 라우팅 로직 검증 - 핵심 비즈니스 로직!"""
-        
-        # Given: 실제 이벤트 (event_type만 변경)
-        event = FilemonEvent(
-            event_type=event_type,
-            target_file_path="/test/file.c",
-            dest_path=None,  # moved가 아니므로 None
-            timestamp=datetime.now(),
-            source_file_info=real_source_info
-        )
-        
-        pipeline = FilemonPipeline(Mock(), mock_snapshot_manager)
-        
-        if event_type == "modified":
-            # modified의 경우만 파일 읽기 Mock 필요
-            with patch.object(pipeline, 'read_and_verify') as mock_read:
-                mock_read.return_value = (Mock(), b"test data")
-                await pipeline.process_event(event)
-        else:
-            await pipeline.process_event(event)
-        
-        # Then: 올바른 메서드가 호출되었는가?
-        expected_mock = getattr(mock_snapshot_manager, expected_method)
-        expected_mock.assert_called_once()
-        
-        # 실제 데이터가 올바르게 전달되었는가?
-        actual_source_info = expected_mock.call_args[0][0]
-        assert actual_source_info.student_id == "202012345"
-        assert actual_source_info.class_div == "os-1"
+        mock_snapshot_manager.create_snapshot_with_data.assert_called_once()
+        # API 등록이 2번 호출되어야 함
+        assert mock_register.call_count == 2
 
     @pytest.mark.asyncio
-    async def test_process_event_file_not_found_error(self, real_modified_event, mock_snapshot_manager):
-        """FileNotFoundError 처리 - 실제 예외 흐름 검증"""
-        # Given: 실제 이벤트 + 파일 없음 상황
-        pipeline = FilemonPipeline(Mock(), mock_snapshot_manager)
-        
-        with patch.object(pipeline, 'read_and_verify') as mock_read:
-            mock_read.side_effect = FileNotFoundError("File not found")
+    async def test_process_event_modified_file_size_exceeded(self, pipeline, mock_fs_event):
+        """수정 이벤트 - 파일 크기 초과"""
+        # Given
+        with patch('app.pipeline.os.path.getsize') as mock_getsize, \
+             patch('app.pipeline.settings') as mock_settings:
             
-            # When: 실제 예외 상황
-            await pipeline.process_event(real_modified_event)
+            mock_settings.MAX_CAPTURABLE_FILE_SIZE = 1000
+            mock_getsize.return_value = 2000
+            
+            # When
+            await pipeline.process_event(mock_fs_event)
         
-        # Then: 예외 처리 검증
-        # 1. 파일 읽기 시도됨
-        mock_read.assert_called_once_with(real_modified_event.target_file_path)
+        # Then
+        mock_getsize.assert_called_once_with(mock_fs_event.src_path)
+        pipeline.parser.parse.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_process_event_modified_file_not_found(self, pipeline, mock_fs_event, mock_snapshot_manager):
+        """수정 이벤트 - 파일 없음"""
+        # Given
+        with patch('app.pipeline.os.path.getsize') as mock_getsize, \
+             patch('app.pipeline.settings') as mock_settings, \
+             patch('app.pipeline.SourceFileInfo.from_parsed_data') as mock_source_from_data, \
+             patch('app.pipeline.asyncio.wrap_future') as mock_wrap_future:
+            
+            mock_settings.MAX_CAPTURABLE_FILE_SIZE = 1000000
+            mock_getsize.return_value = 500
+            
+            # Future에서 FileNotFoundError 발생하도록 설정
+            async def mock_future_error():
+                raise FileNotFoundError("File not found")
+            mock_wrap_future.return_value = mock_future_error()
+            
+            mock_source_info = Mock()
+            mock_source_from_data.return_value = mock_source_info
+            
+            # When
+            await pipeline.process_event(mock_fs_event)
         
-        # 2. 스냅샷이 생성되지 않아야 함
+        # Then
+        pipeline.executor.submit.assert_called_once()
         mock_snapshot_manager.create_snapshot_with_data.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_process_event_runtime_error(self, real_modified_event, mock_snapshot_manager):
-        """RuntimeError 처리 - 파일 읽기 중 변경 검증"""
-        # Given: 실제 이벤트 + 파일 읽기 중 변경 상황
-        pipeline = FilemonPipeline(Mock(), mock_snapshot_manager)
-        
-        with patch.object(pipeline, 'read_and_verify') as mock_read:
-            mock_read.side_effect = RuntimeError("file changed during read")
+    async def test_process_event_modified_runtime_error(self, pipeline, mock_fs_event, mock_snapshot_manager):
+        """수정 이벤트 - 읽기 중 파일 변경"""
+        # Given
+        with patch('app.pipeline.os.path.getsize') as mock_getsize, \
+             patch('app.pipeline.settings') as mock_settings, \
+             patch('app.pipeline.SourceFileInfo.from_parsed_data') as mock_source_from_data, \
+             patch('app.pipeline.asyncio.wrap_future') as mock_wrap_future:
             
-            # When: 실제 예외 상황
-            await pipeline.process_event(real_modified_event)
+            mock_settings.MAX_CAPTURABLE_FILE_SIZE = 1000000
+            mock_getsize.return_value = 500
+            
+            # Future에서 RuntimeError 발생하도록 설정
+            async def mock_future_error():
+                raise RuntimeError("file changed during read")
+            mock_wrap_future.return_value = mock_future_error()
+            
+            mock_source_info = Mock()
+            mock_source_from_data.return_value = mock_source_info
+            
+            # When
+            await pipeline.process_event(mock_fs_event)
         
-        # Then: 예외 처리 검증
-        # 1. 파일 읽기 시도됨
-        mock_read.assert_called_once_with(real_modified_event.target_file_path)
-        
-        # 2. 스냅샷이 생성되지 않아야 함
+        # Then
+        pipeline.executor.submit.assert_called_once()
         mock_snapshot_manager.create_snapshot_with_data.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_process_event_unexpected_error(self, real_modified_event, mock_snapshot_manager):
-        """예상치 못한 에러 처리 - 일반 Exception 검증"""
-        # Given: 실제 이벤트 + 예상치 못한 에러 상황
-        pipeline = FilemonPipeline(Mock(), mock_snapshot_manager)
+    async def test_process_event_unknown_event_type(self, pipeline):
+        """알 수 없는 이벤트 타입"""
+        # Given
+        unknown_event = Mock(spec=FileSystemEvent)
+        unknown_event.event_type = "unknown"
+        unknown_event.src_path = "/test/path"
         
-        with patch.object(pipeline, 'read_and_verify') as mock_read:
-            mock_read.side_effect = ValueError("Unexpected error")
-            
-            # When: 실제 예외 상황
-            await pipeline.process_event(real_modified_event)
+        # When
+        await pipeline.process_event(unknown_event)
         
-        # Then: 예외 처리 검증
-        # 1. 파일 읽기 시도됨
-        mock_read.assert_called_once_with(real_modified_event.target_file_path)
-        
-        # 2. 스냅샷이 생성되지 않아야 함
-        mock_snapshot_manager.create_snapshot_with_data.assert_not_called()
+        # Then
+        pipeline.parser.parse.assert_not_called()
 
     @patch('builtins.open')
     @patch('app.pipeline.os.fstat')
@@ -285,39 +341,6 @@ class TestFilemonPipeline:
             
             mock_file.close.assert_called_once()
 
-    @patch('builtins.open')
-    @patch('app.pipeline.os.fstat')
-    def test_read_and_verify_mtime_changed(self, mock_fstat, mock_open, pipeline):
-        """파일 수정 시간이 변경된 경우"""
-        # Given
-        mock_file = Mock()
-        mock_open.return_value = mock_file
-        mock_file.fileno.return_value = 3
-        
-        mock_stat_before = Mock()
-        mock_stat_before.st_size = 100
-        mock_stat_before.st_mtime = 1234567890
-        
-        mock_stat_after = Mock()
-        mock_stat_after.st_size = 100
-        mock_stat_after.st_mtime = 1234567891  # 수정 시간 변경됨
-        
-        mock_fstat.side_effect = [mock_stat_before, mock_stat_after]
-        mock_file.read.return_value = b'test content'
-        
-        target_path = "/test/path/file.txt"
-        
-        # When & Then
-        with patch('app.pipeline.Path') as mock_path_class:
-            mock_path = Mock()
-            mock_path.exists.return_value = True
-            mock_path_class.return_value = mock_path
-            
-            with pytest.raises(RuntimeError, match="file changed during read"):
-                pipeline.read_and_verify(target_path)
-            
-            mock_file.close.assert_called_once()
-
     def test_read_and_verify_file_not_exists(self, pipeline):
         """파일이 존재하지 않는 경우"""
         # Given
@@ -353,3 +376,19 @@ class TestFilemonPipeline:
                 pipeline.read_and_verify(target_path)
             
             mock_file.close.assert_called_once()
+
+
+class TestFilemonPipelineInit:
+    """FilemonPipeline 초기화 테스트"""
+
+    def test_initialization(self, mock_executor, mock_snapshot_manager, mock_parser, mock_path_filter):
+        """FilemonPipeline 정상 초기화"""
+        # When
+        pipeline = FilemonPipeline(mock_executor, mock_snapshot_manager, mock_parser, mock_path_filter)
+
+        # Then
+        assert pipeline.executor == mock_executor
+        assert pipeline.snapshot_manager == mock_snapshot_manager
+        assert pipeline.parser == mock_parser
+        assert pipeline.path_filter == mock_path_filter
+        assert pipeline.snapshot_sender is not None

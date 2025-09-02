@@ -1,37 +1,22 @@
 import asyncio
 import pytest
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 from watchdog.events import FileSystemEvent
 
 from app.watchdog_handler import WatchdogHandler
-from app.models.filemon_event import FilemonEvent
-from app.models.source_file_info import SourceFileInfo
 
 
 @pytest.fixture
-def mock_event_queue():
+def mock_raw_queue():
     """Mock asyncio Queue"""
     return Mock()
 
 
-@pytest.fixture
+@pytest.fixture  
 def mock_loop():
     """Mock asyncio event loop"""
     return Mock(spec=asyncio.AbstractEventLoop)
-
-
-@pytest.fixture
-def mock_parser():
-    """Mock SourcePathParser"""
-    mock = Mock()
-    mock.parse.return_value = {
-        'class_div': 'class-1',
-        'hw_name': 'hw1', 
-        'student_id': '202012345',
-        'filename': 'test.c'
-    }
-    return mock
 
 
 @pytest.fixture
@@ -44,9 +29,9 @@ def mock_path_filter():
 
 
 @pytest.fixture
-def handler(mock_event_queue, mock_loop, mock_parser, mock_path_filter):
+def handler(mock_raw_queue, mock_loop, mock_path_filter):
     """WatchdogHandler 인스턴스"""
-    return WatchdogHandler(mock_event_queue, mock_loop, mock_parser, mock_path_filter)
+    return WatchdogHandler(mock_raw_queue, mock_loop, mock_path_filter)
 
 
 @pytest.fixture
@@ -69,32 +54,15 @@ def mock_moved_event():
 class TestOnModified:
     """on_modified 메서드 테스트"""
 
-    @patch('app.watchdog_handler.os.path.getsize')
-    @patch('app.watchdog_handler.settings')
-    @patch('app.watchdog_handler.SourceFileInfo.from_parsed_data')
-    @patch('app.watchdog_handler.FilemonEvent.from_components')
-    def test_success_flow(self, mock_filemon_from_components, mock_source_from_parsed_data, 
-                         mock_settings, mock_getsize, handler, mock_fs_event):
+    def test_success_flow(self, handler, mock_fs_event):
         """정상 처리 흐름 테스트"""
-        # Given
-        mock_settings.MAX_CAPTURABLE_FILE_SIZE = 1000000
-        mock_getsize.return_value = 500
-        mock_source_info = Mock()
-        mock_source_from_parsed_data.return_value = mock_source_info
-        mock_filemon_event = Mock()
-        mock_filemon_from_components.return_value = mock_filemon_event
-
         # When
         handler.on_modified(mock_fs_event)
 
         # Then
         handler.path_filter.should_process_file.assert_called_once_with(mock_fs_event.src_path)
-        mock_getsize.assert_called_once_with(mock_fs_event.src_path)
-        handler.parser.parse.assert_called_once_with(Path(mock_fs_event.src_path))
-        mock_source_from_parsed_data.assert_called_once()
-        mock_filemon_from_components.assert_called_once_with(mock_fs_event, mock_source_info)
         handler.loop.call_soon_threadsafe.assert_called_once_with(
-            handler.event_queue.put_nowait, mock_filemon_event
+            handler.raw_queue.put_nowait, mock_fs_event
         )
 
     def test_filtered_file_skipped(self, handler, mock_fs_event):
@@ -107,82 +75,37 @@ class TestOnModified:
 
         # Then
         handler.path_filter.should_process_file.assert_called_once_with(mock_fs_event.src_path)
-        handler.parser.parse.assert_not_called()
-        handler.event_queue.put_nowait.assert_not_called()
+        handler.loop.call_soon_threadsafe.assert_not_called()
 
-    @patch('app.watchdog_handler.os.path.getsize')
-    @patch('app.watchdog_handler.settings')
-    def test_file_size_exceeded(self, mock_settings, mock_getsize, handler, mock_fs_event):
-        """파일 크기 초과시 스킵"""
+    @patch('app.watchdog_handler.logger')
+    def test_exception_handling(self, mock_logger, handler, mock_fs_event):
+        """예외 처리 테스트"""
         # Given
-        mock_settings.MAX_CAPTURABLE_FILE_SIZE = 1000
-        mock_getsize.return_value = 2000
+        handler.loop.call_soon_threadsafe.side_effect = RuntimeError("Queue error")
 
         # When
         handler.on_modified(mock_fs_event)
 
         # Then
-        handler.path_filter.should_process_file.assert_called_once()
-        mock_getsize.assert_called_once_with(mock_fs_event.src_path)
-        handler.parser.parse.assert_not_called()
-        handler.event_queue.put_nowait.assert_not_called()
-
-    @patch('app.watchdog_handler.os.path.getsize')
-    def test_os_error_handling(self, mock_getsize, handler, mock_fs_event):
-        """OSError 처리"""
-        # Given
-        mock_getsize.side_effect = OSError("File not found")
-
-        # When
-        handler.on_modified(mock_fs_event)
-
-        # Then
-        handler.path_filter.should_process_file.assert_called_once()
-        handler.parser.parse.assert_not_called()
-        handler.event_queue.put_nowait.assert_not_called()
-
-    @patch('app.watchdog_handler.os.path.getsize')
-    @patch('app.watchdog_handler.settings')
-    def test_unexpected_error_handling(self, mock_settings, mock_getsize, handler, mock_fs_event):
-        """예상치 못한 에러 처리"""
-        # Given
-        mock_settings.MAX_CAPTURABLE_FILE_SIZE = 1000000
-        mock_getsize.return_value = 500
-        handler.parser.parse.side_effect = ValueError("Parsing error")
-
-        # When
-        handler.on_modified(mock_fs_event)
-
-        # Then
-        handler.path_filter.should_process_file.assert_called_once()
-        handler.parser.parse.assert_called_once()
-        handler.event_queue.put_nowait.assert_not_called()
+        mock_logger.error.assert_called_once()
+        error_call_args = mock_logger.error.call_args
+        assert "on_modified 처리 중 예상치 못한 오류 발생" in error_call_args[0][0]
+        assert error_call_args[1]['src_path'] == mock_fs_event.src_path
+        assert "Queue error" in error_call_args[1]['error']
 
 
 class TestOnDeleted:
     """on_deleted 메서드 테스트"""
 
-    @patch('app.watchdog_handler.SourceFileInfo.from_parsed_data')
-    @patch('app.watchdog_handler.FilemonEvent.from_components')
-    def test_success_flow(self, mock_filemon_from_components, mock_source_from_parsed_data,
-                         handler, mock_fs_event):
+    def test_success_flow(self, handler, mock_fs_event):
         """정상 처리 흐름 테스트"""
-        # Given
-        mock_source_info = Mock()
-        mock_source_from_parsed_data.return_value = mock_source_info
-        mock_filemon_event = Mock()
-        mock_filemon_from_components.return_value = mock_filemon_event
-
         # When
         handler.on_deleted(mock_fs_event)
 
         # Then
         handler.path_filter.should_process_path.assert_called_once_with(mock_fs_event.src_path)
-        handler.parser.parse.assert_called_once_with(Path(mock_fs_event.src_path))
-        mock_source_from_parsed_data.assert_called_once()
-        mock_filemon_from_components.assert_called_once_with(mock_fs_event, mock_source_info)
         handler.loop.call_soon_threadsafe.assert_called_once_with(
-            handler.event_queue.put_nowait, mock_filemon_event
+            handler.raw_queue.put_nowait, mock_fs_event
         )
 
     def test_filtered_path_skipped(self, handler, mock_fs_event):
@@ -195,153 +118,95 @@ class TestOnDeleted:
 
         # Then
         handler.path_filter.should_process_path.assert_called_once_with(mock_fs_event.src_path)
-        handler.parser.parse.assert_not_called()
-        handler.event_queue.put_nowait.assert_not_called()
+        handler.loop.call_soon_threadsafe.assert_not_called()
 
-    def test_unexpected_error_handling(self, handler, mock_fs_event):
-        """예상치 못한 에러 처리"""
+    @patch('app.watchdog_handler.logger')
+    def test_exception_handling(self, mock_logger, handler, mock_fs_event):
+        """예외 처리 테스트"""
         # Given
-        handler.parser.parse.side_effect = ValueError("Parsing error")
+        handler.loop.call_soon_threadsafe.side_effect = RuntimeError("Queue error")
 
         # When
         handler.on_deleted(mock_fs_event)
 
         # Then
-        handler.path_filter.should_process_path.assert_called_once()
-        handler.parser.parse.assert_called_once()
-        handler.event_queue.put_nowait.assert_not_called()
+        mock_logger.error.assert_called_once()
+        error_call_args = mock_logger.error.call_args
+        assert "on_deleted 처리 중 예상치 못한 오류 발생" in error_call_args[0][0]
+        assert error_call_args[1]['src_path'] == mock_fs_event.src_path
+        assert "Queue error" in error_call_args[1]['error']
 
 
 class TestOnMoved:
     """on_moved 메서드 테스트"""
 
-    @patch('app.watchdog_handler.os.path.exists')
-    @patch('app.watchdog_handler.os.path.getsize')
-    @patch('app.watchdog_handler.settings')
-    @patch('app.watchdog_handler.SourceFileInfo.from_parsed_data')
-    @patch('app.watchdog_handler.FilemonEvent.from_components')
-    @patch('app.watchdog_handler.FileSystemEvent')
-    def test_success_flow(self, mock_fs_event_class, mock_filemon_from_components,
-                         mock_source_from_parsed_data, mock_settings, mock_getsize,
-                         mock_exists, handler, mock_moved_event):
-        """정상 처리 흐름 테스트 (삭제 + 수정 이벤트)"""
-        # Given
-        mock_settings.MAX_CAPTURABLE_FILE_SIZE = 1000000
-        mock_exists.return_value = True
-        mock_getsize.return_value = 500
-        
-        # Mock FileSystemEvent 인스턴스들 설정
-        mock_delete_event = Mock()
-        mock_delete_event.src_path = mock_moved_event.src_path  # 문자열로 설정
-        mock_modify_event = Mock()
-        mock_modify_event.src_path = mock_moved_event.dest_path  # 문자열로 설정
-        
-        mock_fs_event_class.side_effect = [mock_delete_event, mock_modify_event]
-        
-        mock_source_info = Mock()
-        mock_source_from_parsed_data.return_value = mock_source_info
-        mock_filemon_event = Mock()
-        mock_filemon_from_components.return_value = mock_filemon_event
-
+    def test_success_flow(self, handler, mock_moved_event):
+        """정상 처리 흐름 테스트"""
         # When
         handler.on_moved(mock_moved_event)
 
         # Then
-        # FileSystemEvent가 두 번 생성되어야 함 (삭제용 + 수정용)
-        assert mock_fs_event_class.call_count == 2
-        
-        # 파싱이 두 번 호출되어야 함 (삭제용 + 수정용)
-        assert handler.parser.parse.call_count == 2
-        
-        # 큐에 두 번 추가되어야 함 (삭제 이벤트 + 수정 이벤트)
-        assert handler.loop.call_soon_threadsafe.call_count == 2
+        handler.path_filter.should_process_file.assert_called_once_with(mock_moved_event.dest_path)
+        handler.loop.call_soon_threadsafe.assert_called_once_with(
+            handler.raw_queue.put_nowait, mock_moved_event
+        )
 
-    def test_no_dest_path(self, handler):
-        """dest_path가 없는 경우"""
+    def test_filtered_file_skipped(self, handler, mock_moved_event):
+        """필터링된 파일은 스킵"""
         # Given
-        mock_event = Mock()
-        mock_event.src_path = '/test/old.c'
-        del mock_event.dest_path  # dest_path 속성 제거
-
-        # When
-        handler.on_moved(mock_event)
-
-        # Then
-        # 삭제 이벤트만 처리되고 수정 이벤트는 처리되지 않음
-        assert handler.parser.parse.call_count <= 1
-
-    @patch('app.watchdog_handler.os.path.exists')
-    def test_dest_path_not_exists(self, mock_exists, handler, mock_moved_event):
-        """이동된 파일이 존재하지 않는 경우"""
-        # Given
-        mock_exists.return_value = False
-
-        # When
-        handler.on_moved(mock_moved_event)
-
-        # Then
-        mock_exists.assert_called_with(mock_moved_event.dest_path)
-        # 삭제 이벤트만 처리됨
-        assert handler.parser.parse.call_count <= 1
-
-    @patch('app.watchdog_handler.os.path.exists')
-    def test_filtered_file_skipped(self, mock_exists, handler, mock_moved_event):
-        """필터링된 파일은 수정 이벤트 스킵"""
-        # Given
-        mock_exists.return_value = True
         handler.path_filter.should_process_file.return_value = False
 
         # When
         handler.on_moved(mock_moved_event)
 
         # Then
-        mock_exists.assert_called_with(mock_moved_event.dest_path)
-        handler.path_filter.should_process_file.assert_called_with(mock_moved_event.dest_path)
-        # 삭제 이벤트만 처리됨
-        assert handler.parser.parse.call_count <= 1
+        handler.path_filter.should_process_file.assert_called_once_with(mock_moved_event.dest_path)
+        handler.loop.call_soon_threadsafe.assert_not_called()
 
-    @patch('app.watchdog_handler.os.path.exists')
-    @patch('app.watchdog_handler.os.path.getsize')
-    @patch('app.watchdog_handler.settings')
-    def test_file_size_exceeded(self, mock_settings, mock_getsize, mock_exists, 
-                               handler, mock_moved_event):
-        """파일 크기 초과시 수정 이벤트 스킵"""
+    def test_no_dest_path(self, handler):
+        """dest_path가 없는 경우 (src_path 사용)"""
         # Given
-        mock_exists.return_value = True
-        mock_settings.MAX_CAPTURABLE_FILE_SIZE = 1000
-        mock_getsize.return_value = 2000
+        # dest_path 속성이 없는 객체 생성
+        class MockEventWithoutDestPath:
+            def __init__(self, src_path):
+                self.src_path = src_path
+        
+        mock_event = MockEventWithoutDestPath('/test/old.c')
+        
+        # When
+        handler.on_moved(mock_event)
+
+        # Then
+        # dest_path가 없으면 src_path를 사용
+        handler.path_filter.should_process_file.assert_called_once_with(mock_event.src_path)
+
+    @patch('app.watchdog_handler.logger')
+    def test_exception_handling(self, mock_logger, handler, mock_moved_event):
+        """예외 처리 테스트"""
+        # Given
+        handler.loop.call_soon_threadsafe.side_effect = RuntimeError("Queue error")
 
         # When
         handler.on_moved(mock_moved_event)
 
         # Then
-        mock_getsize.assert_called_with(mock_moved_event.dest_path)
-        # 삭제 이벤트만 처리됨
-        assert handler.parser.parse.call_count <= 1
+        mock_logger.error.assert_called_once()
+        error_call_args = mock_logger.error.call_args
+        assert "on_moved 처리 중 예상치 못한 오류 발생" in error_call_args[0][0]
+        assert error_call_args[1]['src_path'] == mock_moved_event.src_path
+        assert error_call_args[1]['dest_path'] == mock_moved_event.dest_path
+        assert "Queue error" in error_call_args[1]['error']
 
-    @patch('app.watchdog_handler.os.path.exists')
-    @patch('app.watchdog_handler.os.path.getsize')
-    def test_os_error_handling(self, mock_getsize, mock_exists, handler, mock_moved_event):
-        """OSError 처리"""
-        # Given
-        mock_exists.return_value = True
-        mock_getsize.side_effect = OSError("File access error")
 
+class TestWatchdogHandlerInit:
+    """WatchdogHandler 초기화 테스트"""
+
+    def test_initialization(self, mock_raw_queue, mock_loop, mock_path_filter):
+        """WatchdogHandler 정상 초기화"""
         # When
-        handler.on_moved(mock_moved_event)
+        handler = WatchdogHandler(mock_raw_queue, mock_loop, mock_path_filter)
 
         # Then
-        mock_getsize.assert_called_with(mock_moved_event.dest_path)
-        # 예외로 인해 처리 중단됨
-
-    def test_unexpected_error_handling(self, handler, mock_moved_event):
-        """예상치 못한 에러 처리"""
-        # Given
-        handler.parser.parse.side_effect = ValueError("Parsing error")
-
-        # When
-        handler.on_moved(mock_moved_event)
-
-        # Then
-        # 파싱 에러로 인해 처리 중단
-        handler.parser.parse.assert_called_once()
+        assert handler.raw_queue == mock_raw_queue
+        assert handler.loop == mock_loop
+        assert handler.path_filter == mock_path_filter

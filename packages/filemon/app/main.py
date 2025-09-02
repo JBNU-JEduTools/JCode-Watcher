@@ -4,6 +4,7 @@ from concurrent.futures import ThreadPoolExecutor
 from watchdog.observers import Observer
 from app.watchdog_handler import WatchdogHandler
 from app.pipeline import FilemonPipeline
+from app.debouncer import Debouncer
 from app.snapshot import SnapshotManager
 from app.source_path_parser import SourcePathParser
 from app.path_filter import PathFilter
@@ -20,11 +21,13 @@ async def main():
     parser = SourcePathParser()
     path_filter = PathFilter()
     executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="filemon")
-    event_queue = asyncio.Queue()
+    raw_queue = asyncio.Queue()
+    processed_queue = asyncio.Queue()
     snapshot_manager = SnapshotManager()
-    pipeline = FilemonPipeline(executor=executor, snapshot_manager=snapshot_manager)
-    handler = WatchdogHandler(event_queue=event_queue, loop=loop, parser=parser, path_filter=path_filter)
-    logger.debug("모든 의존성 객체 생성 완료")
+    pipeline = FilemonPipeline(executor=executor, snapshot_manager=snapshot_manager, parser=parser, path_filter=path_filter)
+    debouncer = Debouncer(processed_queue=processed_queue)
+    handler = WatchdogHandler(raw_queue=raw_queue, loop=loop, path_filter=path_filter)
+    logger.debug("의존성 객체 생성 완료")
 
     observer = Observer()
     observer.schedule(handler, str(settings.WATCH_ROOT), recursive=True)
@@ -38,22 +41,45 @@ async def main():
         loop.add_signal_handler(sig, lambda s=sig: asyncio.create_task(shutdown(pipeline, observer, executor)))
 
     logger.info("메인 이벤트 루프 시작")
+    
     try:
-        processed_count = 0
+        async with asyncio.TaskGroup() as tg:
+            tg.create_task(run_debouncer(debouncer, raw_queue))
+            tg.create_task(run_main_pipeline(processed_queue, pipeline))
+    finally:
+        await shutdown(pipeline, observer, executor)
+
+async def run_debouncer(debouncer: Debouncer, raw_queue: asyncio.Queue):
+    """debouncer 실행 태스크"""
+    logger.info("Debouncer 시작")
+    try:
         while True:
-            event = await event_queue.get()
+            raw_event = await raw_queue.get()
+            await debouncer.process_event(raw_event)
+    except asyncio.CancelledError:
+        logger.info("Debouncer 종료")
+        raise
+    except Exception as e:
+        logger.error(f"Debouncer 오류: {e}", exc_info=True)
+
+async def run_main_pipeline(processed_queue: asyncio.Queue, pipeline: FilemonPipeline):
+    """메인 파이프라인 실행 태스크"""
+    logger.info("메인 파이프라인 시작")
+    try:
+        while True:
+            event = await processed_queue.get()
             try:
                 await pipeline.process_event(event)
-                processed_count += 1
-                if processed_count % 50 == 0:  # 50개마다 로그
-                    logger.info(f"총 {processed_count}개 이벤트 처리 완료")
             except Exception as e:
                 logger.error(f"이벤트 처리 중 오류: {e}", 
                            event_type=event.event_type, 
-                           filename=event.source_file_info.filename, 
+                           src_path=event.src_path, 
                            exc_info=True)
-    finally:
-        await shutdown(pipeline, observer, executor)
+    except asyncio.CancelledError:
+        logger.info("메인 파이프라인 종료")
+        raise
+    except Exception as e:
+        logger.error(f"메인 파이프라인 오류: {e}", exc_info=True)
 
 async def shutdown(pipeline, observer, executor):
     logger.info("애플리케이션 종료 시작")

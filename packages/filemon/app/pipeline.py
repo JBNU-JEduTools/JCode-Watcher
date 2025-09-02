@@ -2,8 +2,11 @@ import asyncio
 import os
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
+from watchdog.events import FileSystemEvent
 from app.models.filemon_event import FilemonEvent
 from app.models.source_file_info import SourceFileInfo
+from app.source_path_parser import SourcePathParser
+from app.path_filter import PathFilter
 from app.config.settings import settings
 from app.utils.logger import get_logger
 from app.snapshot import SnapshotManager
@@ -12,45 +15,130 @@ from app.sender import SnapshotSender
 class FilemonPipeline:
     """파일 모니터링 파이프라인"""
     
-    def __init__(self, executor: ThreadPoolExecutor, snapshot_manager: SnapshotManager):
+    def __init__(self, executor: ThreadPoolExecutor, snapshot_manager: SnapshotManager, parser: SourcePathParser, path_filter: PathFilter):
         self.executor = executor
         self.snapshot_manager = snapshot_manager
         self.snapshot_sender = SnapshotSender()
+        self.parser = parser
+        self.path_filter = path_filter
         self.logger = get_logger("pipeline")
         
-    async def process_event(self, event: FilemonEvent):
-        """이벤트를 처리하는 단일 통합 흐름"""
+    async def process_event(self, raw_event: FileSystemEvent):
+        """raw 파일시스템 이벤트를 처리하는 통합 흐름"""
         try:
-            # 삭제 이벤트는 빈 스냅샷 생성 - 이미 파싱된 정보 사용
-            if event.event_type == "deleted":
-                await self.snapshot_manager.create_empty_snapshot_with_info(event.source_file_info)
-                # 삭제 이벤트의 경우 API 호출 (파일 크기 0으로)
-                await self.snapshot_sender.register_snapshot(event.source_file_info, 0)
+            if raw_event.event_type == "moved":
+                await self._handle_moved_event(raw_event)
+            elif raw_event.event_type == "deleted":
+                await self._handle_deleted_event(raw_event)
+            elif raw_event.event_type == "modified":
+                await self._handle_modified_event(raw_event)
+            else:
+                self.logger.warning(f"알 수 없는 이벤트 타입: {raw_event.event_type}")
+                
+        except Exception as e:
+            self.logger.error(f"이벤트 처리 실패 - 타입: {raw_event.event_type}, "
+                            f"경로: {raw_event.src_path}, 오류: {str(e)}", exc_info=True)
+
+    async def _handle_moved_event(self, event: FileSystemEvent):
+        """moved 이벤트 처리 - delete + modify로 분해"""
+        src_path = event.src_path
+        dest_path = getattr(event, 'dest_path', None)
+        
+        if not dest_path:
+            self.logger.warning("moved 이벤트에 dest_path가 없음", src_path=src_path)
+            return
+            
+        try:
+            # 1. src_path 삭제 처리
+            parsed_data = self.parser.parse(Path(src_path))
+            source_info = SourceFileInfo.from_parsed_data(parsed_data, Path(src_path))
+            
+            await self.snapshot_manager.create_empty_snapshot_with_info(source_info)
+            await self.snapshot_sender.register_snapshot(source_info, 0)
+            self.logger.info(f"moved 삭제 처리 완료 - {source_info.filename}")
+            
+            # 2. dest_path 생성 처리
+            if not os.path.exists(dest_path):
+                self.logger.warning("moved 대상 파일이 존재하지 않음", 
+                                  src_path=src_path, dest_path=dest_path)
+                return
+                
+            file_size = os.path.getsize(dest_path)
+            if file_size > settings.MAX_CAPTURABLE_FILE_SIZE:
+                self.logger.warning("moved 대상 파일 크기 초과", dest_path=dest_path, 
+                                  file_size=file_size, max_size=settings.MAX_CAPTURABLE_FILE_SIZE)
                 return
             
-            # 수정 이벤트는 통합 처리 흐름
-            if event.event_type == "modified":
-                # 1. 스레드풀에서 파일 읽기 및 검증
-                future = self.executor.submit(self.read_and_verify, event.target_file_path)
-                file_stat, data = await asyncio.wrap_future(future)
+            parsed_data = self.parser.parse(Path(dest_path))
+            source_info = SourceFileInfo.from_parsed_data(parsed_data, Path(dest_path))
+            
+            # 파일 읽기 및 스냅샷 생성
+            future = self.executor.submit(self.read_and_verify, dest_path)
+            file_stat, data = await asyncio.wrap_future(future)
+            
+            await self.snapshot_manager.create_snapshot_with_data(source_info, data)
+            api_success = await self.snapshot_sender.register_snapshot(source_info, len(data))
+            
+            if api_success:
+                self.logger.info(f"moved 생성 처리 완료 - {source_info.filename}")
+            else:
+                self.logger.warning(f"moved 생성 API 등록 실패 - {source_info.filename}")
                 
-                # 2. 바로 스냅샷 생성 (비교 없이) - 이미 파싱된 정보 사용
-                await self.snapshot_manager.create_snapshot_with_data(event.source_file_info, data)
-                self.logger.info(f"스냅샷 생성됨 - {event.source_file_info.filename}")
-                
-                # 3. API 서버에 스냅샷 등록
-                api_success = await self.snapshot_sender.register_snapshot(event.source_file_info, len(data))
-                if api_success:
-                    self.logger.info(f"API 등록 성공 - {event.source_file_info.filename}")
-                else:
-                    self.logger.warning(f"API 등록 실패 - {event.source_file_info.filename}")
+        except OSError as e:
+            self.logger.debug("moved 이벤트 처리 중 OSError 발생", 
+                            src_path=src_path, dest_path=dest_path, error=str(e))
+        except Exception as e:
+            self.logger.error("moved 이벤트 처리 실패", 
+                            src_path=src_path, dest_path=dest_path, error=str(e), exc_info=True)
+
+    async def _handle_deleted_event(self, event: FileSystemEvent):
+        """deleted 이벤트 처리"""
+        try:
+            parsed_data = self.parser.parse(Path(event.src_path))
+            source_info = SourceFileInfo.from_parsed_data(parsed_data, Path(event.src_path))
+            
+            await self.snapshot_manager.create_empty_snapshot_with_info(source_info)
+            await self.snapshot_sender.register_snapshot(source_info, 0)
+            self.logger.info(f"삭제 처리 완료 - {source_info.filename}")
+            
+        except Exception as e:
+            self.logger.error("deleted 이벤트 처리 실패", 
+                            src_path=event.src_path, error=str(e), exc_info=True)
+
+    async def _handle_modified_event(self, event: FileSystemEvent):
+        """modified 이벤트 처리"""
+        try:
+            file_size = os.path.getsize(event.src_path)
+            if file_size > settings.MAX_CAPTURABLE_FILE_SIZE:
+                self.logger.warning("파일 크기 초과", src_path=event.src_path, 
+                                  file_size=file_size, max_size=settings.MAX_CAPTURABLE_FILE_SIZE)
+                return
+            
+            parsed_data = self.parser.parse(Path(event.src_path))
+            source_info = SourceFileInfo.from_parsed_data(parsed_data, Path(event.src_path))
+            
+            # 파일 읽기 및 스냅샷 생성
+            future = self.executor.submit(self.read_and_verify, event.src_path)
+            file_stat, data = await asyncio.wrap_future(future)
+            
+            await self.snapshot_manager.create_snapshot_with_data(source_info, data)
+            api_success = await self.snapshot_sender.register_snapshot(source_info, len(data))
+            
+            if api_success:
+                self.logger.info(f"수정 처리 완료 - {source_info.filename}")
+            else:
+                self.logger.warning(f"수정 API 등록 실패 - {source_info.filename}")
                 
         except FileNotFoundError:
-            self.logger.warning(f"파일이 존재하지 않음 - {event.target_file_path}")
+            self.logger.warning(f"파일이 존재하지 않음 - {event.src_path}")
         except RuntimeError as e:
-            self.logger.warning(f"파일 읽기 중 변경됨 - {event.target_file_path}: {str(e)}")
+            self.logger.warning(f"파일 읽기 중 변경됨 - {event.src_path}: {str(e)}")
+        except OSError as e:
+            self.logger.debug("modified 이벤트 처리 중 OSError 발생", 
+                            src_path=event.src_path, error=str(e))
         except Exception as e:
-            self.logger.error(f"이벤트 처리 실패 - 경로: {event.target_file_path}, 오류: {str(e)}")
+            self.logger.error("modified 이벤트 처리 실패", 
+                            src_path=event.src_path, error=str(e), exc_info=True)
     
     def read_and_verify(self, target_file_path: str):
         """

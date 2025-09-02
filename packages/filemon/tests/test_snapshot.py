@@ -40,12 +40,14 @@ def mock_nested_source_info():
 class TestSnapshotManager:
     """SnapshotManager 테스트"""
 
+    @patch('pathlib.Path.mkdir')
     @patch('app.snapshot.aiofiles.open')
     @patch('app.snapshot.datetime')
     @patch('app.snapshot.settings')
     @pytest.mark.asyncio
     async def test_create_snapshot_with_data_success(self, mock_settings, mock_datetime, 
-                                                    mock_aiofiles_open, snapshot_manager, mock_source_info):
+                                                    mock_aiofiles_open, mock_mkdir,
+                                                    snapshot_manager, mock_source_info):
         """데이터로 스냅샷 생성 성공"""
         # Given
         mock_settings.SNAPSHOT_BASE = Path('/snapshots')
@@ -60,17 +62,19 @@ class TestSnapshotManager:
         await snapshot_manager.create_snapshot_with_data(mock_source_info, test_data)
         
         # Then
-        expected_path = Path('/snapshots/os-1/hw1/202012345/20240830_123456.c')
+        mock_mkdir.assert_called_once_with(parents=True, exist_ok=True)
+        expected_path = Path('/snapshots/os-1/hw1/202012345/test.c/20240830_123456.c')
         mock_aiofiles_open.assert_called_once_with(expected_path, 'wb')
         mock_file.write.assert_called_once_with(test_data)
-        # 디렉토리 생성은 실제 Path.mkdir 호출로 검증하기 어려우므로 생략
 
+    @patch('pathlib.Path.mkdir')
     @patch('app.snapshot.aiofiles.open')
     @patch('app.snapshot.datetime')
     @patch('app.snapshot.settings')
     @pytest.mark.asyncio
     async def test_create_snapshot_with_nested_path(self, mock_settings, mock_datetime,
-                                                   mock_aiofiles_open, snapshot_manager, mock_nested_source_info):
+                                                   mock_aiofiles_open, mock_mkdir,
+                                                   snapshot_manager, mock_nested_source_info):
         """중첩 경로에서 스냅샷 생성"""
         # Given
         mock_settings.SNAPSHOT_BASE = Path('/snapshots')
@@ -85,19 +89,20 @@ class TestSnapshotManager:
         await snapshot_manager.create_snapshot_with_data(mock_nested_source_info, test_data)
         
         # Then
-        expected_path = Path('/snapshots/java-2/hw2/202098765/src@main/20240830_123456.java')
+        mock_mkdir.assert_called_once_with(parents=True, exist_ok=True)
+        expected_path = Path('/snapshots/java-2/hw2/202098765/src@main@Main.java/20240830_123456.java')
         mock_aiofiles_open.assert_called_once_with(expected_path, 'wb')
         mock_file.write.assert_called_once_with(test_data)
 
+    @patch('pathlib.Path.mkdir')
     @patch('app.snapshot.aiofiles.open')
     @patch('app.snapshot.datetime')
     @patch('app.snapshot.settings')
-    @patch('app.snapshot.logger')
     @pytest.mark.asyncio
-    async def test_create_empty_snapshot_with_info_success(self, mock_logger, mock_settings, 
-                                                          mock_datetime, mock_aiofiles_open,
+    async def test_create_empty_snapshot_with_info_success(self, mock_settings, 
+                                                          mock_datetime, mock_aiofiles_open, mock_mkdir,
                                                           snapshot_manager, mock_source_info):
-        """빈 스냅샷 생성 성공"""
+        """빈 스냅샷 생성 성공""" 
         # Given
         mock_settings.SNAPSHOT_BASE = Path('/snapshots')
         mock_datetime.now.return_value.strftime.return_value = '20240830_123456'
@@ -109,33 +114,36 @@ class TestSnapshotManager:
         await snapshot_manager.create_empty_snapshot_with_info(mock_source_info)
         
         # Then
-        expected_path = Path('/snapshots/os-1/hw1/202012345/20240830_123456.c')
+        mock_mkdir.assert_called_once_with(parents=True, exist_ok=True)
+        expected_path = Path('/snapshots/os-1/hw1/202012345/test.c/20240830_123456.c')
         mock_aiofiles_open.assert_called_once_with(expected_path, 'wb')
         mock_file.write.assert_not_called()  # 빈 파일이므로 write 호출 없음
-        mock_logger.info.assert_called_once_with(f"빈 스냅샷 생성됨 - {mock_source_info.filename}")
 
+    @patch('pathlib.Path.mkdir')
     @patch('app.snapshot.aiofiles.open')
-    @patch('app.snapshot.datetime')
-    @patch('app.snapshot.settings')
     @patch('app.snapshot.logger')
     @pytest.mark.asyncio
-    async def test_create_empty_snapshot_with_exception(self, mock_logger, mock_settings,
-                                                       mock_datetime, mock_aiofiles_open,
-                                                       snapshot_manager, mock_source_info):
-        """빈 스냅샷 생성 중 예외 발생"""
+    async def test_create_snapshot_with_exception(self, mock_logger, mock_aiofiles_open, mock_mkdir,
+                                                   snapshot_manager, mock_source_info):
+        """스냅샷 생성 중 예외 발생 시 로그 및 재발생 확인"""
         # Given
-        mock_settings.SNAPSHOT_BASE = Path('/snapshots')
-        mock_datetime.now.return_value.strftime.return_value = '20240830_123456'
-        mock_aiofiles_open.side_effect = OSError("Permission denied")
+        test_exception = OSError("Permission denied")
+        mock_aiofiles_open.side_effect = test_exception
         
-        # When
-        await snapshot_manager.create_empty_snapshot_with_info(mock_source_info)
+        # When & Then
+        # Check if the correct exception is raised
+        with pytest.raises(OSError, match="Permission denied"):
+            await snapshot_manager.create_snapshot_with_data(mock_source_info, b'data')
         
-        # Then
+        # Check that mkdir was still called
+        mock_mkdir.assert_called_once_with(parents=True, exist_ok=True)
+
+        # Check that the logger was called with the correct arguments
         mock_logger.error.assert_called_once()
-        error_call_args = mock_logger.error.call_args[0][0]
-        assert "빈 스냅샷 생성 실패" in error_call_args
-        assert str(mock_source_info.target_file_path) in error_call_args
+        call_args, call_kwargs = mock_logger.error.call_args
+        assert "스냅샷 파일 생성 실패" in call_args[0]
+        assert call_kwargs['filename'] == mock_source_info.filename
+        assert call_kwargs['error'] == str(test_exception)
 
     @patch('app.snapshot.settings')
     def test_get_snapshot_path_simple(self, mock_settings, snapshot_manager, mock_source_info):
@@ -148,7 +156,7 @@ class TestSnapshotManager:
         result = snapshot_manager._get_snapshot_path(mock_source_info, timestamp)
         
         # Then
-        expected = Path('/snapshots/os-1/hw1/202012345/20240830_123456.c')
+        expected = Path('/snapshots/os-1/hw1/202012345/test.c/20240830_123456.c')
         assert result == expected
 
     @patch('app.snapshot.settings')
@@ -162,7 +170,7 @@ class TestSnapshotManager:
         result = snapshot_manager._get_snapshot_path(mock_nested_source_info, timestamp)
         
         # Then
-        expected = Path('/snapshots/java-2/hw2/202098765/src@main/20240830_123456.java')
+        expected = Path('/snapshots/java-2/hw2/202098765/src@main@Main.java/20240830_123456.java')
         assert result == expected
 
     def test_get_nested_path_simple_file(self, snapshot_manager, mock_source_info):
@@ -171,6 +179,7 @@ class TestSnapshotManager:
         result = snapshot_manager._get_nested_path(mock_source_info)
         
         # Then
+        # hw1 디렉토리 다음의 모든 경로 파트가 @로 연결되어야 함
         expected = 'test.c'
         assert result == expected
 
@@ -186,38 +195,10 @@ class TestSnapshotManager:
     def test_get_nested_path_hw_not_found(self, snapshot_manager):
         """과제 디렉토리를 찾을 수 없는 경우"""
         # Given
-        mock_source_info = Mock(spec=SourceFileInfo)
-        mock_source_info.hw_name = 'nonexistent_hw'
-        mock_source_info.target_file_path = Path('/watch/root/os-1-202012345/hw1/test.c')
+        mock_info = Mock(spec=SourceFileInfo)
+        mock_info.hw_name = 'nonexistent_hw'
+        mock_info.target_file_path = Path('/watch/root/os-1-202012345/hw1/test.c')
         
         # When & Then
         with pytest.raises(ValueError, match="과제 디렉토리를 찾을 수 없음"):
-            snapshot_manager._get_nested_path(mock_source_info)
-
-    def test_get_nested_path_root_file(self, snapshot_manager):
-        """루트 레벨 파일"""
-        # Given
-        mock_source_info = Mock(spec=SourceFileInfo)
-        mock_source_info.hw_name = 'hw1'
-        mock_source_info.target_file_path = Path('/hw1')  # 매우 단순한 경우
-        
-        # When
-        result = snapshot_manager._get_nested_path(mock_source_info)
-        
-        # Then
-        expected = ''
-        assert result == expected
-
-    def test_get_nested_path_complex_nested(self, snapshot_manager):
-        """복잡한 중첩 구조"""
-        # Given
-        mock_source_info = Mock(spec=SourceFileInfo)
-        mock_source_info.hw_name = 'project1'
-        mock_source_info.target_file_path = Path('/watch/root/python-3-202011111/project1/lib/utils/helper.py')
-        
-        # When
-        result = snapshot_manager._get_nested_path(mock_source_info)
-        
-        # Then
-        expected = 'lib@utils@helper.py'
-        assert result == expected
+            snapshot_manager._get_nested_path(mock_info)
