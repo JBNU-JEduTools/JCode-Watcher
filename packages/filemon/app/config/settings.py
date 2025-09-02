@@ -14,6 +14,12 @@ class Settings(BaseSettings):
     # Debounce 설정
     DEBOUNCE_WINDOW: float = 1  # modified 이벤트 1000ms 대기
     DEBOUNCE_MAX_WAIT: float = 4  # 최대 대기 시간 4초
+    
+    # Logging 설정
+    LOG_FILE_PATH: str = "/opt/filemon/logs/"
+    LOG_LEVEL: str = "INFO"
+    LOG_MAX_BYTES: int = 10 * 1024 * 1024  # 10MB
+    LOG_BACKUP_COUNT: int = 5
 
 
 # 애플리케이션 전체에서 사용할 단일 설정 인스턴스

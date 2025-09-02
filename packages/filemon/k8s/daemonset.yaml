@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: watcher-filemon
+  namespace: watcher
+spec:
+  selector:
+    matchLabels:
+      app: watcher-filemon
+  template:
+    metadata:
+      labels:
+        app: watcher-filemon
+    spec:
+      containers:
+      - name: watcher-filemon
+        image: harbor.jbnu.ac.kr/jdevops/watcher-filemon:20250729-1
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: http-metrics
+          containerPort: 3000
+        volumeMounts:
+        - name: jcode-vol
+          mountPath: /watcher/codes
+          subPath: workspace
+          readOnly: true
+        - name: snapshot-volume
+          mountPath: /watcher/snapshots
+        - name: logs-volume
+          mountPath: /opt/filemon/logs
+        env:
+        - name: LOG_LEVEL
+          value: "INFO"
+        - name: API_SERVER
+          value: "http://watcher-backend-service.watcher.svc.cluster.local:3000"
+      imagePullSecrets:
+      - name: watcher-harbor-registry-secret
+      volumes:
+      - name: jcode-vol
+        persistentVolumeClaim:
+          claimName: jcode-vol-pvc
+      - name: snapshot-volume
+        persistentVolumeClaim:
+          claimName: watcher-filemon-pvc
+      - name: logs-volume
+        persistentVolumeClaim:
+          claimName: watcher-filemon-logs-pvc

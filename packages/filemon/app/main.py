@@ -10,11 +10,22 @@ from app.sender import SnapshotSender
 from app.source_path_parser import SourcePathParser
 from app.source_path_filter import PathFilter
 from app.config.settings import settings
-from app.utils.logger import get_logger
+from app.utils.logger import setup_logging, get_logger
 
-logger = get_logger(__name__)
+logger=None
 
 async def main():
+    # 로깅 시스템 초기화
+    setup_logging(
+        log_file_path=settings.LOG_FILE_PATH,
+        log_level=settings.LOG_LEVEL,
+        max_bytes=settings.LOG_MAX_BYTES,
+        backup_count=settings.LOG_BACKUP_COUNT
+    )
+    
+    # 로거 초기화 (setup_logging 이후에 호출)
+    global logger
+    logger = get_logger(__name__)
     logger.info("Filemon 애플리케이션 시작")
     loop = asyncio.get_running_loop()
 
