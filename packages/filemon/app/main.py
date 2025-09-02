@@ -6,6 +6,7 @@ from app.watchdog_handler import WatchdogHandler
 from app.pipeline import FilemonPipeline
 from app.debouncer import Debouncer
 from app.snapshot import SnapshotManager
+from app.sender import SnapshotSender
 from app.source_path_parser import SourcePathParser
 from app.path_filter import PathFilter
 from app.config.settings import settings
@@ -24,7 +25,8 @@ async def main():
     raw_queue = asyncio.Queue()
     processed_queue = asyncio.Queue()
     snapshot_manager = SnapshotManager()
-    pipeline = FilemonPipeline(executor=executor, snapshot_manager=snapshot_manager, parser=parser, path_filter=path_filter)
+    snapshot_sender = SnapshotSender()
+    pipeline = FilemonPipeline(executor=executor, snapshot_manager=snapshot_manager, snapshot_sender=snapshot_sender, parser=parser, path_filter=path_filter)
     debouncer = Debouncer(processed_queue=processed_queue)
     handler = WatchdogHandler(raw_queue=raw_queue, loop=loop, path_filter=path_filter)
     logger.debug("의존성 객체 생성 완료")

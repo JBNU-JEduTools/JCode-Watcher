@@ -15,10 +15,10 @@ from app.sender import SnapshotSender
 class FilemonPipeline:
     """파일 모니터링 파이프라인"""
     
-    def __init__(self, executor: ThreadPoolExecutor, snapshot_manager: SnapshotManager, parser: SourcePathParser, path_filter: PathFilter):
+    def __init__(self, executor: ThreadPoolExecutor, snapshot_manager: SnapshotManager, snapshot_sender: SnapshotSender, parser: SourcePathParser, path_filter: PathFilter):
         self.executor = executor
         self.snapshot_manager = snapshot_manager
-        self.snapshot_sender = SnapshotSender()
+        self.snapshot_sender = snapshot_sender
         self.parser = parser
         self.path_filter = path_filter
         self.logger = get_logger("pipeline")
