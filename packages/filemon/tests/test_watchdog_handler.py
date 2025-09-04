@@ -91,7 +91,7 @@ class TestOnModified:
         error_call_args = mock_logger.error.call_args
         assert "on_modified 처리 중 예상치 못한 오류 발생" in error_call_args[0][0]
         assert error_call_args[1]['src_path'] == mock_fs_event.src_path
-        assert "Queue error" in error_call_args[1]['error']
+        assert error_call_args[1]['exc_info'] == True
 
 
 class TestOnDeleted:
@@ -134,7 +134,7 @@ class TestOnDeleted:
         error_call_args = mock_logger.error.call_args
         assert "on_deleted 처리 중 예상치 못한 오류 발생" in error_call_args[0][0]
         assert error_call_args[1]['src_path'] == mock_fs_event.src_path
-        assert "Queue error" in error_call_args[1]['error']
+        assert error_call_args[1]['exc_info'] == True
 
 
 class TestOnMoved:
@@ -195,7 +195,7 @@ class TestOnMoved:
         assert "on_moved 처리 중 예상치 못한 오류 발생" in error_call_args[0][0]
         assert error_call_args[1]['src_path'] == mock_moved_event.src_path
         assert error_call_args[1]['dest_path'] == mock_moved_event.dest_path
-        assert "Queue error" in error_call_args[1]['error']
+        assert error_call_args[1]['exc_info'] == True
 
 
 class TestWatchdogHandlerInit:

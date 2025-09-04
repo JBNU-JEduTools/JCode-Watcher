@@ -29,9 +29,10 @@ class Debouncer:
             await self._add_to_bucket(key, event)
             
         except Exception as e:
-            logger.error(f"debounce 처리 중 오류: {e}", 
-                        event_type=event.event_type, 
-                        src_path=event.src_path, 
+            logger.error("debounce 처리 중 오류",
+                        event_type=event.event_type,
+                        src_path=event.src_path,
+                        error_type=type(e).__name__,
                         exc_info=True)
     
     def _generate_key(self, event: FileSystemEvent) -> str:
@@ -50,7 +51,7 @@ class Debouncer:
         규칙: 보류 중인 modified 이벤트를 먼저 플러시하고, 그 다음 즉시 처리 이벤트를 전달합니다.
         """
         if self.in_flight.get(key, False):
-            logger.debug(f"이미 처리 중인 키 무시: {key}")
+            logger.debug("이미 처리 중인 키 무시", key=key)
             return
 
         try:
@@ -65,11 +66,11 @@ class Debouncer:
                 # 마지막 modified 이벤트를 대표로 선택하여 플러시합니다.
                 representative_event = pending_bucket['events'][-1]
                 await self.processed_queue.put(representative_event)
-                logger.debug(f"보류 중인 modified 이벤트 플러시 완료: {key}")
+                logger.debug("보류 중인 modified 이벤트 플러시 완료", key=key)
 
             # 2. 수신된 즉시 처리 이벤트를 전달합니다.
             await self.processed_queue.put(immediate_event)
-            logger.debug(f"즉시 처리 이벤트 전달 완료: {key}")
+            logger.debug("즉시 처리 이벤트 전달 완료", key=key)
 
         finally:
             self.in_flight[key] = False
@@ -129,12 +130,15 @@ class Debouncer:
             # 타이머가 취소됨 (새 이벤트가 들어옴)
             pass
         except Exception as e:
-            logger.error(f"타이머 콜백 오류: {e}", key=key, exc_info=True)
+            logger.error("타이머 콜백 오류",
+                       key=key,
+                       error_type=type(e).__name__,
+                       exc_info=True)
     
     async def _flush_bucket(self, key: str):
         """버킷 플러시"""
         if self.in_flight.get(key, False):
-            logger.debug(f"이미 처리 중인 키 무시: {key}")
+            logger.debug("이미 처리 중인 키 무시", key=key)
             return
             
         bucket = self.buckets.pop(key, None)
@@ -149,7 +153,9 @@ class Debouncer:
             
             await self.processed_queue.put(representative_event)
             
-            logger.debug(f"버킷 플러시 완료: {key}, 이벤트 수: {len(bucket['events'])}")
+            logger.debug("버킷 플러시 완료",
+                       key=key,
+                       event_count=len(bucket['events']))
             
         finally:
             self.in_flight[key] = False

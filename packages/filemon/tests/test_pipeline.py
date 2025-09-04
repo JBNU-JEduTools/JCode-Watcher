@@ -11,6 +11,7 @@ from app.source_path_parser import SourcePathParser
 from app.source_path_filter import PathFilter
 from app.models.source_file_info import SourceFileInfo
 from app.snapshot import SnapshotManager
+from app.sender import SnapshotSender
 
 
 @pytest.fixture
@@ -48,9 +49,17 @@ def mock_path_filter():
 
 
 @pytest.fixture
-def pipeline(mock_executor, mock_snapshot_manager, mock_parser, mock_path_filter):
+def mock_snapshot_sender():
+    """Mock SnapshotSender"""
+    mock = Mock(spec=SnapshotSender)
+    mock.register_snapshot = AsyncMock(return_value=True)
+    return mock
+
+
+@pytest.fixture
+def pipeline(mock_executor, mock_snapshot_manager, mock_snapshot_sender, mock_parser, mock_path_filter):
     """FilemonPipeline 인스턴스"""
-    return FilemonPipeline(mock_executor, mock_snapshot_manager, mock_parser, mock_path_filter)
+    return FilemonPipeline(mock_executor, mock_snapshot_manager, mock_snapshot_sender, mock_parser, mock_path_filter)
 
 
 @pytest.fixture
@@ -381,14 +390,15 @@ class TestFilemonPipeline:
 class TestFilemonPipelineInit:
     """FilemonPipeline 초기화 테스트"""
 
-    def test_initialization(self, mock_executor, mock_snapshot_manager, mock_parser, mock_path_filter):
+    def test_initialization(self, mock_executor, mock_snapshot_manager, mock_snapshot_sender, mock_parser, mock_path_filter):
         """FilemonPipeline 정상 초기화"""
         # When
-        pipeline = FilemonPipeline(mock_executor, mock_snapshot_manager, mock_parser, mock_path_filter)
+        pipeline = FilemonPipeline(mock_executor, mock_snapshot_manager, mock_snapshot_sender, mock_parser, mock_path_filter)
 
         # Then
         assert pipeline.executor == mock_executor
         assert pipeline.snapshot_manager == mock_snapshot_manager
+        assert pipeline.snapshot_sender == mock_snapshot_sender
         assert pipeline.parser == mock_parser
         assert pipeline.path_filter == mock_path_filter
         assert pipeline.snapshot_sender is not None

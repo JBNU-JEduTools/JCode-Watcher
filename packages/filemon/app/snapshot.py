@@ -32,7 +32,7 @@ class SnapshotManager:
         except Exception as e:
             logger.error("스냅샷 파일 생성 실패", 
                         filename=path_info.filename,
-                        error=str(e), exc_info=True)
+                        exc_info=True)
             raise
 
     async def create_empty_snapshot_with_info(self, path_info: SourceFileInfo):
@@ -51,7 +51,7 @@ class SnapshotManager:
         except Exception as e:
             logger.error("빈 스냅샷 생성 실패", 
                         filename=path_info.filename,
-                        error=str(e), exc_info=True)
+                        exc_info=True)
             raise
 
     def _get_snapshot_path(self, path_info: SourceFileInfo, timestamp: str) -> Path:

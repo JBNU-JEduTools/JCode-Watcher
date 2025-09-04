@@ -143,7 +143,7 @@ class TestSnapshotManager:
         call_args, call_kwargs = mock_logger.error.call_args
         assert "스냅샷 파일 생성 실패" in call_args[0]
         assert call_kwargs['filename'] == mock_source_info.filename
-        assert call_kwargs['error'] == str(test_exception)
+        assert call_kwargs['exc_info'] == True
 
     @patch('app.snapshot.settings')
     def test_get_snapshot_path_simple(self, mock_settings, snapshot_manager, mock_source_info):

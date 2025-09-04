@@ -17,7 +17,7 @@ class WatchdogHandler(FileSystemEventHandler):
     def on_modified(self, event):
         try:
             if not self.path_filter.should_process_file(event.src_path):
-                logger.info(f"Ignoring modified event for path due to filter: {event.src_path}")
+                logger.info("Ignoring modified event for path due to filter", src_path=event.src_path)
                 return
             
             self.loop.call_soon_threadsafe(
@@ -26,12 +26,12 @@ class WatchdogHandler(FileSystemEventHandler):
             
         except Exception as e:
             logger.error("on_modified 처리 중 예상치 못한 오류 발생", 
-                        src_path=event.src_path, error=str(e), exc_info=True)
+                        src_path=event.src_path, exc_info=True)
 
     def on_deleted(self, event):
         try:
             if not self.path_filter.should_process_path(event.src_path):
-                logger.info(f"Ignoring deleted event for path due to filter: {event.src_path}")
+                logger.info("Ignoring deleted event for path due to filter", src_path=event.src_path)
                 return
             
             self.loop.call_soon_threadsafe(
@@ -40,13 +40,13 @@ class WatchdogHandler(FileSystemEventHandler):
             
         except Exception as e:
             logger.error("on_deleted 처리 중 예상치 못한 오류 발생", 
-                        src_path=event.src_path, error=str(e), exc_info=True)
+                        src_path=event.src_path, exc_info=True)
 
     def on_moved(self, event):
         try:
             dest_path = getattr(event, 'dest_path', event.src_path)
             if not self.path_filter.should_process_file(dest_path):
-                logger.info(f"Ignoring moved event for path due to filter: {dest_path}")
+                logger.info("Ignoring moved event for path due to filter", dest_path=dest_path)
                 return
             
             self.loop.call_soon_threadsafe(
@@ -57,4 +57,4 @@ class WatchdogHandler(FileSystemEventHandler):
             logger.error("on_moved 처리 중 예상치 못한 오류 발생", 
                         src_path=event.src_path, 
                         dest_path=getattr(event, 'dest_path', None), 
-                        error=str(e), exc_info=True)
+                        exc_info=True)

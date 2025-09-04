@@ -33,11 +33,14 @@ class FilemonPipeline:
             elif raw_event.event_type == "modified":
                 await self._handle_modified_event(raw_event)
             else:
-                self.logger.warning(f"알 수 없는 이벤트 타입: {raw_event.event_type}")
+                self.logger.warning("알 수 없는 이벤트 타입", event_type=raw_event.event_type, src_path=raw_event.src_path)
                 
         except Exception as e:
-            self.logger.error(f"이벤트 처리 실패 - 타입: {raw_event.event_type}, "
-                            f"경로: {raw_event.src_path}, 오류: {str(e)}", exc_info=True)
+            self.logger.error("이벤트 처리 실패",
+                            event_type=raw_event.event_type,
+                            src_path=raw_event.src_path,
+                            error_type=type(e).__name__,
+                            exc_info=True)
 
     async def _handle_moved_event(self, event: FileSystemEvent):
         """moved 이벤트 처리 - delete + modify로 분해"""
@@ -55,7 +58,11 @@ class FilemonPipeline:
             
             await self.snapshot_manager.create_empty_snapshot_with_info(source_info)
             await self.snapshot_sender.register_snapshot(source_info, 0)
-            self.logger.info(f"moved 삭제 처리 완료 - {source_info.filename}")
+            self.logger.info("moved 삭제 처리 완료",
+                           filename=source_info.filename,
+                           class_div=source_info.class_div,
+                           hw_name=source_info.hw_name,
+                           student_id=source_info.student_id)
             
             # 2. dest_path 생성 처리
             if not os.path.exists(dest_path):
@@ -80,16 +87,25 @@ class FilemonPipeline:
             api_success = await self.snapshot_sender.register_snapshot(source_info, len(data))
             
             if api_success:
-                self.logger.info(f"moved 생성 처리 완료 - {source_info.filename}")
+                self.logger.info("moved 생성 처리 완료",
+                                filename=source_info.filename,
+                                class_div=source_info.class_div,
+                                hw_name=source_info.hw_name,
+                                student_id=source_info.student_id,
+                                file_size=len(data))
             else:
-                self.logger.warning(f"moved 생성 API 등록 실패 - {source_info.filename}")
+                self.logger.warning("moved 생성 API 등록 실패",
+                                  filename=source_info.filename,
+                                  class_div=source_info.class_div,
+                                  hw_name=source_info.hw_name,
+                                  student_id=source_info.student_id)
                 
         except OSError as e:
             self.logger.debug("moved 이벤트 처리 중 OSError 발생", 
-                            src_path=src_path, dest_path=dest_path, error=str(e))
+                            src_path=src_path, dest_path=dest_path, exc_info=True)
         except Exception as e:
             self.logger.error("moved 이벤트 처리 실패", 
-                            src_path=src_path, dest_path=dest_path, error=str(e), exc_info=True)
+                            src_path=src_path, dest_path=dest_path, exc_info=True)
 
     async def _handle_deleted_event(self, event: FileSystemEvent):
         """deleted 이벤트 처리"""
@@ -99,11 +115,15 @@ class FilemonPipeline:
             
             await self.snapshot_manager.create_empty_snapshot_with_info(source_info)
             await self.snapshot_sender.register_snapshot(source_info, 0)
-            self.logger.info(f"삭제 처리 완료 - {source_info.filename}")
+            self.logger.info("삭제 처리 완료",
+                           filename=source_info.filename,
+                           class_div=source_info.class_div,
+                           hw_name=source_info.hw_name,
+                           student_id=source_info.student_id)
             
         except Exception as e:
             self.logger.error("deleted 이벤트 처리 실패", 
-                            src_path=event.src_path, error=str(e), exc_info=True)
+                            src_path=event.src_path, exc_info=True)
 
     async def _handle_modified_event(self, event: FileSystemEvent):
         """modified 이벤트 처리"""
@@ -125,20 +145,31 @@ class FilemonPipeline:
             api_success = await self.snapshot_sender.register_snapshot(source_info, len(data))
             
             if api_success:
-                self.logger.info(f"수정 처리 완료 - {source_info.filename}")
+                self.logger.info("수정 처리 완료",
+                                filename=source_info.filename,
+                                class_div=source_info.class_div,
+                                hw_name=source_info.hw_name,
+                                student_id=source_info.student_id,
+                                file_size=len(data))
             else:
-                self.logger.warning(f"수정 API 등록 실패 - {source_info.filename}")
+                self.logger.warning("수정 API 등록 실패",
+                                  filename=source_info.filename,
+                                  class_div=source_info.class_div,
+                                  hw_name=source_info.hw_name,
+                                  student_id=source_info.student_id)
                 
         except FileNotFoundError:
-            self.logger.warning(f"파일이 존재하지 않음 - {event.src_path}")
+            self.logger.warning("파일이 존재하지 않음", src_path=event.src_path)
         except RuntimeError as e:
-            self.logger.warning(f"파일 읽기 중 변경됨 - {event.src_path}: {str(e)}")
+            self.logger.warning("파일 읽기 중 변경됨",
+                              src_path=event.src_path,
+                              exc_info=True)
         except OSError as e:
             self.logger.debug("modified 이벤트 처리 중 OSError 발생", 
-                            src_path=event.src_path, error=str(e))
+                            src_path=event.src_path, exc_info=True)
         except Exception as e:
             self.logger.error("modified 이벤트 처리 실패", 
-                            src_path=event.src_path, error=str(e), exc_info=True)
+                            src_path=event.src_path, exc_info=True)
     
     def read_and_verify(self, target_file_path: str):
         """

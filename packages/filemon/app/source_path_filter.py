@@ -26,7 +26,7 @@ class PathFilter:
 
     def __init__(self):
         self.watch_root = settings.WATCH_ROOT
-        logger.info(f"PathFilter 초기화 완료. 감시 루트: {self.watch_root}")
+        logger.info("PathFilter 초기화 완료", watch_root=str(self.watch_root))
 
     def should_process_file(self, file_path: str) -> bool:
         """파일이 처리 대상인지 확인 (디렉토리는 항상 무시)"""

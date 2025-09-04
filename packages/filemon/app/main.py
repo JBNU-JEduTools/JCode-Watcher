@@ -26,7 +26,9 @@ async def main():
     # 로거 초기화 (setup_logging 이후에 호출)
     global logger
     logger = get_logger(__name__)
-    logger.info("Filemon 애플리케이션 시작")
+    logger.info("Filemon 애플리케이션 시작",
+               log_level=settings.LOG_LEVEL,
+               log_file=settings.LOG_FILE_PATH)
     loop = asyncio.get_running_loop()
 
     # 의존성 생성
@@ -40,14 +42,17 @@ async def main():
     pipeline = FilemonPipeline(executor=executor, snapshot_manager=snapshot_manager, snapshot_sender=snapshot_sender, parser=parser, path_filter=path_filter)
     debouncer = Debouncer(processed_queue=processed_queue)
     handler = WatchdogHandler(raw_queue=raw_queue, loop=loop, path_filter=path_filter)
-    logger.debug("의존성 객체 생성 완료")
+    logger.debug("의존성 객체 생성 완료",
+               thread_pool_workers=settings.THREAD_POOL_WORKERS)
 
     observer = Observer()
     observer.schedule(handler, str(settings.WATCH_ROOT), recursive=True)
     observer.start()
-    logger.info(f"Filemon 시작됨 - 감시 경로: {settings.WATCH_ROOT}")
-    logger.info(f"스냅샷 저장 경로: {settings.SNAPSHOT_BASE}")
-    logger.info(f"최대 파일 크기: {settings.MAX_CAPTURABLE_FILE_SIZE} bytes")
+    logger.info("Filemon 시작 완료",
+               watch_root=str(settings.WATCH_ROOT),
+               snapshot_base=str(settings.SNAPSHOT_BASE),
+               max_file_size=settings.MAX_CAPTURABLE_FILE_SIZE,
+               api_server=settings.API_SERVER)
 
     # asyncio 스타일의 시그널 처리(Unix)
     for sig in (signal.SIGINT, signal.SIGTERM):
@@ -64,45 +69,56 @@ async def main():
 
 async def run_debouncer(debouncer: Debouncer, raw_queue: asyncio.Queue):
     """debouncer 실행 태스크"""
-    logger.info("Debouncer 시작")
+    logger.info("Debouncer 시작", component="debouncer")
     try:
         while True:
             raw_event = await raw_queue.get()
             await debouncer.process_event(raw_event)
     except asyncio.CancelledError:
-        logger.info("Debouncer 종료")
+        logger.info("Debouncer 종료", component="debouncer")
         raise
     except Exception as e:
-        logger.error(f"Debouncer 오류: {e}", exc_info=True)
+        logger.error("Debouncer 오류",
+                   component="debouncer",
+                   error_type=type(e).__name__,
+                   exc_info=True)
 
 async def run_main_pipeline(processed_queue: asyncio.Queue, pipeline: FilemonPipeline):
     """메인 파이프라인 실행 태스크"""
-    logger.info("메인 파이프라인 시작")
+    logger.info("메인 파이프라인 시작", component="pipeline")
     try:
         while True:
             event = await processed_queue.get()
             try:
                 await pipeline.process_event(event)
             except Exception as e:
-                logger.error(f"이벤트 처리 중 오류: {e}", 
-                           event_type=event.event_type, 
-                           src_path=event.src_path, 
+                logger.error("이벤트 처리 중 오류",
+                           component="pipeline",
+                           event_type=event.event_type,
+                           src_path=event.src_path,
+                           error_type=type(e).__name__,
                            exc_info=True)
     except asyncio.CancelledError:
-        logger.info("메인 파이프라인 종료")
+        logger.info("메인 파이프라인 종료", component="pipeline")
         raise
     except Exception as e:
-        logger.error(f"메인 파이프라인 오류: {e}", exc_info=True)
+        logger.error("메인 파이프라인 오류",
+                   component="pipeline",
+                   error_type=type(e).__name__,
+                   exc_info=True)
 
 async def shutdown(pipeline, observer, executor):
-    logger.info("애플리케이션 종료 시작")
+    logger.info("애플리케이션 종료 시작", component="shutdown")
     try:
         if observer:
             observer.stop()
             observer.join()
     except Exception as e:
-        logger.error(f"Observer 종료 중 오류: {e}", exc_info=True)
+        logger.error("Observer 종료 중 오류",
+                   component="shutdown",
+                   error_type=type(e).__name__,
+                   exc_info=True)
     finally:
         if executor:
             executor.shutdown(wait=True)
-        logger.info("애플리케이션 종료 완료")
+        logger.info("애플리케이션 종료 완료", component="shutdown")

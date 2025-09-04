@@ -12,7 +12,7 @@ def path_filter(mocker):
     # path_filter 모듈이 사용하는 settings 객체 자체를 모킹합니다.
     mock_settings = MagicMock()
     mock_settings.WATCH_ROOT = Path("/watcher/codes")
-    mocker.patch('app.path_filter.settings', mock_settings)
+    mocker.patch('app.source_path_filter.settings', mock_settings)
     return PathFilter()
 
 
