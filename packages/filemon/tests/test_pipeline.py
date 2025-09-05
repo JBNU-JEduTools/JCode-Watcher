@@ -152,45 +152,6 @@ class TestFilemonPipeline:
         mock_snapshot_manager.create_empty_snapshot_with_info.assert_called_once_with(mock_source_info)
         mock_register.assert_called_once_with(mock_source_info, 0)
 
-    @pytest.mark.asyncio
-    async def test_process_event_moved_success(self, pipeline, mock_moved_event, mock_snapshot_manager):
-        """이동 이벤트 성공적 처리"""
-        # Given
-        test_data = b'test content'
-        
-        with patch('app.pipeline.os.path.exists') as mock_exists, \
-             patch('app.pipeline.os.path.getsize') as mock_getsize, \
-             patch('app.pipeline.settings') as mock_settings, \
-             patch('app.pipeline.SourceFileInfo.from_parsed_data') as mock_source_from_data, \
-             patch.object(pipeline.snapshot_sender, 'register_snapshot', new_callable=AsyncMock) as mock_register, \
-             patch('app.pipeline.asyncio.wrap_future') as mock_wrap_future:
-            
-            mock_exists.return_value = True
-            mock_settings.MAX_CAPTURABLE_FILE_SIZE = 1000000
-            mock_getsize.return_value = 500
-            mock_stat = Mock(st_size=len(test_data), st_mtime=1234567890)
-            
-            # executor.submit과 asyncio.wrap_future 모킹
-            async def mock_future_result():
-                return (mock_stat, test_data)
-            mock_wrap_future.return_value = mock_future_result()
-            
-            mock_source_info = Mock()
-            mock_source_info.filename = 'test.c'
-            mock_source_from_data.return_value = mock_source_info
-            mock_register.return_value = True
-            
-            # When
-            await pipeline.process_event(mock_moved_event)
-        
-        # Then
-        # 파싱이 2번 호출되어야 함 (src_path + dest_path)
-        assert pipeline.parser.parse.call_count == 2
-        # 스냅샷이 2번 생성되어야 함 (empty + data)
-        mock_snapshot_manager.create_empty_snapshot_with_info.assert_called_once()
-        mock_snapshot_manager.create_snapshot_with_data.assert_called_once()
-        # API 등록이 2번 호출되어야 함
-        assert mock_register.call_count == 2
 
     @pytest.mark.asyncio
     async def test_process_event_modified_file_size_exceeded(self, pipeline, mock_fs_event):

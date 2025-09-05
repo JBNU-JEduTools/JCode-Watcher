@@ -2,6 +2,7 @@ import logging
 import os
 import sys
 from logging.handlers import RotatingFileHandler
+from pathlib import Path
 import structlog
 import structlog.contextvars as ctx
 
@@ -23,11 +24,12 @@ def setup_logging(
     - contextvars: 요청/작업 컨텍스트 자동 병합
     """
     # 1. 로그 파일 디렉토리 생성 및 동적 경로 설정
-    log_dir = os.path.dirname(log_file_path)
-    os.makedirs(log_dir, exist_ok=True)
+    # LOG_FILE_PATH는 항상 디렉토리 경로로 간주
+    log_dir = Path(log_file_path)
+    log_dir.mkdir(parents=True, exist_ok=True)
     
     node_name = os.getenv("MY_NODE_NAME", "devnode")
-    dynamic_log_path = os.path.join(log_dir, f"filemon-{node_name}.log")
+    dynamic_log_path = log_dir / f"filemon-{node_name}.log"
 
     # 2. 표준 로깅 설정
     # 루트 로거는 WARNING으로 설정하여 대부분의 라이브러리를 조용하게 만듭니다.
@@ -55,7 +57,7 @@ def setup_logging(
     )
 
     file_handler = RotatingFileHandler(
-        filename=dynamic_log_path,
+        filename=str(dynamic_log_path),
         maxBytes=max_bytes,
         backupCount=backup_count,
         encoding="utf-8",

@@ -26,9 +26,7 @@ class FilemonPipeline:
     async def process_event(self, raw_event: FileSystemEvent):
         """raw 파일시스템 이벤트를 처리하는 통합 흐름"""
         try:
-            if raw_event.event_type == "moved":
-                await self._handle_moved_event(raw_event)
-            elif raw_event.event_type == "deleted":
+            if raw_event.event_type == "deleted":
                 await self._handle_deleted_event(raw_event)
             elif raw_event.event_type == "modified":
                 await self._handle_modified_event(raw_event)
@@ -42,70 +40,6 @@ class FilemonPipeline:
                             error_type=type(e).__name__,
                             exc_info=True)
 
-    async def _handle_moved_event(self, event: FileSystemEvent):
-        """moved 이벤트 처리 - delete + modify로 분해"""
-        src_path = event.src_path
-        dest_path = getattr(event, 'dest_path', None)
-        
-        if not dest_path:
-            self.logger.warning("moved 이벤트에 dest_path가 없음", src_path=src_path)
-            return
-            
-        try:
-            # 1. src_path 삭제 처리
-            parsed_data = self.parser.parse(Path(src_path))
-            source_info = SourceFileInfo.from_parsed_data(parsed_data, Path(src_path))
-            
-            await self.snapshot_manager.create_empty_snapshot_with_info(source_info)
-            await self.snapshot_sender.register_snapshot(source_info, 0)
-            self.logger.info("moved 삭제 처리 완료",
-                           filename=source_info.filename,
-                           class_div=source_info.class_div,
-                           hw_name=source_info.hw_name,
-                           student_id=source_info.student_id)
-            
-            # 2. dest_path 생성 처리
-            if not os.path.exists(dest_path):
-                self.logger.warning("moved 대상 파일이 존재하지 않음", 
-                                  src_path=src_path, dest_path=dest_path)
-                return
-                
-            file_size = os.path.getsize(dest_path)
-            if file_size > settings.MAX_CAPTURABLE_FILE_SIZE:
-                self.logger.warning("moved 대상 파일 크기 초과", dest_path=dest_path, 
-                                  file_size=file_size, max_size=settings.MAX_CAPTURABLE_FILE_SIZE)
-                return
-            
-            parsed_data = self.parser.parse(Path(dest_path))
-            source_info = SourceFileInfo.from_parsed_data(parsed_data, Path(dest_path))
-            
-            # 파일 읽기 및 스냅샷 생성
-            future = self.executor.submit(self.read_and_verify, dest_path)
-            file_stat, data = await asyncio.wrap_future(future)
-            
-            await self.snapshot_manager.create_snapshot_with_data(source_info, data)
-            api_success = await self.snapshot_sender.register_snapshot(source_info, len(data))
-            
-            if api_success:
-                self.logger.info("moved 생성 처리 완료",
-                                filename=source_info.filename,
-                                class_div=source_info.class_div,
-                                hw_name=source_info.hw_name,
-                                student_id=source_info.student_id,
-                                file_size=len(data))
-            else:
-                self.logger.warning("moved 생성 API 등록 실패",
-                                  filename=source_info.filename,
-                                  class_div=source_info.class_div,
-                                  hw_name=source_info.hw_name,
-                                  student_id=source_info.student_id)
-                
-        except OSError as e:
-            self.logger.debug("moved 이벤트 처리 중 OSError 발생", 
-                            src_path=src_path, dest_path=dest_path, exc_info=True)
-        except Exception as e:
-            self.logger.error("moved 이벤트 처리 실패", 
-                            src_path=src_path, dest_path=dest_path, exc_info=True)
 
     async def _handle_deleted_event(self, event: FileSystemEvent):
         """deleted 이벤트 처리"""
