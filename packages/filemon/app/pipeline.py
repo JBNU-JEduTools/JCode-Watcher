@@ -11,6 +11,7 @@ from app.config.settings import settings
 from app.utils.logger import get_logger
 from app.snapshot import SnapshotManager
 from app.sender import SnapshotSender
+from app.utils.metrics import record_file_size_exceeded
 
 class FilemonPipeline:
     """파일 모니터링 파이프라인"""
@@ -66,6 +67,7 @@ class FilemonPipeline:
             if file_size > settings.MAX_CAPTURABLE_FILE_SIZE:
                 self.logger.warning("파일 크기 초과", src_path=event.src_path, 
                                   file_size=file_size, max_size=settings.MAX_CAPTURABLE_FILE_SIZE)
+                record_file_size_exceeded()
                 return
             
             parsed_data = self.parser.parse(Path(event.src_path))
@@ -133,4 +135,3 @@ class FilemonPipeline:
             return st_after, data
         finally:
             f.close()
-    

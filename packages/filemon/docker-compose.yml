@@ -10,4 +10,3 @@ services:
       - 3000:3000 # 메트릭 포트 
     environment:
       - LOG_LEVEL=DEBUG
-      - API_SERVER=http://172.17.0.1:3000

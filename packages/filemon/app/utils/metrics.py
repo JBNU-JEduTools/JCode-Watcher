@@ -92,3 +92,11 @@ def record_debounced_events(count: int):
 def record_api_request(status: str):
     """Records an API request with its status."""
     api_requests_total.labels(status=status).inc()
+
+def record_file_size_exceeded():
+    """Records that a file was skipped due to its size."""
+    file_size_exceeded_total.inc()
+
+def record_parse_error():
+    """Records a file path parsing error."""
+    parse_errors_total.inc()

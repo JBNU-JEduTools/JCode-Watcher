@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Dict, Any
 from app.config.settings import settings
 from app.utils.logger import get_logger
+from app.utils.metrics import record_parse_error
 
 logger = get_logger(__name__)
 
@@ -29,6 +30,7 @@ class SourcePathParser:
             logger.error(error_msg, 
                         target_path=str(target_file_path),
                         watch_root=str(settings.WATCH_ROOT))
+            record_parse_error()
             raise ValueError(error_msg)
         
         # 경로 파싱: class-div-student_id/hw_name/...
@@ -38,6 +40,7 @@ class SourcePathParser:
             logger.error(error_msg, 
                         relative_path=str(relative_path),
                         parts=list(parts))
+            record_parse_error()
             raise ValueError(error_msg)
         
         # 과목-분반과 학번 분리 (os-1-202012180 형식)
@@ -47,6 +50,7 @@ class SourcePathParser:
             logger.error(error_msg,
                         directory_name=parts[0],
                         expected_format="subject-division-studentid")
+            record_parse_error()
             raise ValueError(error_msg)
             
         class_div = f"{class_student[0]}-{class_student[1]}"
