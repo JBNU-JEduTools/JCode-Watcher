@@ -109,28 +109,26 @@ class FilemonPipeline:
     
     def read_and_verify(self, target_file_path: str):
         """
-        파일을 안전하게 읽고 검증하는 단일 함수
-        s1: 파일 메타데이터 캡처
-        read: 파일 전체를 메모리에 읽기
-        s2: 읽은 뒤 다시 메타데이터 캡처해서 비교
+        파일을 읽는 동안 변경되지 않았는지 검증하며 안전하게 읽습니다.
+        읽기 전후의 파일 메타데이터(크기, 수정 시간)를 비교하여 일관성을 보장합니다.
         """
         src = Path(target_file_path)
         if not src.exists():
             raise FileNotFoundError(target_file_path)
 
-        # s1) 파일 오픈 후 최초 stat
+        # 1. 읽기 전 파일 상태(메타데이터) 캡처
         f = open(src, "rb", buffering=0)
         try:
             st_before = os.fstat(f.fileno())
 
-            # read) 메모리로 읽기
+            # 2. 파일 내용 전체를 메모리로 읽기
             data = f.read()
 
-            # s2) 다시 stat → 읽는 중 변했는지 확인
+            # 3. 읽은 후 파일 상태를 다시 캡처하여 비교
             st_after = os.fstat(f.fileno())
             if (st_before.st_size, st_before.st_mtime) != \
                (st_after.st_size, st_after.st_mtime):
-                raise RuntimeError("file changed during read")
+                raise RuntimeError("파일 읽기 중 내용이 변경되었습니다.")
 
             return st_after, data
         finally:
