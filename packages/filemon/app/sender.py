@@ -4,6 +4,7 @@ from pathlib import Path
 from app.utils.logger import get_logger
 from app.config.settings import settings
 from app.models.source_file_info import SourceFileInfo
+from app.utils.metrics import record_api_request
 
 logger = get_logger(__name__)
 
@@ -44,6 +45,7 @@ class SnapshotSender:
                                    class_div=source_file_info.class_div,
                                    hw_name=source_file_info.hw_name,
                                    student_id=source_file_info.student_id)
+                        record_api_request("success")
                         return True
                     
                     response_text = await response.text()
@@ -54,6 +56,7 @@ class SnapshotSender:
                                student_id=source_file_info.student_id,
                                status_code=response.status,
                                response_text=response_text)
+                    record_api_request("failure")
                     return False
                     
         except aiohttp.ClientError as e:
@@ -64,6 +67,7 @@ class SnapshotSender:
                        student_id=source_file_info.student_id,
                        error_type="aiohttp.ClientError",
                        exc_info=True)
+            record_api_request("failure")
             return False
         except Exception as e:
             logger.error("예상치 못한 API 오류",
@@ -73,4 +77,5 @@ class SnapshotSender:
                        student_id=source_file_info.student_id,
                        error_type=type(e).__name__,
                        exc_info=True)
+            record_api_request("failure")
             return False

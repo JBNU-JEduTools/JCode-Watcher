@@ -1,6 +1,7 @@
 import asyncio
 import signal
 from concurrent.futures import ThreadPoolExecutor
+from prometheus_client import start_http_server
 from watchdog.observers import Observer
 from app.watchdog_handler import WatchdogHandler
 from app.pipeline import FilemonPipeline
@@ -11,11 +12,27 @@ from app.source_path_parser import SourcePathParser
 from app.source_path_filter import PathFilter
 from app.config.settings import settings
 from app.utils.logger import setup_logging, get_logger
-from app.utils.metrics import watchdog_up
+from app.utils.metrics import watchdog_up, set_queue_size, filemon_registry
 
 logger=None
 
+async def monitor_watchdog(observer: Observer):
+    """Watchdog Observer 스레드를 주기적으로 모니터링합니다."""
+    logger.info("Watchdog 모니터링 시작", component="watchdog_monitor")
+    while True:
+        if not observer.is_alive():
+            # Watchdog 스레드의 중지는 심각한 오류이므로, 예외를 발생시켜 시스템 전체를 종료시킵니다.
+            raise RuntimeError("Watchdog Observer 스레드가 예기치 않게 중지되었습니다.")
+        watchdog_up.set(1)
+        await asyncio.sleep(10)
 
+async def monitor_queues(raw_queue: asyncio.Queue, processed_queue: asyncio.Queue):
+    """주요 큐들의 현재 사이즈를 주기적으로 측정합니다."""
+    logger.info("큐 모니터링 시작", component="queue_monitor")
+    while True:
+        set_queue_size("raw", raw_queue.qsize())
+        set_queue_size("processed", processed_queue.qsize())
+        await asyncio.sleep(10)
 
 async def main():
     # 로깅 시스템 초기화
@@ -29,6 +46,11 @@ async def main():
     # 로거 초기화 (setup_logging 이후에 호출)
     global logger
     logger = get_logger(__name__)
+
+    # 프로메테우스 메트릭 서버 시작
+    start_http_server(settings.METRICS_PORT, registry=filemon_registry)
+    logger.info("프로메테우스 메트릭 서버 시작", port=settings.METRICS_PORT)
+
     logger.info("Filemon 애플리케이션 시작",
                log_level=settings.LOG_LEVEL,
                log_file=settings.LOG_FILE_PATH)
@@ -68,6 +90,7 @@ async def main():
             tg.create_task(run_debouncer(debouncer, raw_queue))
             tg.create_task(run_main_pipeline(processed_queue, pipeline))
             tg.create_task(monitor_watchdog(observer))
+            tg.create_task(monitor_queues(raw_queue, processed_queue))
     except* Exception as eg:
         logger.critical("TaskGroup에서 하나 이상의 처리되지 않은 예외 발생. 시스템을 종료합니다.", exc_info=True)
     finally:
@@ -85,17 +108,12 @@ async def run_main_pipeline(processed_queue: asyncio.Queue, pipeline: FilemonPip
     logger.info("메인 파이프라인 시작", component="pipeline")
     while True:
         event = await processed_queue.get()
-        await pipeline.process_event(event)
-
-async def monitor_watchdog(observer: Observer):
-    """Watchdog Observer 스레드를 주기적으로 모니터링합니다."""
-    logger.info("Watchdog 모니터링 시작", component="watchdog_monitor")
-    while True:
-        if not observer.is_alive():
-            # Watchdog 스레드의 중지는 심각한 오류이므로, 예외를 발생시켜 시스템 전체를 종료시킵니다.
-            raise RuntimeError("Watchdog Observer 스레드가 예기치 않게 중지되었습니다.")
-        watchdog_up.set(1)
-        await asyncio.sleep(10)
+        try:
+            await pipeline.process_event(event)
+        except Exception:
+            logger.error("개별 이벤트 처리 중 오류 발생. 다음 이벤트를 계속 처리합니다.",
+                       src_path=getattr(event, 'src_path', 'N/A'),
+                       exc_info=True)
 
 async def shutdown(pipeline, observer, executor):
     logger.info("애플리케이션 종료 시작", component="shutdown")

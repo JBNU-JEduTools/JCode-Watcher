@@ -3,6 +3,7 @@ from pathlib import Path
 from app.utils.logger import get_logger
 from watchdog.events import FileSystemEventHandler, FileDeletedEvent, FileModifiedEvent
 from app.source_path_filter import PathFilter
+from app.utils.metrics import record_raw_event
 
 logger = get_logger(__name__)
 
@@ -23,6 +24,8 @@ class WatchdogHandler(FileSystemEventHandler):
                 logger.info("필터로 인해 수정 이벤트 무시", src_path=event.src_path)
                 return
             
+            record_raw_event(event.event_type)
+            
             self.loop.call_soon_threadsafe(
                 self.raw_queue.put_nowait, event
             )
@@ -37,6 +40,8 @@ class WatchdogHandler(FileSystemEventHandler):
                 logger.info("필터로 인해 삭제 이벤트 무시", src_path=event.src_path)
                 return
             
+            record_raw_event(event.event_type)
+
             self.loop.call_soon_threadsafe(
                 self.raw_queue.put_nowait, event
             )
@@ -55,6 +60,7 @@ class WatchdogHandler(FileSystemEventHandler):
                 self.path_filter.should_process(src_path)):
                 
                 delete_event = FileDeletedEvent(src_path)
+                record_raw_event(delete_event.event_type)
                 self.loop.call_soon_threadsafe(
                     self.raw_queue.put_nowait, delete_event
                 )
@@ -66,6 +72,7 @@ class WatchdogHandler(FileSystemEventHandler):
                 self.path_filter.should_process(dest_path)):
                 
                 modify_event = FileModifiedEvent(dest_path)
+                record_raw_event(modify_event.event_type)
                 self.loop.call_soon_threadsafe(
                     self.raw_queue.put_nowait, modify_event
                 )

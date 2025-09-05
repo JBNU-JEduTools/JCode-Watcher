@@ -5,6 +5,7 @@ from typing import Dict, Any, Optional
 from watchdog.events import FileSystemEvent
 from app.utils.logger import get_logger
 from app.config.settings import settings
+from app.utils.metrics import record_debounced_events
 
 logger = get_logger(__name__)
 
@@ -145,6 +146,10 @@ class Debouncer:
         if not bucket or not bucket['events']:
             return
         
+        debounced_count = len(bucket['events']) - 1
+        if debounced_count > 0:
+            record_debounced_events(debounced_count)
+
         try:
             self.in_flight[key] = True
             

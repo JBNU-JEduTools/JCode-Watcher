@@ -1,3 +1,4 @@
+import time
 from prometheus_client import Counter, Gauge, Histogram, CollectorRegistry
 
 # 프로메테우스 레지스트리 (REGISTRY와 다름)
@@ -13,8 +14,6 @@ watchdog_up = Gauge(
     'Watchdog Observer 스레드 상태 (1=활성, 0=중지)',
     registry=filemon_registry
 )
-
-
 
 # 2. 이벤트 처리 메트릭
 watchdog_last_event_time_seconds = Gauge(
@@ -71,3 +70,25 @@ processing_duration_seconds = Histogram(
     ['component'],
     registry=filemon_registry
 )
+
+# --- Helper Functions ---
+
+def record_raw_event(event_type: str):
+    """
+    A raw filesystem event was detected.
+    Updates all relevant metrics for this event.
+    """
+    raw_events_total.labels(type=event_type).inc()
+    watchdog_last_event_time_seconds.set(time.time())
+
+def set_queue_size(queue_name: str, size: int):
+    """Sets the current size for a given queue."""
+    queue_size.labels(queue=queue_name).set(size)
+
+def record_debounced_events(count: int):
+    """Records that a number of events were debounced (discarded)."""
+    debounced_events_total.inc(count)
+
+def record_api_request(status: str):
+    """Records an API request with its status."""
+    api_requests_total.labels(status=status).inc()
