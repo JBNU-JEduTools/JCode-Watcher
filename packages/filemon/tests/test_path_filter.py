@@ -45,28 +45,20 @@ path_test_cases = [
 
 @pytest.mark.parametrize("description, path, expected", path_test_cases, ids=[c[0] for c in path_test_cases])
 def test_path_filtering_logic(path_filter, description, path, expected):
-    """다양한 경로에 대해 should_process_path가 올바르게 동작하는지 통합 테스트"""
-    assert path_filter.should_process_path(path) == expected
+    """다양한 경로에 대해 should_process가 올바르게 동작하는지 통합 테스트"""
+    assert path_filter.should_process(path) == expected
 
 
-def test_should_process_file_ignores_directories(path_filter, mocker):
+def test_should_process_ignores_directories(path_filter, mocker):
     """
-    should_process_file이 디렉토리를 항상 False로 반환하는지 테스트
+    should_process가 디렉토리를 올바르게 처리하는지 테스트
     """
-    # os.path.isdir이 항상 True를 반환하도록 모킹
-    mocker.patch('os.path.isdir', return_value=True)
     test_path = "/watcher/codes/class-1-202012345/hw1/some_dir"
-    assert path_filter.should_process_file(test_path) is False
+    assert path_filter.should_process(test_path) is False
 
-def test_should_process_file_processes_files(path_filter, mocker):
+def test_should_process_processes_files(path_filter, mocker):
     """
-    should_process_file이 파일 경로를 내부 로직으로 올바르게 넘기는지 테스트
+    should_process가 파일 경로를 올바르게 처리하는지 테스트
     """
-    # os.path.isdir이 항상 False를 반환하도록 모킹
-    mocker.patch('os.path.isdir', return_value=False)
-    # 내부 필터링 로직을 모킹하여 호출 여부만 확인
-    mock_should_process = mocker.patch.object(path_filter, '_should_process', return_value=True)
-    
     test_path = "/watcher/codes/class-1-202012345/hw1/test.c"
-    assert path_filter.should_process_file(test_path) is True
-    mock_should_process.assert_called_once_with(test_path)
+    assert path_filter.should_process(test_path) is True

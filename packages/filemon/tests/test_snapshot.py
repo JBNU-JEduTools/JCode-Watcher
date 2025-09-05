@@ -22,6 +22,7 @@ def mock_source_info():
     mock.student_id = '202012345'
     mock.filename = 'test.c'
     mock.target_file_path = Path('/watch/root/os-1-202012345/hw1/test.c')
+    mock.timestamp = '20240830_123456'
     return mock
 
 
@@ -34,6 +35,7 @@ def mock_nested_source_info():
     mock.student_id = '202098765'
     mock.filename = 'src@main@Main.java'
     mock.target_file_path = Path('/watch/root/java-2-202098765/hw2/src/main/Main.java')
+    mock.timestamp = '20240830_123456'
     return mock
 
 
@@ -198,6 +200,7 @@ class TestSnapshotManager:
         mock_info = Mock(spec=SourceFileInfo)
         mock_info.hw_name = 'nonexistent_hw'
         mock_info.target_file_path = Path('/watch/root/os-1-202012345/hw1/test.c')
+        mock_info.timestamp = '20240830_123456'
         
         # When & Then
         with pytest.raises(ValueError, match="과제 디렉토리를 찾을 수 없음"):

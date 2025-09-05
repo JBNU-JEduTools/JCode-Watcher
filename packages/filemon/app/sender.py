@@ -1,5 +1,4 @@
 import aiohttp
-from datetime import datetime
 from typing import Optional
 from pathlib import Path
 from app.utils.logger import get_logger
@@ -28,11 +27,8 @@ class SnapshotSender:
         Returns:
             bool: 등록 성공 여부
         """
-        # 현재 시간을 타임스탬프로 생성 (YYYYMMDD_HHMMSS 형식)
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        
         # API 엔드포인트 구성
-        endpoint = f"/api/{source_file_info.class_div}/{source_file_info.hw_name}/{source_file_info.student_id}/{source_file_info.filename}/{timestamp}"
+        endpoint = f"/api/{source_file_info.class_div}/{source_file_info.hw_name}/{source_file_info.student_id}/{source_file_info.filename}/{source_file_info.timestamp}"
         full_url = f"{self.base_url}{endpoint}"
         
         

@@ -23,7 +23,8 @@ class TestSnapshotSender:
             hw_name="hw1",
             student_id="202012345",
             filename="main@src@test.c",
-            target_file_path=Path("/test/path/main.c")
+            target_file_path=Path("/test/path/main.c"),
+            timestamp="20240320_153000"
         )
 
     def _create_mock_session(self, status_code=200, response_text='{"message": "success"}'):
@@ -142,7 +143,8 @@ class TestSnapshotSender:
                 hw_name="hw1", 
                 student_id=student_id,
                 filename="test.c",
-                target_file_path=Path("/test/path/test.c")
+                target_file_path=Path("/test/path/test.c"),
+                timestamp="20240320_153000"
             )
             
             mock_session_context, mock_session = self._create_mock_session()
@@ -160,7 +162,8 @@ class TestSnapshotSender:
             hw_name="hw1",
             student_id="202012345",
             filename="file@with@special.c",
-            target_file_path=Path("/test/path/file.c")
+            target_file_path=Path("/test/path/file.c"),
+            timestamp="20240320_153000"
         )
         
         mock_session_context, mock_session = self._create_mock_session()
@@ -202,7 +205,8 @@ class TestSnapshotSender:
             hw_name="hw1",
             student_id=student_id,
             filename="test.c",
-            target_file_path=Path("/test/path/test.c")
+            target_file_path=Path("/test/path/test.c"),
+            timestamp="20240320_153000"
         )
         
         mock_session_context, mock_session = self._create_mock_session()
@@ -216,15 +220,9 @@ class TestSnapshotSender:
             call_args = mock_session.post.call_args
             assert f"/api/os-1/hw1/{expected_url_part}/test.c/" in call_args[0][0]
 
-    @patch('app.sender.datetime')
     @pytest.mark.asyncio
-    async def test_timestamp_generation(self, mock_datetime, sender, sample_source_file_info):
-        """타임스탬프 생성 테스트"""
-        # 고정된 시간 설정
-        mock_now = MagicMock()
-        mock_now.strftime.return_value = "20240320_153000"
-        mock_datetime.now.return_value = mock_now
-        
+    async def test_timestamp_from_source_info(self, sender, sample_source_file_info):
+        """SourceFileInfo의 타임스탬프 사용 테스트"""
         mock_session_context, mock_session = self._create_mock_session()
         
         with patch('aiohttp.ClientSession', return_value=mock_session_context):
@@ -232,9 +230,6 @@ class TestSnapshotSender:
             
             assert result is True
             
-            # 타임스탬프가 URL에 포함되는지 확인
+            # SourceFileInfo의 타임스탬프가 URL에 포함되는지 확인
             call_args = mock_session.post.call_args
             assert "20240320_153000" in call_args[0][0]
-            
-            # strftime이 올바른 형식으로 호출되는지 확인
-            mock_now.strftime.assert_called_with("%Y%m%d_%H%M%S")

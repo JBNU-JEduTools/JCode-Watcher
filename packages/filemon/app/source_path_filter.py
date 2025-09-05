@@ -28,25 +28,18 @@ class PathFilter:
         self.watch_root = settings.WATCH_ROOT
         logger.info("PathFilter 초기화 완료", watch_root=str(self.watch_root))
 
-    def should_process_file(self, file_path: str) -> bool:
-        """파일이 처리 대상인지 확인 (디렉토리는 항상 무시)"""
-        # 디렉토리는 처리하지 않음
-        if os.path.isdir(file_path):
-            return False
-        return self._should_process(file_path)
-
-    def should_process_path(self, file_path: str) -> bool:
-        """경로가 처리 대상인지 확인 (파일/디렉토리 여부 무관)"""
-        return self._should_process(file_path)
-
-    def _should_process(self, path_str: str) -> bool:
-        """공통 필터링 로직"""
+    def is_directory(self, file_path: str) -> bool:
+        """디렉토리인지 확인"""
+        return os.path.isdir(file_path)
+    
+    def should_process(self, file_path: str) -> bool:
+        """파일/경로가 처리 대상인지 확인"""
         # 1. 무시 패턴에 해당하는지 먼저 확인
-        if self._is_ignored(path_str):
+        if self._is_ignored(file_path):
             return False
         
         # 2. 경로 구조가 유효한지 확인
-        return self._is_valid_source_path(path_str)
+        return self._is_valid_source_path(file_path)
 
     def _is_ignored(self, path_str: str) -> bool:
         """무시 패턴에 해당하는지 확인"""

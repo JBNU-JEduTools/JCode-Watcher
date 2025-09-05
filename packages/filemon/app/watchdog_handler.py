@@ -16,8 +16,11 @@ class WatchdogHandler(FileSystemEventHandler):
 
     def on_modified(self, event):
         try:
-            if not self.path_filter.should_process_file(event.src_path):
-                logger.info("Ignoring modified event for path due to filter", src_path=event.src_path)
+            if self.path_filter.is_directory(event.src_path):
+                return  # 디렉토리는 조용히 무시
+            
+            if not self.path_filter.should_process(event.src_path):
+                logger.info("필터로 인해 수정 이벤트 무시", src_path=event.src_path)
                 return
             
             self.loop.call_soon_threadsafe(
@@ -30,8 +33,8 @@ class WatchdogHandler(FileSystemEventHandler):
 
     def on_deleted(self, event):
         try:
-            if not self.path_filter.should_process_path(event.src_path):
-                logger.info("Ignoring deleted event for path due to filter", src_path=event.src_path)
+            if not self.path_filter.should_process(event.src_path):
+                logger.info("필터로 인해 삭제 이벤트 무시", src_path=event.src_path)
                 return
             
             self.loop.call_soon_threadsafe(
@@ -45,8 +48,11 @@ class WatchdogHandler(FileSystemEventHandler):
     def on_moved(self, event):
         try:
             dest_path = getattr(event, 'dest_path', event.src_path)
-            if not self.path_filter.should_process_file(dest_path):
-                logger.info("Ignoring moved event for path due to filter", dest_path=dest_path)
+            if self.path_filter.is_directory(dest_path):
+                return  # 디렉토리는 조용히 무시
+            
+            if not self.path_filter.should_process(dest_path):
+                logger.info("필터로 인해 이동 이벤트 무시", dest_path=dest_path)
                 return
             
             self.loop.call_soon_threadsafe(

@@ -23,8 +23,8 @@ def mock_loop():
 def mock_path_filter():
     """Mock PathFilter"""
     mock = Mock()
-    mock.should_process_file.return_value = True
-    mock.should_process_path.return_value = True
+    mock.should_process.return_value = True
+    mock.is_directory.return_value = False  # 파일로 간주하여 should_process까지 도달하게 함
     return mock
 
 
@@ -60,7 +60,7 @@ class TestOnModified:
         handler.on_modified(mock_fs_event)
 
         # Then
-        handler.path_filter.should_process_file.assert_called_once_with(mock_fs_event.src_path)
+        handler.path_filter.should_process.assert_called_once_with(mock_fs_event.src_path)
         handler.loop.call_soon_threadsafe.assert_called_once_with(
             handler.raw_queue.put_nowait, mock_fs_event
         )
@@ -68,13 +68,13 @@ class TestOnModified:
     def test_filtered_file_skipped(self, handler, mock_fs_event):
         """필터링된 파일은 스킵"""
         # Given
-        handler.path_filter.should_process_file.return_value = False
+        handler.path_filter.should_process.return_value = False
 
         # When
         handler.on_modified(mock_fs_event)
 
         # Then
-        handler.path_filter.should_process_file.assert_called_once_with(mock_fs_event.src_path)
+        handler.path_filter.should_process.assert_called_once_with(mock_fs_event.src_path)
         handler.loop.call_soon_threadsafe.assert_not_called()
 
     @patch('app.watchdog_handler.logger')
@@ -103,7 +103,7 @@ class TestOnDeleted:
         handler.on_deleted(mock_fs_event)
 
         # Then
-        handler.path_filter.should_process_path.assert_called_once_with(mock_fs_event.src_path)
+        handler.path_filter.should_process.assert_called_once_with(mock_fs_event.src_path)
         handler.loop.call_soon_threadsafe.assert_called_once_with(
             handler.raw_queue.put_nowait, mock_fs_event
         )
@@ -111,13 +111,13 @@ class TestOnDeleted:
     def test_filtered_path_skipped(self, handler, mock_fs_event):
         """필터링된 경로는 스킵"""
         # Given
-        handler.path_filter.should_process_path.return_value = False
+        handler.path_filter.should_process.return_value = False
 
         # When
         handler.on_deleted(mock_fs_event)
 
         # Then
-        handler.path_filter.should_process_path.assert_called_once_with(mock_fs_event.src_path)
+        handler.path_filter.should_process.assert_called_once_with(mock_fs_event.src_path)
         handler.loop.call_soon_threadsafe.assert_not_called()
 
     @patch('app.watchdog_handler.logger')
@@ -146,7 +146,7 @@ class TestOnMoved:
         handler.on_moved(mock_moved_event)
 
         # Then
-        handler.path_filter.should_process_file.assert_called_once_with(mock_moved_event.dest_path)
+        handler.path_filter.should_process.assert_called_once_with(mock_moved_event.dest_path)
         handler.loop.call_soon_threadsafe.assert_called_once_with(
             handler.raw_queue.put_nowait, mock_moved_event
         )
@@ -154,13 +154,13 @@ class TestOnMoved:
     def test_filtered_file_skipped(self, handler, mock_moved_event):
         """필터링된 파일은 스킵"""
         # Given
-        handler.path_filter.should_process_file.return_value = False
+        handler.path_filter.should_process.return_value = False
 
         # When
         handler.on_moved(mock_moved_event)
 
         # Then
-        handler.path_filter.should_process_file.assert_called_once_with(mock_moved_event.dest_path)
+        handler.path_filter.should_process.assert_called_once_with(mock_moved_event.dest_path)
         handler.loop.call_soon_threadsafe.assert_not_called()
 
     def test_no_dest_path(self, handler):
@@ -178,7 +178,7 @@ class TestOnMoved:
 
         # Then
         # dest_path가 없으면 src_path를 사용
-        handler.path_filter.should_process_file.assert_called_once_with(mock_event.src_path)
+        handler.path_filter.should_process.assert_called_once_with(mock_event.src_path)
 
     @patch('app.watchdog_handler.logger')
     def test_exception_handling(self, mock_logger, handler, mock_moved_event):

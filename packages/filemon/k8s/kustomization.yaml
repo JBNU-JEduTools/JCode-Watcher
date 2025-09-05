@@ -6,8 +6,5 @@ resources:
   - service.yaml
   - servicemonitor.yaml
 
-commonLabels:
-  app: watcher-filemon
-  component: filemon
 
 namespace: watcher
