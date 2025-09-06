@@ -12,6 +12,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
+      - name: Set version
+        run: echo "VERSION=$(date +%Y%m%d%H%M)" >> $GITHUB_ENV
+      
       
       - name: Login to Harbor
         uses: docker/login-action@v3
@@ -36,7 +39,7 @@ jobs:
         with:
           context: packages/filemon
           push: true
-          tags: harbor.jbnu.ac.kr/jdevops/watcher-filemon:$(date +%Y%m%d%H%M)
+          tags: harbor.jbnu.ac.kr/jdevops/watcher-filemon:${{ env.VERSION }}
       
       - name: Build procmon  
         if: steps.changes.outputs.procmon == 'true'
@@ -44,4 +47,4 @@ jobs:
         with:
           context: packages/procmon
           push: true
-          tags: harbor.jbnu.ac.kr/jdevops/watcher-procmon:$(date +%Y%m%d%H%M)
+          tags: harbor.jbnu.ac.kr/jdevops/watcher-procmon:${{ env.VERSION }}
