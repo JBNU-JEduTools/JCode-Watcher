@@ -92,6 +92,8 @@ class Debouncer:
                     'first_ts': now,
                     'last_ts': now,
                 }
+                await self._schedule_timer(key)
+                return
             else:
                 # 기존 버킷에 이벤트 추가
                 bucket['events'].append(event)

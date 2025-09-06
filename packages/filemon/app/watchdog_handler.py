@@ -17,13 +17,17 @@ class WatchdogHandler(FileSystemEventHandler):
 
     def on_modified(self, event):
         try:
+            logger.debug("파일 수정 이벤트 받음", src_path=event.src_path)
+            
             if self.path_filter.is_directory(event.src_path):
+                logger.debug("디렉토리라서 무시", src_path=event.src_path)
                 return  # 디렉토리는 조용히 무시
             
             if not self.path_filter.should_process(event.src_path):
                 logger.info("필터로 인해 수정 이벤트 무시", src_path=event.src_path)
                 return
             
+            logger.debug("수정 이벤트 큐에 추가", src_path=event.src_path)
             record_raw_event(event.event_type)
             
             self.loop.call_soon_threadsafe(
