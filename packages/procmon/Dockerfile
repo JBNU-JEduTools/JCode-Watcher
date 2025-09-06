@@ -11,11 +11,10 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /opt/procmon
 
-# 가상 환경 설정
-RUN uv venv --system-site-packages /opt/venv
-ENV UV_PROJECT_ENVIRONMENT=/opt/venv
+# 가상 환경 설정 (기본값 .venv 사용)
+RUN uv venv --system-site-packages
 
-# 의존설 설치
+# 의존성 설치
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
 
@@ -24,9 +23,11 @@ RUN mkdir -p /opt/procmon/logs
 
 # 코드 복사
 COPY app ./app
-COPY run.py ./
+
+# PATH에 .venv/bin 추가
+ENV PATH="/opt/procmon/.venv/bin:$PATH"
 
 # 메트릭 포트 노출
 EXPOSE 3000
 
-CMD ["/opt/venv/bin/python3", "run.py"]
+CMD ["python3", "-m", "app"]

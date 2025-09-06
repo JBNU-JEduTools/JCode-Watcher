@@ -1,0 +1,71 @@
+from pathlib import Path
+from typing import Dict, Any
+from app.config.settings import settings
+from app.utils.logger import get_logger
+from app.utils.metrics import record_parse_error
+
+logger = get_logger(__name__)
+
+
+class SourcePathParser:
+    """소스 파일 경로를 파싱하는 클래스"""
+    
+    def parse(self, target_file_path: Path) -> Dict[str, Any]:
+        """소스 파일 경로를 파싱하여 구성 요소를 반환
+        
+        Args:
+            target_file_path: 파싱할 대상 파일 경로
+            
+        Returns:
+            Dict containing: class_div, hw_name, student_id, filename
+            
+        Raises:
+            ValueError: 경로 구조가 올바르지 않을 때
+        """
+        # WATCH_ROOT 기준 상대 경로 계산
+        try:
+            relative_path = target_file_path.relative_to(settings.WATCH_ROOT)
+        except ValueError:
+            error_msg = f"파일 경로가 WATCH_ROOT 하위에 있지 않음: {target_file_path}"
+            logger.error(error_msg, 
+                        target_path=str(target_file_path),
+                        watch_root=str(settings.WATCH_ROOT))
+            record_parse_error()
+            raise ValueError(error_msg)
+        
+        # 경로 파싱: class-div-student_id/hw_name/...
+        parts = relative_path.parts
+        if len(parts) < 3:
+            error_msg = f"잘못된 경로 구조: {relative_path}"
+            logger.error(error_msg, 
+                        relative_path=str(relative_path),
+                        parts=list(parts))
+            record_parse_error()
+            raise ValueError(error_msg)
+        
+        # 과목-분반과 학번 분리 (os-1-202012180 형식)
+        class_student = parts[0].split('-')
+        if len(class_student) != 3 or any(not part.strip() for part in class_student):
+            error_msg = f"잘못된 디렉토리 형식: {parts[0]}"
+            logger.error(error_msg,
+                        directory_name=parts[0],
+                        expected_format="subject-division-studentid")
+            record_parse_error()
+            raise ValueError(error_msg)
+            
+        class_div = f"{class_student[0]}-{class_student[1]}"
+        student_id = class_student[2]
+        hw_name = parts[1]
+        
+        # 나머지 경로를 @로 결합하여 파일명 생성
+        filename_parts = parts[2:]
+        filename = '@'.join(filename_parts)
+        
+        result = {
+            'class_div': class_div,
+            'hw_name': hw_name,
+            'student_id': student_id,
+            'filename': filename
+        }
+        
+        return result
