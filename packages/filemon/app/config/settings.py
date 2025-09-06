@@ -9,17 +9,17 @@ class Settings(BaseSettings):
     API_TIMEOUT_TOTAL: int = 20
     
     # ThreadPool 설정
-    THREAD_POOL_WORKERS: int = 4  # 파일 읽기용 스레드 풀 워커 수
+    THREAD_POOL_WORKERS: int = 8  # 파일 읽기용 스레드 풀 워커 수
     
     # Debounce 설정
-    DEBOUNCE_WINDOW: float = 1  # modified 이벤트 1000ms 대기
-    DEBOUNCE_MAX_WAIT: float = 4  # 최대 대기 시간 4초
+    DEBOUNCE_WINDOW: float = 600  # modified 이벤트 1000ms 대기
+    DEBOUNCE_MAX_WAIT: float = 2.4  # 최대 대기 시간 4초
     
     # Logging 설정
     LOG_FILE_PATH: str = "/opt/filemon/logs/"
     LOG_LEVEL: str = "INFO"
     LOG_MAX_BYTES: int = 10 * 1024 * 1024  # 10MB
-    LOG_BACKUP_COUNT: int = 5
+    LOG_BACKUP_COUNT: int = 0
 
     # Metrics 설정
     METRICS_PORT: int = 3000
