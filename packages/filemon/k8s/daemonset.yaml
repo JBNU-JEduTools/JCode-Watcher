@@ -33,6 +33,10 @@ spec:
           value: "INFO"
         - name: API_SERVER
           value: "http://watcher-backend-service.watcher.svc.cluster.local:3000"
+        - name: MY_NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
       imagePullSecrets:
       - name: watcher-harbor-registry-secret
       volumes:

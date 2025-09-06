@@ -12,8 +12,8 @@ class Settings(BaseSettings):
     THREAD_POOL_WORKERS: int = 8  # 파일 읽기용 스레드 풀 워커 수
     
     # Debounce 설정
-    DEBOUNCE_WINDOW: float = 600  # modified 이벤트 1000ms 대기
-    DEBOUNCE_MAX_WAIT: float = 2.4  # 최대 대기 시간 4초
+    DEBOUNCE_WINDOW: float = 0.6  # modified 이벤트 600ms 대기
+    DEBOUNCE_MAX_WAIT: float = 3  # 최대 대기 시간 3초
     
     # Logging 설정
     LOG_FILE_PATH: str = "/opt/filemon/logs/"
