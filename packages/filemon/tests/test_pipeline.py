@@ -306,7 +306,7 @@ class TestFilemonPipeline:
             mock_path.exists.return_value = True
             mock_path_class.return_value = mock_path
             
-            with pytest.raises(RuntimeError, match="file changed during read"):
+            with pytest.raises(RuntimeError, match="파일 읽기 중 내용이 변경되었습니다"):
                 pipeline.read_and_verify(target_path)
             
             mock_file.close.assert_called_once()
