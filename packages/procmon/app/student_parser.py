@@ -9,7 +9,7 @@ class StudentParser:
     """hostname에서 학생 정보를 파싱하는 파서"""
 
     # 패턴: jcode-{과목}-{분반}-{학번}
-    HOSTNAME_PATTERN = re.compile(r"jcode-([a-z]+)-(\d+)-(\d+)")
+    HOSTNAME_PATTERN = re.compile(r"jcode-([a-zA-Z0-9]+)-(\d+)-(\d+)")
 
     def __init__(self):
         self.logger = get_logger("student_parser")
