@@ -3,13 +3,11 @@ from app.utils.logger import get_logger
 from typing import Optional
 from app.models.student_info import StudentInfo
 from app.models.process import Process
+from app.utils.patterns import HOSTNAME_REGEX
 
 
 class StudentParser:
     """hostname에서 학생 정보를 파싱하는 파서"""
-
-    # 패턴: jcode-{과목}-{분반}-{학번}
-    HOSTNAME_PATTERN = re.compile(r"jcode-([a-zA-Z0-9]+)-(\d+)-(\d+)")
 
     def __init__(self):
         self.logger = get_logger("student_parser")
@@ -24,7 +22,7 @@ class StudentParser:
             self.logger.debug("Process 또는 hostname이 없음")
             return None
 
-        match = self.HOSTNAME_PATTERN.match(process.hostname)
+        match = HOSTNAME_REGEX.match(process.hostname)
         if not match:
             self.logger.debug("hostname 패턴 불일치", hostname=process.hostname)
             return None
