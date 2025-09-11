@@ -12,7 +12,6 @@ from app.source_path_parser import SourcePathParser
 from app.source_path_filter import PathFilter
 from app.config.settings import settings
 from app.utils.logger import setup_logging, get_logger
-from app.utils.metrics import filemon_registry
 from app.tasks import monitor_watchdog, monitor_queues, run_debouncer, run_main_pipeline
 
 logger=None
@@ -31,7 +30,7 @@ async def main():
     logger = get_logger(__name__)
 
     # 프로메테우스 메트릭 서버 시작
-    start_http_server(settings.METRICS_PORT, registry=filemon_registry)
+    start_http_server(settings.METRICS_PORT)
     logger.info("프로메테우스 메트릭 서버 시작", port=settings.METRICS_PORT)
 
     logger.info("Filemon 애플리케이션 시작",
