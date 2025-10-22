@@ -29,7 +29,7 @@ data:
 
             # hw_name은 cwd에서 추출 (예: /home/coder/project/hw1 -> hw1)
             cwd_parts = cwd.split('/')
-            hw_name = next((p for p in cwd_parts if re.match(r'^hw\\d+$', p)), 'unknown')
+            hw_name = next((p for p in cwd_parts if re.match(r'^hw\d+$', p)), 'unknown')
 
             # 실행 성공(0) / 실패(1)
             exit_code = 0 if (result and getattr(result, "success", False)) else 1
