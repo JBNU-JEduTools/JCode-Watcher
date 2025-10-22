@@ -22,7 +22,7 @@ class PathFilter:
     ]
     
     # 허용할 파일 확장자
-    ALLOWED_EXTENSIONS = {".c", ".h", ".py", ".cpp", ".hpp"}
+    ALLOWED_EXTENSIONS = {".c", ".h", ".py", ".cpp", ".hpp", ".ipynb"}
 
     def __init__(self):
         self.watch_root = settings.WATCH_ROOT

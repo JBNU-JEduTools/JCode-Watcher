@@ -186,6 +186,21 @@ class TestPathParser:
                 assert result is None, f"Should return None for '{path}'"
             else:
                 assert result == expected, f"Failed to parse '{path}'"
+
+    def test_alphanumeric_subject_codes(self):
+        """영숫자 조합 과목코드 테스트"""
+        test_cases = [
+            ("/workspace/test252-2-202012180/hw1/hihihi.c", "hw1"),     # 영숫자 조합
+            ("/workspace/cs101-1-202012345/hw2/main.c", "hw2"),        # 영문+숫자
+            ("/workspace/math2024-3-202098765/hw5/calc.py", "hw5"),    # 영문+숫자
+            ("/workspace/OS2023-1-202011111/hw10/kernel.c", "hw10"),   # 대문자+숫자
+            ("/workspace/algo123-2-202022222/hw3/sort.cpp", "hw3"),    # 영문+숫자 조합
+            ("/workspace/db2024spring-1-202033333/hw7/query.sql", "hw7"), # 긴 영숫자 조합
+        ]
+        
+        for path, expected in test_cases:
+            result = self.parser.parse(path)
+            assert result == expected, f"Failed to parse alphanumeric subject code '{path}', expected '{expected}', got '{result}'"
     
     def test_empty_and_whitespace_paths(self):
         """빈 문자열과 공백 경로 테스트"""

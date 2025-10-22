@@ -1,5 +1,7 @@
 import aiohttp
+import time
 from app.utils.logger import get_logger
+from app.utils.metrics import record_api_request, record_api_duration
 from typing import Dict, Any, Optional
 from app.models.event import Event
 from app.models.process import Process
@@ -83,6 +85,9 @@ class EventSender:
 
     async def _send_request(self, endpoint: str, data: Dict[str, Any]) -> bool:
         """HTTP 요청 전송"""
+        start_time = time.time()
+        endpoint_type = "build" if "/build" in endpoint else "run"
+        
         try:
             self.logger.debug("API 요청 시작", endpoint=endpoint, data=data)
 
@@ -90,6 +95,9 @@ class EventSender:
                 async with session.post(
                     f"{self.base_url}{endpoint}", json=data, timeout=self.timeout
                 ) as response:
+                    # API 요청 결과 메트릭 기록
+                    record_api_request(str(response.status), endpoint_type)
+                    
                     if response.status >= 400:
                         error_text = await response.text()
                         self.logger.error(
@@ -101,5 +109,12 @@ class EventSender:
                     return True
 
         except Exception as e:
+            # 예외 발생 시에도 메트릭 기록 
+            record_api_request("error", endpoint_type)
             self.logger.error("HTTP 요청 실패", endpoint=endpoint, exc_info=True)
             return False
+        
+        finally:
+            # 성공/실패 관계없이 레이턴시 메트릭 기록
+            duration = time.time() - start_time
+            record_api_duration(endpoint_type, duration)

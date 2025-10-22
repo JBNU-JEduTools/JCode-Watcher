@@ -3,6 +3,7 @@ import os
 from app.utils.logger import get_logger
 from typing import Optional
 from pathlib import Path
+from app.utils.patterns import WORKSPACE_PATH_REGEX
 
 
 class PathParser:
@@ -12,11 +13,6 @@ class PathParser:
     - 과제 디렉토리가 아니면 None 반환
     - 비정상 입력은 예외 발생
     """
-
-    HOMEWORK_PATTERN = re.compile(
-        r"^(?:/workspace/[a-z]+-\d+-\d+/(hw(?:20|1[0-9]|[0-9]))|"
-        r"/home/coder/project/(hw(?:20|1[0-9]|[0-9])))"
-    )
 
     def __init__(self):
         self.logger = get_logger("path_parser")
@@ -48,10 +44,10 @@ class PathParser:
             raise ValueError(f"중첩된 hw 디렉토리 감지: {normalized}")
 
         # 패턴 매칭
-        match = self.HOMEWORK_PATTERN.match(normalized)
+        match = WORKSPACE_PATH_REGEX.match(normalized)
         if not match:
             return None
 
-        hw_dir = match.group(1) or match.group(2)
+        hw_dir = match.group(3) or match.group(4)
         self.logger.debug("PathParser 파싱 성공", path=normalized, homework_dir=hw_dir)
         return hw_dir
