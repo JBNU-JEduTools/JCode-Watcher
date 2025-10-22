@@ -14,10 +14,15 @@ def after_cell_exec(result=None):
         hostname = socket.gethostname()
         parts = hostname.split('-')
 
-        # 수업 / 분반 / 학번
-        class_div  = parts[1] if len(parts) > 1 else 'unknown'
-        hw_name    = parts[2] if len(parts) > 2 else 'unknown'
+        # hostname: coder@jcode-test2502-1-202012180-68d58d5b57-bp47r
+        # class_div: test2502-1, student_id: 202012180
+        class_div  = f"{parts[1]}-{parts[2]}" if len(parts) > 2 else 'unknown'
         student_id = parts[3] if len(parts) > 3 else 'unknown'
+
+        # hw_name은 cwd에서 추출 (예: /home/coder/project/hw1 -> hw1)
+        import re
+        cwd_parts = cwd.split('/')
+        hw_name = next((p for p in cwd_parts if re.match(r'^hw\d+$', p)), 'unknown')
 
         # 실행 성공(0) / 실패(1)
         exit_code = 0 if (result and getattr(result, "success", False)) else 1
