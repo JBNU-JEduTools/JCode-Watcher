@@ -7,7 +7,7 @@
 [![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://docs.docker.com/)
 [![Kubernetes](https://img.shields.io/badge/Kubernetes-326CE5?style=for-the-badge&logo=kubernetes&logoColor=white)](https://kubernetes.io/ko/docs/home/)
 
-> **현재 SQLite 데이터베이스를 기본으로 구축되어 있으며**, 별도 설정 없이 바로 실행 가능합니다.
+> 신규 이벤트의 원본 저장소는 PostgreSQL입니다. 스키마는 Alembic으로 관리하며 기존 SQLite는 읽기·쓰기 대상이 아닌 과거 기록 보관본입니다.
 
 ```
                         ┌──────────────────┐
@@ -17,11 +17,11 @@ User     ───(GET)─────► │                  │
                         └───────┬──────────┘
                                 │
                                 ▼
-                            [ Database ]
+                            [ PostgreSQL ]
                                 │
                                 ├─ Stores snapshots, buildLog, runLog
                                 │
-                                └─ Mount Persistent Volume
+                                └─ Alembic schema migration
 ```
 
 ## 주요 기능
@@ -121,13 +121,9 @@ touch .env
 #### 2-2. 데이터베이스 초기화
 
 ```bash
-# 현재 SQLite 데이터베이스를 기본으로 구축되어 있습니다
-
-# 데이터 디렉토리 생성 (필요시)
-mkdir -p data
-
-# 애플리케이션 첫 실행 시 자동으로 데이터베이스 테이블이 생성됩니다
-# 위치: data/
+# DB_URL은 postgresql:// 또는 postgresql+psycopg:// 형식을 사용합니다.
+# 빈 데이터베이스에 스키마를 적용합니다.
+alembic -c alembic.ini upgrade head
 ```
 
 #### 2-3. 환경 확인

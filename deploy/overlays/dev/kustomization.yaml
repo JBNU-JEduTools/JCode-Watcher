@@ -1,0 +1,96 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+  - namespace.yaml
+  - registry-secret.yaml
+  - workspace-pvc.yaml
+namespace: dev
+patches:
+  - path: collector-node-selector.yaml
+    target:
+      kind: DaemonSet
+  - path: collector-node-selector.yaml
+    target:
+      kind: Deployment
+      name: watcher-filemon
+  - path: servicemonitor-namespace.yaml
+    target:
+      kind: ServiceMonitor
+  - target:
+      kind: Deployment
+      name: watcher-backend
+    patch: |-
+      - op: add
+        path: /spec/template/spec/nodeSelector
+        value:
+          env: dev
+      - op: add
+        path: /spec/template/spec/tolerations
+        value:
+          - key: dev-node
+            operator: Equal
+            value: "true"
+            effect: NoSchedule
+  - target:
+      kind: ClusterRoleBinding
+      name: watcher-course-metadata-reader-production
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: watcher-course-metadata-reader-dev
+      - op: replace
+        path: /subjects/0/namespace
+        value: dev
+  - target:
+      kind: Deployment
+      name: watcher-filemon
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: watcher-filemon
+      spec:
+        template:
+          spec:
+            containers:
+              - name: watcher-filemon
+                env:
+                  - name: JCODE_ENVIRONMENT
+                    value: dev
+  - target:
+      kind: DaemonSet
+      name: watcher-procmon
+    patch: |-
+      apiVersion: apps/v1
+      kind: DaemonSet
+      metadata:
+        name: watcher-procmon
+      spec:
+        template:
+          spec:
+            containers:
+              - name: watcher-procmon
+                env:
+                  - name: JCODE_ENVIRONMENT
+                    value: dev
+  - target:
+      kind: PersistentVolumeClaim
+      name: watcher-filemon-pvc
+    patch: |-
+      - op: replace
+        path: /spec/storageClassName
+        value: nfs-dev
+      - op: replace
+        path: /spec/resources/requests/storage
+        value: 5Gi
+images:
+  - name: harbor.jedutools.io/jdevops/watcher-backend
+    newName: harbor.jedutools.io/jdevops/watcher-backend
+    digest: sha256:REPLACE_WITH_VERIFIED_DIGEST
+  - name: harbor.jedutools.io/jdevops/watcher-filemon
+    newName: harbor.jedutools.io/jdevops/watcher-filemon
+    digest: sha256:REPLACE_WITH_VERIFIED_DIGEST
+  - name: harbor.jedutools.io/jdevops/watcher-procmon
+    newName: harbor.jedutools.io/jdevops/watcher-procmon
+    digest: sha256:REPLACE_WITH_VERIFIED_DIGEST

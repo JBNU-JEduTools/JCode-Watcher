@@ -1,26 +1,27 @@
 import os
 import time
-from app.utils.logger import get_logger
-from datetime import datetime
-from typing import Optional, Tuple, List
-import traceback
+from datetime import datetime, timezone
+from typing import List, Optional, Tuple
+
 import structlog.contextvars as ctx
-from app.utils.metrics import (
-    record_pipeline_event_success,
-    record_pipeline_event_failure, 
-    record_pipeline_event_filtered,
-    record_pipeline_event_nontarget,
-    record_pipeline_duration,
-    record_host_activity
-)
+
+from app.classifier import ProcessClassifier
+from app.file_parser import FileParser
 from app.models.event import Event
 from app.models.process import Process
 from app.models.process_struct import ProcessStruct
 from app.models.process_type import ProcessType
-from app.classifier import ProcessClassifier
 from app.path_parser import PathParser
-from app.file_parser import FileParser
 from app.student_parser import StudentParser
+from app.utils.logger import get_logger
+from app.utils.metrics import (
+    record_host_activity,
+    record_pipeline_duration,
+    record_pipeline_event_failure,
+    record_pipeline_event_filtered,
+    record_pipeline_event_nontarget,
+    record_pipeline_event_success,
+)
 
 
 class Pipeline:
@@ -41,18 +42,20 @@ class Pipeline:
 
     async def pipeline(self, process_struct) -> Optional[Event]:
         """ProcessStruct를 Event로 변환"""
-        
+
         start_time = time.time()
-        
+
         try:
-            current_timestamp = datetime.now()
+            current_timestamp = datetime.now(timezone.utc)
             # 구조체 클래스 변환
             process = self._convert_process_struct(process_struct)
 
             # 학생 정보 파싱
             student_info = self.student_parser.parse_from_process(process)
             if not student_info:
-                self.logger.warning("학생 정보 파싱 실패", hostname=process.hostname)
+                self.logger.debug(
+                    "비학생 워크로드 이벤트 제외", hostname=process.hostname
+                )
                 return None
 
             # 사용자 정보 컨텍스트 주입
@@ -64,7 +67,7 @@ class Pipeline:
             process_type, homework_dir, source_file = self._label_process(
                 process.binary_path, process.args, process.cwd
             )
-            
+
             # 컴파일/실행 프로세스면 호스트 활동 기록
             if process_type and process_type.is_active_work:
                 record_host_activity(process.hostname)
@@ -85,11 +88,11 @@ class Pipeline:
                     process_type=str(process_type),
                     student_id=student_info.student_id,
                     binary_path=process.binary_path,
-                    args=process.args
+                    args=process.args,
                 )
                 record_pipeline_event_filtered()
                 return None
-            
+
             # 필터링 3: 과제 디렉터리 외부
             if process_type.requires_target_file and source_file and (not homework_dir):
                 self.logger.info(
@@ -109,7 +112,7 @@ class Pipeline:
                     "이벤트 필터링: 과제 디렉터리 외 프로세스",
                     process_type=str(process_type),
                     binary_path=process.binary_path,
-                    args=process.args
+                    args=process.args,
                 )
                 record_pipeline_event_filtered()
                 return None
@@ -125,6 +128,7 @@ class Pipeline:
                 homework_dir=homework_dir,
                 student_id=student_info.student_id,
                 class_div=student_info.class_div,
+                assignment_id=self.path_parser.assignment_id(homework_dir),
                 timestamp=current_timestamp,
                 source_file=absolute_source_file,
                 exit_code=process.exit_code,
@@ -140,7 +144,7 @@ class Pipeline:
                 student_id=student_info.student_id,
                 source_file=absolute_source_file,
             )
-            
+
             # 성공 메트릭 기록
             record_pipeline_event_success()
             return event

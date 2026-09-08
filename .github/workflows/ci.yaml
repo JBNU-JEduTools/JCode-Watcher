@@ -1,51 +1,24 @@
-name: Build & Push
+name: Image build
 
 on:
-  push:
-    branches: [main]
-    paths: ['packages/**']
-  workflow_dispatch:
+  pull_request:
+    branches: [develop]
+    paths:
+      - "packages/**"
+
+permissions:
+  contents: read
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    
+    strategy:
+      matrix:
+        component: [backend, filemon, procmon]
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Set version
-        run: echo "VERSION=$(date +%Y%m%d)-$(git rev-parse --short HEAD)" >> $GITHUB_ENV
-      
-      
-      - name: Login to Harbor
-        uses: docker/login-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
         with:
-          registry: harbor.jbnu.ac.kr
-          username: ${{ secrets.HARBOR_USERNAME }}
-          password: ${{ secrets.HARBOR_PASSWORD }}
-      
-      - name: Check changes
-        id: changes
-        uses: dorny/paths-filter@v2
-        with:
-          filters: |
-            filemon:
-              - 'packages/filemon/**'
-            procmon:
-              - 'packages/procmon/**'
-      
-      - name: Build filemon
-        if: steps.changes.outputs.filemon == 'true'
-        uses: docker/build-push-action@v5
-        with:
-          context: packages/filemon
-          push: true
-          tags: harbor.jbnu.ac.kr/jdevops/watcher-filemon:${{ env.VERSION }}
-      
-      - name: Build procmon  
-        if: steps.changes.outputs.procmon == 'true'
-        uses: docker/build-push-action@v5
-        with:
-          context: packages/procmon
-          push: true
-          tags: harbor.jbnu.ac.kr/jdevops/watcher-procmon:${{ env.VERSION }}
+          context: packages/${{ matrix.component }}
+          push: false

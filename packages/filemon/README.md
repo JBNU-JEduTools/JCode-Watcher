@@ -17,10 +17,10 @@
 ## 📋 개요
 
 ### 주요 기능
-- **실시간 파일 감시**: inotify를 사용한 파일 변경 즉시 감지
+- **파일 변경 감시**: 로컬 파일시스템은 inotify, 공유 NFS는 선택적 폴링 사용
 - **자동 스냅샷 생성**: 파일 변경 시점의 내용을 타임스탬프와 함께 보관
 - **이벤트 전송**: 백엔드 API로 파일 변경 이벤트 실시간 전송
-- **메트릭 제공**: Prometheus 형식의 모니터링 지표 (포트 9090)
+- **메트릭 제공**: Prometheus 형식의 모니터링 지표 (포트 3000)
 
 
 ## 🏗️ 시스템 아키텍처
@@ -142,15 +142,15 @@ ls -la snapshots/class-1/hw1/202012345/hello.c
 
 ### Prometheus 메트릭 서버
 
-`filemon`은 포트 9090에서 Prometheus 형식의 메트릭을 제공합니다.
+`filemon`은 포트 3000에서 Prometheus 형식의 메트릭을 제공합니다.
 
 #### 메트릭 확인
 ```bash
 # 메트릭 엔드포인트 접속
-curl http://localhost:9090/metrics
+curl http://localhost:3000/metrics
 
 # 또는 브라우저에서
-http://localhost:9090/metrics
+http://localhost:3000/metrics
 ```
 
 #### 현재 제공되는 메트릭
@@ -204,7 +204,7 @@ Filemon은 이벤트 기반으로 동작하며, 각 모듈은 명확한 단일 �
 | `core/path_info.py` | **경로 분석 전문가.** 이벤트가 발생한 파일의 절대 경로(e.g., `/watcher/codes/class-1-202012345/hw1/hello.c`)를 분석하여, 스냅샷 저장 및 API 전송에 필요한 구조적인 정보(클래스, 과제, 학번, 파일명 등)를 추출합니다. |
 | `core/snapshot.py` | **스냅샷 생성 및 관리자.** `event_processor`의 요청을 받아 스냅샷을 생성합니다. 단, 직전 스냅샷과 현재 파일 내용를 비교하여 변경된 경우에만 새로운 타임스탬프 스냅샷을 저장함으로써 중복을 방지합니다. |
 | `core/api.py` | **외부 API 연동 채널.** 스냅샷 생성과 같은 주요 이벤트 발생 시, `settings.py`에 정의된 백엔드 API 서버로 관련 정보를 HTTP POST로 전송합니다. |
-| `metrics/prometheus.py` | **시스템 계측기.** 파일 이벤트 발생, 스냅샷 생성, API 호출 성공/실패 등 시스템의 주요 동작을 카운트하여 Prometheus가 수집할 수 있는 메트릭(`:9090/metrics`)을 노출합니다. |
+| `metrics/prometheus.py` | **시스템 계측기.** 파일 이벤트 발생, 스냅샷 생성, API 호출 성공/실패 등 시스템의 주요 동작을 카운트하여 Prometheus가 수집할 수 있는 메트릭(`:3000/metrics`)을 노출합니다. |
 | `config/settings.py` | **중앙 설정 저장소.** 감시할 경로, 파일 패턴, API 주소, 로그 레벨 등 시스템의 모든 주요 설정을 변수로 관리합니다. |
 
 ### 파일 변경 이벤트의 전체 라이프사이클
@@ -235,7 +235,7 @@ Filemon은 이벤트 기반으로 동작하며, 각 모듈은 명확한 단일 �
 | `WATCHER_API_URL` | `http://172.17.0.1:3000` | 백엔드 API 엔드포인트 |
 | `LOG_DIR` | `/app/logs` | 로그 파일이 저장될 디렉토리 |
 | `LOG_MAX_BYTES` | `52428800` (50MB) | 로그 파일의 최대 크기 (단위: bytes) |
-| `LOG_BACKUP_COUNT` | `0` | 보관할 백업 로그 파일의 최대 개수 |
+| `LOG_BACKUP_COUNT` | `5` | 보관할 백업 로그 파일의 최대 개수 |
 
 ### 지원 파일 형식 및 구조
 - **파일 확장자**: `.c`, `.h`, `.py`, `.cpp`, `.hpp`
@@ -373,7 +373,7 @@ docker compose up --build --force-recreate
 ```
 
 **일반적인 원인**:
-- 포트 9090이 이미 사용 중
+- 포트 3000이 이미 사용 중
 - 볼륨 마운트 경로 문제
 - Docker 이미지 빌드 실패
 
@@ -437,7 +437,7 @@ docker network inspect bridge | grep Gateway
 
 #### 5. 메트릭이 보이지 않음
 
-**문제**: `http://localhost:9090/metrics` 접속 시 연결 거부
+**문제**: `http://localhost:3000/metrics` 접속 시 연결 거부
 
 **해결 방법**:
 ```bash
@@ -445,7 +445,7 @@ docker network inspect bridge | grep Gateway
 docker compose ps
 
 # 컨테이너 내부에서 메트릭 서버 확인
-docker compose exec watcher-filemon curl localhost:9090/metrics
+docker compose exec watcher-filemon curl localhost:3000/metrics
 
 # 방화벽 설정 확인 (Windows/Linux)
 ```

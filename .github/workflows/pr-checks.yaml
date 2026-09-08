@@ -1,0 +1,92 @@
+name: PR checks
+
+on:
+  pull_request:
+    branches: [develop]
+
+permissions:
+  contents: read
+
+jobs:
+  backend-postgresql:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: watcher_test
+          POSTGRES_USER: watcher
+          POSTGRES_PASSWORD: watcher
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U watcher -d watcher_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    defaults:
+      run:
+        working-directory: packages/backend
+    env:
+      DB_URL: postgresql://watcher:watcher@localhost:5432/watcher_test
+      AUTO_CREATE_SCHEMA: "false"
+      DB_POOL_SIZE: "5"
+      DB_MAX_OVERFLOW: "5"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            packages/backend/requirements.txt
+            packages/backend/requirements-test.txt
+      - run: pip install -r requirements-test.txt
+      - name: Apply Alembic twice
+        run: |
+          alembic -c alembic.ini upgrade head
+          alembic -c alembic.ini upgrade head
+      - run: pytest -q
+
+  collectors:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        component: [filemon, procmon]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --locked
+        working-directory: packages/${{ matrix.component }}
+      - run: uv run pytest -q
+        working-directory: packages/${{ matrix.component }}
+
+  manifests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-kubectl@v4
+      - run: python -m pip install PyYAML==6.0.2
+      - name: Render deployment manifests
+        run: |
+          kubectl kustomize deploy/overlays/dev > /tmp/watcher-dev.yaml
+          kubectl kustomize deploy/overlays/production > /tmp/watcher-production.yaml
+          kubectl kustomize deploy/migration/overlays/dev > /tmp/watcher-migration-dev.yaml
+          kubectl kustomize deploy/migration/overlays/production > /tmp/watcher-migration-production.yaml
+      - name: Validate PostgreSQL declarations
+        run: |
+          ! grep -R "harbor.jbnu.ac.kr\|sqlite:////app/data\|db.migrate" /tmp/watcher-*.yaml
+          python deploy/validate-manifests.py dev /tmp/watcher-dev.yaml /tmp/watcher-migration-dev.yaml
+          python deploy/validate-manifests.py production /tmp/watcher-production.yaml /tmp/watcher-migration-production.yaml
+          bash -n deploy/deploy.sh
+          bash deploy/tests/test-deploy.sh
+      - name: Verify digest pinning
+        run: |
+          python deploy/set-image-digests.py dev \
+            sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa \
+            sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb \
+            sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+          kubectl kustomize deploy/overlays/dev | grep -q 'watcher-backend@sha256:aaaaaaaa'
+          kubectl kustomize deploy/migration/overlays/dev | grep -q 'watcher-backend@sha256:aaaaaaaa'

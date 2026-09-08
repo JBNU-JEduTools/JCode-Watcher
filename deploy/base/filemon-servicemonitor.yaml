@@ -1,0 +1,19 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: watcher-filemon-monitor
+  namespace: watcher
+  labels:
+    app: watcher-filemon
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: watcher-filemon  
+  namespaceSelector:
+    matchNames:
+      - watcher
+  endpoints:
+    - port: http-metrics
+      path: /metrics
+      interval: 30s

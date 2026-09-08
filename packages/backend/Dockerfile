@@ -3,8 +3,6 @@ FROM python:3.12-slim
 # 작업 디렉토리 설정
 WORKDIR /app
 
-RUN apt update && apt install -y sqlite3
-
 # 필요한 파일들을 복사
 COPY requirements.txt ./
 

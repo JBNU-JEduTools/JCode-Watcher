@@ -1,26 +1,49 @@
-version: '3.8'
-
 services:
-  # 백엔드 API 서버
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: watcher
+      POSTGRES_USER: watcher
+      POSTGRES_PASSWORD: watcher
+    volumes:
+      - watcher-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U watcher -d watcher"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  watcher-migration:
+    build:
+      context: ./packages/backend
+    command: ["alembic", "-c", "alembic.ini", "upgrade", "head"]
+    environment:
+      DB_URL: postgresql+psycopg://watcher:watcher@postgres:5432/watcher
+      AUTO_CREATE_SCHEMA: "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   watcher-backend:
     build:
       context: ./packages/backend
       dockerfile: Dockerfile
     ports:
       - "3000:3000"
-    volumes:
-      - ./dev-data/backend-db:/app/data
-      - ./packages/backend/src:/app/src
     environment:
-      - NODE_ENV=development
-      - DB_URL=sqlite:////app/data/watcher.db
-      - LOG_LEVEL=debug
+      AUTO_CREATE_SCHEMA: "false"
+      DB_URL: postgresql+psycopg://watcher:watcher@postgres:5432/watcher
+      DB_POOL_SIZE: "5"
+      DB_MAX_OVERFLOW: "5"
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:3000/ready')"]
       interval: 30s
       timeout: 10s
       retries: 3
+    depends_on:
+      watcher-migration:
+        condition: service_completed_successfully
 
   # 파일 모니터링 서비스
   watcher-filemon:
@@ -28,14 +51,15 @@ services:
       context: ./packages/filemon
       dockerfile: Dockerfile
     ports:
-      - "9090:9090"
+      - "9090:3000"
     volumes:
       - ./dev-workspace:/watcher/codes:ro
       - ./dev-data/filemon-snapshots:/watcher/snapshots
       - ./packages/filemon/src:/app/src
     environment:
-      - WATCHER_LOG_LEVEL=DEBUG
-      - WATCHER_API_URL=http://watcher-backend:3000
+      - LOG_LEVEL=DEBUG
+      - API_SERVER=http://watcher-backend:3000
+      - METRICS_PORT=3000
       - PYTHONUNBUFFERED=1
     depends_on:
       watcher-backend:
@@ -48,15 +72,16 @@ services:
       context: ./packages/procmon
       dockerfile: Dockerfile
     ports:
-      - "9091:9090"
+      - "9091:3000"
     volumes:
       - ./packages/procmon/src:/app/src
       - /sys/kernel/debug:/sys/kernel/debug:ro
       - /lib/modules:/lib/modules:ro
       - /usr/src:/usr/src:ro
     environment:
-      - API_ENDPOINT=http://watcher-backend:3000
+      - API_SERVER=http://watcher-backend:3000
       - LOG_LEVEL=DEBUG
+      - METRICS_PORT=3000
       - PYTHONUNBUFFERED=1
     cap_add:
       - SYS_ADMIN
@@ -86,4 +111,7 @@ services:
 
 networks:
   default:
-    name: watcher-dev-network 
+    name: watcher-dev-network
+
+volumes:
+  watcher-postgres:

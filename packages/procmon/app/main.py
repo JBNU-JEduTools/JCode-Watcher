@@ -1,18 +1,22 @@
 import asyncio
 import os
-from typing import Any
+
 from prometheus_client import start_http_server
 
-from app.utils.logger import setup_logging, get_logger
-from app.utils.metrics import loop_heartbeat_task, update_queue_size, active_hosts_update_task
+from app.classifier import ProcessClassifier
 from app.collector import Collector
+from app.config.settings import settings
+from app.file_parser import FileParser
+from app.path_parser import PathParser
 from app.pipeline import Pipeline
 from app.sender import EventSender
-from app.classifier import ProcessClassifier
-from app.path_parser import PathParser
-from app.file_parser import FileParser
 from app.student_parser import StudentParser
-from app.config.settings import settings
+from app.utils.logger import get_logger, setup_logging
+from app.utils.metrics import (
+    active_hosts_update_task,
+    loop_heartbeat_task,
+    update_queue_size,
+)
 
 
 async def main():
@@ -58,6 +62,7 @@ async def main():
     
     # 활성 호스트 업데이트 태스크 시작
     active_hosts_task = asyncio.create_task(active_hosts_update_task())
+    retry_task = asyncio.create_task(sender.run_retry_loop())
 
     try:
         logger.info("파이프라인 시작")
@@ -76,7 +81,7 @@ async def main():
 
                 queue.task_done()
 
-            except Exception as e:
+            except Exception:
                 logger.error("파이프라인 변환 실패", exc_info=True)
 
     except KeyboardInterrupt:
@@ -101,6 +106,14 @@ async def main():
             pass
         except Exception:
             logger.warning("활성 호스트 태스크 정리 중 오류", exc_info=True)
+
+        try:
+            retry_task.cancel()
+            await retry_task
+        except asyncio.CancelledError:
+            pass
+        except Exception:
+            logger.warning("이벤트 재전송 태스크 정리 중 오류", exc_info=True)
         
         if collector:
             collector.stop()

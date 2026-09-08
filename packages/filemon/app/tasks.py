@@ -1,5 +1,4 @@
 import asyncio
-from watchdog.observers import Observer
 from app.debouncer import Debouncer
 from app.pipeline import FilemonPipeline
 from app.utils.logger import get_logger
@@ -9,7 +8,7 @@ logger = get_logger(__name__)
 
 # --- Monitoring Tasks ---
 
-async def monitor_watchdog(observer: Observer):
+async def monitor_watchdog(observer):
     """Watchdog Observer 스레드를 주기적으로 모니터링합니다."""
     logger.info("Watchdog 모니터링 시작", component="watchdog_monitor")
     while True:

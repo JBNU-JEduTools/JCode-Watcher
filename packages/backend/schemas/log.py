@@ -1,18 +1,18 @@
-from pydantic import BaseModel
-from datetime import datetime
+from pydantic import Field
+from schemas.event import EventIdentityCreate
 
-class BuildLogCreate(BaseModel):
-    binary_path: str
-    cmdline: str
-    exit_code: int
-    cwd: str
-    target_path: str
-    timestamp: datetime
 
-class RunLogCreate(BaseModel):
-    cmdline: str
+class BuildLogCreate(EventIdentityCreate):
+    binary_path: str = Field(max_length=4096)
+    cmdline: str = Field(max_length=16384)
     exit_code: int
-    cwd: str
-    target_path: str
-    process_type: str
-    timestamp: datetime
+    cwd: str = Field(max_length=4096)
+    target_path: str = Field(max_length=4096)
+
+
+class RunLogCreate(EventIdentityCreate):
+    cmdline: str = Field(max_length=16384)
+    exit_code: int
+    cwd: str = Field(max_length=4096)
+    target_path: str = Field(max_length=4096)
+    process_type: str = Field(min_length=1, max_length=32)

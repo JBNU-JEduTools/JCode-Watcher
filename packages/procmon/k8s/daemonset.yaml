@@ -12,23 +12,30 @@ spec:
       labels:
         app: watcher-procmon
     spec:
+      serviceAccountName: watcher-course-reader
       hostPID: true  # 호스트 PID 네임스페이스 접근
       containers:
       - name: watcher-procmon
-        image: harbor.jbnu.ac.kr/jdevops/watcher-procmon:latest
+        image: harbor.jedutools.io/jdevops/watcher-procmon:REPLACE_WITH_COMMIT_SHA
         imagePullPolicy: IfNotPresent  # 로컬 이미지 사용
         ports:
         - name: http-metrics
           containerPort: 3000
         env:
-        - name: LOG_LEVEL
-          value: "DEBUG"  # docker-compose와 일치
-        - name: API_SERVER
-          value: "http://watcher-backend-service.watcher.svc.cluster.local:3000"  # settings.py와 일치
         - name: MY_NODE_NAME
           valueFrom:
             fieldRef:
               fieldPath: spec.nodeName
+        - name: LOG_LEVEL
+          value: "INFO"
+        - name: API_SERVER
+          value: "http://watcher-backend-service.watcher.svc.cluster.local:3000"  # settings.py와 일치
+        - name: JCODE_ENVIRONMENT
+          value: "prod"
+        - name: SPOOL_PATH
+          value: "/var/lib/jcode-watcher/spool/event-spool.db"
+        - name: LOG_BACKUP_COUNT
+          value: "5"
         securityContext:
           capabilities:
             drop: ["ALL"]
@@ -45,6 +52,8 @@ spec:
           readOnly: true
         - name: logs
           mountPath: /opt/procmon/logs
+        - name: spool
+          mountPath: /var/lib/jcode-watcher/spool
       imagePullSecrets:
       - name: watcher-harbor-registry-secret
       volumes:
@@ -61,5 +70,10 @@ spec:
           path: /sys/kernel/debug
           type: Directory
       - name: logs
-        persistentVolumeClaim:
-          claimName: watcher-procmon-logs-pvc
+        hostPath:
+          path: /var/lib/jcode-watcher/procmon-logs
+          type: DirectoryOrCreate
+      - name: spool
+        hostPath:
+          path: /var/lib/jcode-watcher/procmon-spool
+          type: DirectoryOrCreate

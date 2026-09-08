@@ -1,90 +1,89 @@
-from typing import Any, Dict, Optional, Callable
+import os
+import threading
 import time
-from functools import wraps
-from sqlmodel import Session
+from collections import OrderedDict
+from typing import Any
 
-class InMemoryCache:
-    """
-    간단한 인메모리 캐싱 구현
-    """
-    def __init__(self):
-        self._cache: Dict[str, Dict[str, Any]] = {}
-    
-    def get(self, key: str) -> Optional[Any]:
-        """
-        캐시에서 값을 가져옵니다.
-        만료된 경우 None을 반환합니다.
-        """
-        if key not in self._cache:
-            # print(f"[Cache Miss] {key}")
-            return None
-        
-        cache_data = self._cache[key]
-        if cache_data["expires_at"] < time.time():
-            # print(f"[Cache Expired] {key}")
-            del self._cache[key]
-            return None
-        
-        print(f"[Cache Hit] {key}")
-        return cache_data["value"]
-    
-    def set(self, key: str, value: Any, ttl: int = 300) -> None:
-        # print(f"[Cache Set] {key} -> {value}")
-        """
-        캐시에 값을 저장합니다.
-        ttl은 초 단위로, 기본값은 5분(300초)입니다.
-        """
-        self._cache[key] = {
-            "value": value,
-            "expires_at": time.time() + ttl
-        }
-    
-    def delete(self, key: str) -> None:
-        """
-        캐시에서 값을 삭제합니다.
-        """
-        if key in self._cache:
-            del self._cache[key]
-    
+
+class BoundedTTLCache:
+    """Thread-safe bounded TTL/LRU cache with explicit prefix invalidation."""
+
+    def __init__(self, max_entries: int = 1_000):
+        if max_entries <= 0:
+            raise ValueError("max_entries must be positive")
+        self.max_entries = max_entries
+        self._cache: OrderedDict[str, tuple[float, Any]] = OrderedDict()
+        self._lock = threading.RLock()
+
+    def get(self, key: str) -> Any | None:
+        now = time.monotonic()
+        with self._lock:
+            item = self._cache.get(key)
+            if item is None:
+                return None
+            expires_at, value = item
+            if expires_at <= now:
+                self._cache.pop(key, None)
+                return None
+            self._cache.move_to_end(key)
+            return value
+
+    def set(self, key: str, value: Any, ttl: int = 60) -> None:
+        if ttl <= 0:
+            return
+        with self._lock:
+            self._purge_expired_locked()
+            self._cache[key] = (time.monotonic() + ttl, value)
+            self._cache.move_to_end(key)
+            while len(self._cache) > self.max_entries:
+                self._cache.popitem(last=False)
+
+    def delete_prefix(self, prefix: str) -> None:
+        with self._lock:
+            for key in [key for key in self._cache if key.startswith(prefix)]:
+                self._cache.pop(key, None)
+
     def clear(self) -> None:
-        """
-        모든 캐시를 삭제합니다.
-        """
-        self._cache.clear()
+        with self._lock:
+            self._cache.clear()
 
-# 전역 캐시 인스턴스
-cache = InMemoryCache()
+    def __len__(self) -> int:
+        with self._lock:
+            self._purge_expired_locked()
+            return len(self._cache)
 
-def cached(ttl: int = 300):
-    """
-    함수 결과를 캐싱하는 데코레이터
-    
-    사용 예:
-    @cached(ttl=600)
-    def expensive_function(param1, param2):
-        # 시간이 오래 걸리는 작업
-        return result
-    """
-    def decorator(func: Callable):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            # 캐시 키 생성 (함수 이름 + 인자)
-            filtered_args = tuple(
-                arg for arg in args if not isinstance(arg, Session)
-            )
-            key = f"{func.__name__}:{str(filtered_args)}:{str(kwargs)}"
-            
-            # 캐시에서 결과 가져오기
-            cached_result = cache.get(key)
-            if cached_result is not None:
-                return cached_result
-            
-            # 캐시에 없으면 함수 실행
-            result = func(*args, **kwargs)
-            
-            # 결과 캐싱
-            cache.set(key, result, ttl)
-            
-            return result
-        return wrapper
-    return decorator
+    def _purge_expired_locked(self) -> None:
+        now = time.monotonic()
+        for key in [key for key, (expires_at, _) in self._cache.items() if expires_at <= now]:
+            self._cache.pop(key, None)
+
+
+cache = BoundedTTLCache(max_entries=int(os.getenv("CACHE_MAX_ENTRIES", "1000")))
+
+
+def log_cache_key(
+    kind: str,
+    class_div: str,
+    hw_name: str,
+    student_id: int,
+    from_time,
+    to_time,
+    limit: int,
+    cursor: str | None,
+) -> str:
+    return ":".join(
+        [
+            kind,
+            class_div,
+            hw_name,
+            str(student_id),
+            str(from_time or ""),
+            str(to_time or ""),
+            str(limit),
+            str(cursor or ""),
+        ]
+    )
+
+
+def invalidate_log_cache(kind: str, class_div: str, hw_name: str, student_id: int) -> None:
+    cache.delete_prefix(f"{kind}:{class_div}:{hw_name}:{student_id}:")

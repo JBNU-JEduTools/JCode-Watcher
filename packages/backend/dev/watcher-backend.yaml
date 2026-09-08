@@ -13,22 +13,42 @@ spec:
       labels:
         app: watcher-backend
     spec:
+      initContainers:
+        - name: migrate
+          image: harbor.jedutools.io/jdevops/watcher-backend:REPLACE_WITH_COMMIT_SHA
+          command: ["alembic", "-c", "alembic.ini", "upgrade", "head"]
+          env:
+            - name: DB_URL
+              valueFrom:
+                secretKeyRef:
+                  name: watcher-postgres-app
+                  key: uri
       containers:
         - name: watcher-backend
-          image: watcher-backend-dev:dev
+          image: harbor.jedutools.io/jdevops/watcher-backend:REPLACE_WITH_COMMIT_SHA
           imagePullPolicy: IfNotPresent 
           env:
             - name: DB_URL
-              value: "sqlite:////app/data/database.db"
+              valueFrom:
+                secretKeyRef:
+                  name: watcher-postgres-app
+                  key: uri
+            - name: AUTO_CREATE_SCHEMA
+              value: "false"
+            - name: DB_POOL_SIZE
+              value: "5"
+            - name: DB_MAX_OVERFLOW
+              value: "5"
           ports:
             - containerPort: 3000
-          volumeMounts:
-            - name: data-storage
-              mountPath: /app/data
-      volumes:
-        - name: data-storage
-          persistentVolumeClaim:
-            claimName: watcher-backend-pvc
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 3000
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
       tolerations:
         - key: "dev-node"
           operator: "Equal"

@@ -2,6 +2,7 @@ from pydantic import BaseModel
 from typing import List, Optional
 from sqlmodel import SQLModel
 from datetime import datetime
+from pydantic import Field
 
 
 class SnapshotAvgResponse(BaseModel):
@@ -42,3 +43,21 @@ class RunLogResponse(BaseModel):
     timestamp: datetime
     file_size: int
 
+
+class DashboardSummaryRequest(BaseModel):
+    student_ids: List[int] = Field(min_length=1, max_length=500)
+
+
+class DashboardStudentSummary(BaseModel):
+    student_id: int
+    build_count: int = 0
+    build_fail_count: int = 0
+    run_count: int = 0
+    total_size_change: int = 0
+    max_single_change: int = 0
+    first_activity: Optional[datetime] = None
+    last_activity: Optional[datetime] = None
+
+
+class DashboardSummaryResponse(BaseModel):
+    students: List[DashboardStudentSummary]

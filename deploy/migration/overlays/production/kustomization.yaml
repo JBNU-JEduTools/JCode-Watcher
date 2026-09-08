@@ -1,0 +1,9 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+namespace: watcher
+images:
+  - name: harbor.jedutools.io/jdevops/watcher-backend
+    newName: harbor.jedutools.io/jdevops/watcher-backend
+    digest: sha256:REPLACE_WITH_VERIFIED_DIGEST

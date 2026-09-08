@@ -12,3 +12,5 @@ __pycache__/
 watcher-backend.tar
 
 README.md
+requirements-test.txt
+tests/

@@ -1,0 +1,100 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: watcher-procmon
+  namespace: watcher
+spec:
+  selector:
+    matchLabels:
+      app: watcher-procmon
+  template:
+    metadata:
+      labels:
+        app: watcher-procmon
+    spec:
+      serviceAccountName: watcher-course-reader
+      hostPID: true  # 호스트 PID 네임스페이스 접근
+      containers:
+      - name: watcher-procmon
+        image: harbor.jedutools.io/jdevops/watcher-procmon:REPLACE_WITH_COMMIT_SHA
+        imagePullPolicy: IfNotPresent  # 로컬 이미지 사용
+        ports:
+        - name: http-metrics
+          containerPort: 3000
+        readinessProbe:
+          httpGet:
+            path: /metrics
+            port: http-metrics
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /metrics
+            port: http-metrics
+          initialDelaySeconds: 20
+          periodSeconds: 20
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
+        env:
+        - name: MY_NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: LOG_LEVEL
+          value: "INFO"
+        - name: API_SERVER
+          value: "http://watcher-backend-service:3000"
+        - name: METRICS_PORT
+          value: "3000"
+        - name: JCODE_ENVIRONMENT
+          value: "prod"
+        - name: SPOOL_PATH
+          value: "/var/lib/jcode-watcher/spool/event-spool.db"
+        - name: LOG_BACKUP_COUNT
+          value: "5"
+        securityContext:
+          capabilities:
+            drop: ["ALL"]
+            add: ["SYS_ADMIN"]  # docker-compose와 일치
+        volumeMounts:
+        - name: kernel-modules
+          mountPath: /lib/modules
+          readOnly: true
+        - name: kernel-src
+          mountPath: /usr/src
+          readOnly: true
+        - name: kernel-debug
+          mountPath: /sys/kernel/debug
+          readOnly: true
+        - name: logs
+          mountPath: /opt/procmon/logs
+        - name: spool
+          mountPath: /var/lib/jcode-watcher/spool
+      imagePullSecrets:
+      - name: watcher-harbor-registry-secret
+      volumes:
+      - name: kernel-modules
+        hostPath:
+          path: /lib/modules
+          type: Directory
+      - name: kernel-src
+        hostPath:
+          path: /usr/src
+          type: Directory
+      - name: kernel-debug
+        hostPath:
+          path: /sys/kernel/debug
+          type: Directory
+      - name: logs
+        hostPath:
+          path: /var/lib/jcode-watcher/procmon-logs
+          type: DirectoryOrCreate
+      - name: spool
+        hostPath:
+          path: /var/lib/jcode-watcher/procmon-spool
+          type: DirectoryOrCreate

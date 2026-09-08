@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: watcher-backend
+  namespace: watcher  # watcher 네임스페이스 추가
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: watcher-backend
+  template:
+    metadata:
+      labels:
+        app: watcher-backend
+    spec:
+      imagePullSecrets:
+        - name: watcher-harbor-registry-secret
+      containers:
+        - name: watcher-backend
+          image: harbor.jedutools.io/jdevops/watcher-backend:REPLACE_WITH_COMMIT_SHA
+          imagePullPolicy: IfNotPresent 
+          env:
+            - name: DB_URL
+              valueFrom:
+                secretKeyRef:
+                  name: watcher-postgres-app
+                  key: uri
+            - name: AUTO_CREATE_SCHEMA
+              value: "false"
+            - name: DB_POOL_SIZE
+              value: "5"
+            - name: DB_MAX_OVERFLOW
+              value: "5"
+          ports:
+            - containerPort: 3000
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 3000
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: watcher-backend-service
+  namespace: watcher  # watcher 네임스페이스 추가
+  labels:
+    app: watcher-backend
+spec:
+  type: ClusterIP  # 내부 네트워크에서만 접근 가능
+  selector:
+    app: watcher-backend
+  ports:
+    - name: watcher-backend-port
+      protocol: TCP
+      port: 3000
+      targetPort: 3000
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: watcher-backend-monitor
+  namespace: watcher
+  labels:
+    app: watcher-backend
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: watcher-backend
+  namespaceSelector:
+    matchNames:
+      - watcher
+  endpoints:
+    - port: watcher-backend-port
+      path: /metrics
+      interval: 30s

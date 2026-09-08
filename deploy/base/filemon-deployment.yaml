@@ -1,0 +1,97 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: watcher-filemon
+  namespace: watcher
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: watcher-filemon
+  template:
+    metadata:
+      labels:
+        app: watcher-filemon
+    spec:
+      serviceAccountName: watcher-course-reader
+      containers:
+      - name: watcher-filemon
+        image: harbor.jedutools.io/jdevops/watcher-filemon:REPLACE_WITH_COMMIT_SHA
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: http-metrics
+          containerPort: 3000
+        - name: http-ready
+          containerPort: 3001
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: http-ready
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /metrics
+            port: http-metrics
+          initialDelaySeconds: 20
+          periodSeconds: 20
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
+        volumeMounts:
+        - name: jcode-vol
+          mountPath: /watcher/codes
+          subPath: workspace
+          readOnly: true
+        - name: snapshot-volume
+          mountPath: /watcher/snapshots
+        - name: logs-volume
+          mountPath: /opt/filemon/logs
+        - name: spool-volume
+          mountPath: /var/lib/jcode-watcher/spool
+        env:
+        - name: MY_NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: LOG_LEVEL
+          value: "INFO"
+        - name: API_SERVER
+          value: "http://watcher-backend-service:3000"
+        - name: METRICS_PORT
+          value: "3000"
+        - name: JCODE_ENVIRONMENT
+          value: "prod"
+        - name: FILE_WATCH_MODE
+          value: "polling"
+        - name: FILE_POLL_INTERVAL_SECONDS
+          value: "5"
+        - name: SPOOL_PATH
+          value: "/var/lib/jcode-watcher/spool/event-spool.db"
+        - name: READINESS_PORT
+          value: "3001"
+        - name: LOG_BACKUP_COUNT
+          value: "5"
+      imagePullSecrets:
+      - name: watcher-harbor-registry-secret
+      volumes:
+      - name: jcode-vol
+        persistentVolumeClaim:
+          claimName: jcode-vol-pvc
+      - name: snapshot-volume
+        persistentVolumeClaim:
+          claimName: watcher-filemon-pvc
+      - name: logs-volume
+        hostPath:
+          path: /var/lib/jcode-watcher/filemon-logs
+          type: DirectoryOrCreate
+      - name: spool-volume
+        hostPath:
+          path: /var/lib/jcode-watcher/filemon-spool
+          type: DirectoryOrCreate

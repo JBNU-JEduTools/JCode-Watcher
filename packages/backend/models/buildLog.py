@@ -1,15 +1,24 @@
-from sqlmodel import Field, SQLModel
-from typing import Optional
-from datetime import datetime
+from models.common import EventIdentity
+from sqlalchemy import Column, Index, Integer, Text, desc
+from sqlmodel import Field
 
-class BuildLog(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
-    class_div: str
-    hw_name: str
-    student_id: int
-    cwd: str
-    binary_path: str
-    cmdline: str
-    exit_code: int
-    target_path: str
-    timestamp: datetime
+
+class BuildLog(EventIdentity, table=True):
+    __tablename__ = "build_event"
+    __table_args__ = (
+        Index(
+            "ix_build_assignment_student_time",
+            "assignment_id",
+            "student_key",
+            desc("occurred_at"),
+            desc("id"),
+        ),
+        Index(
+            "ix_build_assignment_time", "assignment_id", desc("occurred_at"), desc("id")
+        ),
+    )
+    cwd: str = Field(sa_column=Column(Text, nullable=False))
+    binary_path: str = Field(sa_column=Column(Text, nullable=False))
+    cmdline: str = Field(sa_column=Column(Text, nullable=False))
+    exit_code: int = Field(sa_column=Column(Integer, nullable=False))
+    target_path: str = Field(sa_column=Column(Text, nullable=False))
